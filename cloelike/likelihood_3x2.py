@@ -1,4 +1,5 @@
 import numpy as np
+from copy import deepcopy
 
 from cloelib.cosmology.camb_cosmology import CAMBBackground, CAMBLinearPerturbations, CAMBNonLinearPerturbations
 from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuLinearPerturbations, HMemuNonLinearPerturbations
@@ -8,11 +9,11 @@ from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 
 class EuclidLikelihood3x2:
 
-    def __init__(self,data,cov,mixmat,settings):
+    def __init__(self,data,settings):
 
-        self.data = data
-        self.cov = cov
-        self.mixmat = mixmat
+        self.data = deepcopy(data)
+        self.cov = self.data['cov']
+        self.mixmat = self.data['mixmat']
         self.settings = settings
         self.scale_cuts = settings['scale_cuts']
         self.rebin = False
@@ -28,6 +29,7 @@ class EuclidLikelihood3x2:
             self.data['ells_unbin'] = self.data['ells']
 
             self.bin_data(data['cells'],data['ells'],settings['n_ell_bins'])
+            self.bin_mixmat()
 
         # We then flatten the data vector and mask it according to scale cuts
         self.flatten_dv_and_mask()
@@ -58,6 +60,13 @@ class EuclidLikelihood3x2:
         # Re-write data with re-binned case (un-binned are saved elsewhere)
         self.data['ells']=np.asarray(ells_ave)
         self.data['cells']=cells_data_ave
+
+    def bin_mixmat(self):
+        mixmat_binned={}
+        for key in self.mixmat.keys():
+            mixmat_binned[key] = np.tensordot(self.weight_mat,self.mixmat[key],axes=([1],[0]))
+
+        self.mixmat = mixmat_binned
 
     def flatten_dv_and_mask(self):
 
@@ -105,9 +114,9 @@ class EuclidLikelihood3x2:
         # Build theory vector
         self.get_theory(par_dict)
 
-        # Re-bin it if necessary
-        if self.rebin:
-            self.bin_theory()
+        # # Re-bin it if necessary
+        # if self.rebin:
+        #     self.bin_theory()
 
         # Flatten it and mask it
         self.flatten_thv_and_mask()
@@ -154,10 +163,10 @@ class EuclidLikelihood3x2:
 
         self.cell_all_th = self.cell_WL_th | self.cell_GGL_th | self.cell_GG_th
 
-    def bin_theory(self):
-
-        for key in self.cell_all_th.keys():
-            self.cell_all_th[key] = (self.weight_mat@(self.cell_all_th[key].T)).T
+    # def bin_theory(self):
+    #
+    #     for key in self.cell_all_th.keys():
+    #         self.cell_all_th[key] = (self.weight_mat@(self.cell_all_th[key].T)).T
 
     def flatten_thv_and_mask(self):
 
