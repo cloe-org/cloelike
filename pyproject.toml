@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "cloelike"
+version = "0.1"
+description = "cloelike is the likelihood module for Euclid primary observables for the CLOE project (Cosmology Likelihood for Observables in Euclid)"
+authors = [
+    "M. Bonici <marco.bonici@uwaterloo.ca>",
+    "G. Cañas-Herrera <guadalupe.canasherrera@esa.int>",
+    "P. Carrilho <pedro.carrilho@ed.ac.uk>",
+    "S. Casas <casas@physik.rwth-aachen.de>",
+    "C. Moretti <cmoretti@sissa.it>",
+    "A. Pezzotta <andrea.pezzotta@inaf.it>"
+]
+license = "LGPL-3.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
