@@ -1,20 +1,24 @@
 import numpy as np
-from cloelib.cosmology.cosmology import Background, Peturbations
+from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
+from dataclasses import replace
+from copy import deepcopy
 
 
 class EuclidLikelihood3x2ptCls:
 
-    def __init__(self, data: dict, settings: dict, Background: type, Perturbations: type):
+    def __init__(self, data: dict, settings: dict,
+                 Background: type, LinPerturbations: type, NonLinPerturbations: type):
         self.data = data
         self.settings = settings
         self.Background = Background
-        self.Perturbations = Perturbations
+        self.LinPerturbations = LinPerturbations
+        self.NonLinPerturbations = NonLinPerturbations
         self.scale_cuts = settings['scale_cuts']
         self.rebin = False
         self.cov = data['cov']
-        self.mixmat = data['mixmat']
+        self.mixmat = deepcopy(data['mixmat'])
 
         self._prepare()
 
@@ -35,18 +39,24 @@ class EuclidLikelihood3x2ptCls:
         self.weight_mat = np.asarray(mask_bins, dtype=float)
         self.weight_mat /= np.sum(self.weight_mat, axis=1)[:, None]
 
-        cells_ave = {k: (self.weight_mat @ cells_data[k]).T for k in cells_data}
+        cells_ave = {k: (cells_data[k] @ self.weight_mat.T) for k in cells_data.keys()}
         self.data['ells'] = np.array([np.mean(ells[mb]) for mb in mask_bins])
         self.data['cells'] = cells_ave
 
     def _bin_mixmat(self):
-        self.mixmat = {k: np.tensordot(self.weight_mat, self.mixmat[k], axes=([1], [0]))
-                       for k in self.mixmat}
+        # self.mixmat = {k: np.tensordot(self.weight_mat, self.mixmat[k], axes=([1], [-2]))
+        #                for k in self.mixmat}
+        for k in self.mixmat.keys():
+            new_array = np.tensordot(self.weight_mat, self.mixmat[k], axes=([1], [-2]))
+            if k[:2]==('SHE','SHE'):
+                new_array = np.transpose(new_array,axes=(1,0,2))
+
+            self.mixmat[k] = replace(self.mixmat[k], array=new_array)
 
     def _flatten_data_vector_and_mask(self):
         self.WL_keys, self.GG_keys, self.GGL_keys = [], [], []
-        for i in range(6):
-            for j in range(6):
+        for i in range(1,7):
+            for j in range(1,7):
                 if j >= i:
                     self.WL_keys.append(('SHE', 'SHE', i, j))
                     self.GG_keys.append(('POS', 'POS', i, j))
@@ -77,20 +87,34 @@ class EuclidLikelihood3x2ptCls:
         zs = self.data['z_arr']
         background = self.Background(**{
             'H0': par_dict['H0'], 'Omega_cdm0': par_dict['Omega_cdm0'], 'Omega_b0': par_dict['Omega_b0'],
-            'w0': -1, 'wa': 0, 'Omega_k0': 0.0, 'ns': par_dict['ns'], 'As': par_dict['As'], 'gamma_MG': 0.545
+            'w0': -1, 'wa': 0, 'Omega_k0': 0.0, 'ns': par_dict['ns'], 'As': par_dict['As'], 'mnu': par_dict['mnu'], 'gamma_MG': 0.545
         })
-        lp = self.Perturbations(background, zs)
-        nlp = self.Perturbations(background, lp, zs, log10TAGN=7.8)
+        lp = self.LinPerturbations(background, zs)
+        nlp = self.NonLinPerturbations(background, lp, zs, log10TAGN=7.8)
 
-        pos = PositionsTracer(nlp, self.data['dndz_pos'], zs)
+        bias_keys = ['b1_photo_poly0', 'b1_photo_poly1', 'b1_photo_poly2','b1_photo_poly3']
+
+        pos = PositionsTracer(nlp, self.data['dndz_pos'], zs,
+                              galaxy_bias_model='poly',
+                              nuisance_params= {key: par_dict[key] for key in bias_keys})
         she = ShearTracer(nlp, self.data['dndz_she'], zs,
                           nuisance_params={'AIA': 1.72, 'CIA': 0.0134, 'EtaIA': -0.41})
 
-        self.cell_all_th = {
-            **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
-            **AngularTwoPoint(she, pos).get_pseudo_Cl(0, nlp.k, self.mixmat),
-            **AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
-        }
+        # self.cell_all_th = {
+        #     **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
+        #     **AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
+        #     **AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
+        # }
+
+        twopoint_pospos = AngularTwoPoint(pos, pos)
+        twopoint_shepos = AngularTwoPoint(pos, she)
+        twopoint_sheshe = AngularTwoPoint(she, she)
+
+        self.cell_GG_th = twopoint_pospos.get_pseudo_Cl(0, nlp.k,self.mixmat)
+        self.cell_GGL_th = twopoint_shepos.get_pseudo_Cl(0, nlp.k,self.mixmat)
+        self.cell_WL_th = twopoint_sheshe.get_pseudo_Cl(0, nlp.k,self.mixmat)
+
+        self.cell_all_th = self.cell_WL_th | self.cell_GGL_th | self.cell_GG_th
 
     def flatten_theory_vector_and_mask(self):
         self.thv_3x2 = np.concatenate([
@@ -106,4 +130,3 @@ class EuclidLikelihood3x2ptCls:
         chi2 = np.dot(np.dot(self.thv_3x2_masked - self.dv_3x2_masked, self.inv_cov),
                       self.thv_3x2_masked - self.dv_3x2_masked)
         return -0.5 * chi2
-
