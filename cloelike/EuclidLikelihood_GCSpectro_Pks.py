@@ -65,7 +65,12 @@ class EuclidLikelihoodGCspectroPks:
         self.inverse_masked_covariance_matrix = np.linalg.inv(self.masked_covariance_matrix)
 
     def get_theory_vector(self, parameters: dict) -> np.ndarray:
-        background = self.Background(**parameters)
+        background = self.Background(
+            H0=parameters['H0'], Omega_cdm0=parameters['Omega_cdm0'],
+            Omega_b0=parameters['Omega_b0'], Omega_k0=parameters['Omega_k0'],
+            w0=parameters['w0'], wa=parameters['wa'], ns=parameters['ns'],
+            As=parameters['As'], gamma_MG=parameters['gamma_MG'],
+            mnu=parameters['mnu'])
         theory_vec = []
 
         for i, z in enumerate(self.redshifts):
