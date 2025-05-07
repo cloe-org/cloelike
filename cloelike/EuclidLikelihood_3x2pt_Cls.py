@@ -2,6 +2,7 @@ import numpy as np
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
+from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
 from dataclasses import replace
 from copy import deepcopy
 
@@ -14,7 +15,10 @@ class EuclidLikelihood3x2ptCls:
         self.settings = settings
         self.Background = Background
         self.LinPerturbations = LinPerturbations
-        self.NonLinPerturbations = NonLinPerturbations
+        if NonLinPerturbations == HMemuNonLinearPerturbations:
+            self.NonLinPerturbations = NonLinPerturbations
+        else:
+            raise TypeError("Currenty, this only works for the HMcode emulator, so NonLinPerturbations must be of type HMemuNonLinearPerturbations")
         self.scale_cuts = settings['scale_cuts']
         self.rebin = False
         self.cov = data['cov']
@@ -87,10 +91,10 @@ class EuclidLikelihood3x2ptCls:
         zs = self.data['z_arr']
         background = self.Background(**{
             'H0': par_dict['H0'], 'Omega_cdm0': par_dict['Omega_cdm0'], 'Omega_b0': par_dict['Omega_b0'],
-            'w0': -1, 'wa': 0, 'Omega_k0': 0.0, 'ns': par_dict['ns'], 'As': par_dict['As'], 'mnu': par_dict['mnu'], 'gamma_MG': 0.545
+            'w0': par_dict['w0'], 'wa': par_dict['wa'], 'Omega_k0': par_dict['Omega_k0'], 'ns': par_dict['ns'], 'As': par_dict['As'], 'mnu': par_dict['mnu'], 'gamma_MG': 0.545
         })
         lp = self.LinPerturbations(background, zs)
-        nlp = self.NonLinPerturbations(background, lp, zs, log10TAGN=7.8)
+        nlp = self.NonLinPerturbations(background, lp, zs, log10TAGN=par_dict['log10TAGN'])
 
         bias_keys = ['b1_photo_poly0', 'b1_photo_poly1', 'b1_photo_poly2','b1_photo_poly3']
 
@@ -98,23 +102,13 @@ class EuclidLikelihood3x2ptCls:
                               galaxy_bias_model='poly',
                               nuisance_params= {key: par_dict[key] for key in bias_keys})
         she = ShearTracer(nlp, self.data['dndz_she'], zs,
-                          nuisance_params={'AIA': 1.72, 'CIA': 0.0134, 'EtaIA': -0.41})
+                          nuisance_params={'AIA': par_dict['AIA'], 'CIA': 0.0134, 'EtaIA':par_dict['EtaIA']})
 
-        # self.cell_all_th = {
-        #     **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
-        #     **AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
-        #     **AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
-        # }
-
-        twopoint_pospos = AngularTwoPoint(pos, pos)
-        twopoint_shepos = AngularTwoPoint(pos, she)
-        twopoint_sheshe = AngularTwoPoint(she, she)
-
-        self.cell_GG_th = twopoint_pospos.get_pseudo_Cl(0, nlp.k,self.mixmat)
-        self.cell_GGL_th = twopoint_shepos.get_pseudo_Cl(0, nlp.k,self.mixmat)
-        self.cell_WL_th = twopoint_sheshe.get_pseudo_Cl(0, nlp.k,self.mixmat)
-
-        self.cell_all_th = self.cell_WL_th | self.cell_GGL_th | self.cell_GG_th
+        self.cell_all_th = {
+            **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
+            **AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
+            **AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
+        }
 
     def flatten_theory_vector_and_mask(self):
         self.thv_3x2 = np.concatenate([
