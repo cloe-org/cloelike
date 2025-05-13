@@ -23,6 +23,19 @@ class EuclidLikelihood3x2ptCls:
         self.rebin = False
         self.cov = data['cov']
         self.mixmat = deepcopy(data['mixmat'])
+        self.n_pos_bins = self.data['dndz_pos'].shape[0]
+        self.n_she_bins = self.data['dndz_she'].shape[0]
+
+        #Nuisance parameter keys
+        bias_keys = ['b1_photo_poly0', 'b1_photo_poly1', 'b1_photo_poly2','b1_photo_poly3']
+        dz_pos_keys = ['dz_pos_%d'%i for i in range(1,self.n_pos_bins+1)]
+        mag_bias_keys = ['magnification_bias_%d'%i for i in range(1,self.n_pos_bins+1)]
+        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys
+
+        dz_she_keys = ['dz_shear_%d'%i for i in range(1,self.n_she_bins+1)]
+        mul_bias_keys = ['multiplicative_bias_%d'%i for i in range(1,self.n_she_bins+1)]
+        IA_keys = ['AIA', 'EtaIA']
+        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys
 
         self._prepare()
 
@@ -59,12 +72,17 @@ class EuclidLikelihood3x2ptCls:
 
     def _flatten_data_vector_and_mask(self):
         self.WL_keys, self.GG_keys, self.GGL_keys = [], [], []
-        for i in range(1,7):
-            for j in range(1,7):
-                if j >= i:
-                    self.WL_keys.append(('SHE', 'SHE', i, j))
-                    self.GG_keys.append(('POS', 'POS', i, j))
+        for i in range(1,self.n_pos_bins+1):
+            for j in range(i,self.n_pos_bins+1):
+                self.GG_keys.append(('POS', 'POS', i, j))
+
+        for i in range(1,self.n_pos_bins+1):
+            for j in range(1,self.n_she_bins+1):
                 self.GGL_keys.append(('POS', 'SHE', i, j))
+
+        for i in range(1,self.n_she_bins+1):
+            for j in range(i,self.n_she_bins+1):
+                self.WL_keys.append(('SHE', 'SHE', i, j))
 
         self.dv_3x2 = np.concatenate([
             np.transpose([self.data['cells'][k][:2] for k in self.WL_keys], axes=(1, 0, 2)).flatten(),
@@ -96,13 +114,11 @@ class EuclidLikelihood3x2ptCls:
         lp = self.LinPerturbations(background, zs)
         nlp = self.NonLinPerturbations(background, lp, zs, log10TAGN=par_dict['log10TAGN'])
 
-        bias_keys = ['b1_photo_poly0', 'b1_photo_poly1', 'b1_photo_poly2','b1_photo_poly3']
-
         pos = PositionsTracer(nlp, self.data['dndz_pos'], zs,
                               galaxy_bias_model='poly',
-                              nuisance_params= {key: par_dict[key] for key in bias_keys})
+                              nuisance_params={key: par_dict[key] for key in self.full_pos_keys})
         she = ShearTracer(nlp, self.data['dndz_she'], zs,
-                          nuisance_params={'AIA': par_dict['AIA'], 'CIA': 0.0134, 'EtaIA':par_dict['EtaIA']})
+                          nuisance_params={'CIA': 0.0134}|{key: par_dict[key] for key in self.full_she_keys})
 
         self.cell_all_th = {
             **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
