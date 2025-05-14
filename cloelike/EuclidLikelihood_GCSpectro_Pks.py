@@ -202,6 +202,12 @@ class EuclidLikelihoodGCspectroPks:
         self.masked_theory_vector = self.theory_vector[self.masking_vector]
 
     def loglike(self, parameters: dict):
+        r""" Log-likelihood of GCspectro probe
+        Parameters
+        ----------
+        parameters: dict
+            Ensemble of cosmological and nuisance parameters
+        """
         self.theory_vector = self.get_theory_vector(parameters)
         self._mask_theory_vector()
         diff = self.masked_theory_vector - self.masked_data_vector
