@@ -1,8 +1,7 @@
 import numpy as np
-import copy
 
+from copy import deepcopy
 from scipy.linalg import block_diag
-
 from typing import Optional
 
 from cloelib.cosmology.cosmology import Background
@@ -10,7 +9,7 @@ from cloelib.observables.spectro import SpectroPower
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 
 
-class EuclidLikelihoodGCspectroPks:
+class EuclidLikelihood_GCspectro_Pls:
 
     def __init__(self, data: dict, settings: dict,
                  Background: type, SpectroPower: type,
@@ -313,7 +312,7 @@ class EuclidLikelihoodGCspectroPks:
             Ensemble of cosmological and nuisance parameters
         """
         # Create copy of dictionary, to avoid modifying the external one
-        parameters = copy.deepcopy(parameters)
+        parameters = deepcopy(parameters)
         # Setting to 0 the parameters to be analytically marginalised
         for z in self.AM_params.keys():
             for p in self.AM_params[z]:

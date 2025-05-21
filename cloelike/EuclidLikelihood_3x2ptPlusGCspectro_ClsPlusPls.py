@@ -5,14 +5,15 @@ from scipy.linalg import block_diag
 from dataclasses import replace
 
 from cloelib.cosmology.cosmology import Background, Perturbations
-from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
+from cloelib.cosmology.HMcode2020Emu_cosmology \
+    import HMemuNonLinearPerturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.observables.spectro import SpectroPower
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 
 
-class EuclidLikelihood3x2ptGCspectro:
+class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
 
     def __init__(self, data: dict, settings: dict,
                  Background: type, LinPerturbations: type,

@@ -10,7 +10,7 @@ from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 
 
-class EuclidLikelihood_3x2pt_Cls:
+class EuclidLikelihood_2x2pt_Cls:
 
     def __init__(self, data: dict, settings: dict,
                  Background: type, LinPerturbations: type,
@@ -23,11 +23,11 @@ class EuclidLikelihood_3x2pt_Cls:
         settings: dict
             Settings dictionary
         Background: type
-            Protocol-consistent Background class
+            Protocol-consistent Background class type
         LinPerturbations: type
-            Protocol-consistent Perturbations class
+            Protocol-consistent Perturbations class type
         NonLinPerturbations: type
-            Protocol-consistent Perturbation class
+            Protocol-consistent Perturbation class type
         """
         self.data = data
         self.settings = settings
@@ -39,7 +39,7 @@ class EuclidLikelihood_3x2pt_Cls:
         else:
             raise TypeError("Currenty, this only works for the HMcode "
                             "emulator, so NonLinPerturbations must be of "
-                            "type 'HMemuNonLinearPerturbations'")
+                            "type HMemuNonLinearPerturbations")
 
         self.scale_cuts = settings['scale_cuts']
 
@@ -55,22 +55,20 @@ class EuclidLikelihood_3x2pt_Cls:
         self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys
 
         self.n_she_bins = self.data['dndz_she'].shape[0]
+        self.n_she_bins = self.data['dndz_she'].shape[0]
         IA_keys = ['AIA', 'EtaIA']
         mul_bias_keys = ['multiplicative_bias_%d'%i
                          for i in range(1,self.n_she_bins+1)]
         dz_she_keys = [f'dz_shear_{i}' for i in range(1, self.n_she_bins + 1)]
         self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys
 
-        self.WL_keys, self.GG_keys, self.GGL_keys = [], [], []
+        self.GG_keys, self.GGL_keys = [], []
         for i in range(1,self.n_pos_bins+1):
             for j in range(i,self.n_pos_bins+1):
                 self.GG_keys.append(('POS', 'POS', i, j))
         for i in range(1,self.n_pos_bins+1):
             for j in range(1,self.n_she_bins+1):
                 self.GGL_keys.append(('POS', 'SHE', i, j))
-        for i in range(1,self.n_she_bins+1):
-            for j in range(i,self.n_she_bins+1):
-                self.WL_keys.append(('SHE', 'SHE', i, j))
 
         self._prepare()
 
@@ -90,7 +88,7 @@ class EuclidLikelihood_3x2pt_Cls:
         self._mask_covariance_and_invert()
 
     def _bin_data(self, cells_data, ells, n_bins):
-        r"""Rebin 3x2pt photometric data
+        r"""Rebin 2x2pt photometric data
         Parameters
         ----------
         Returns
@@ -106,7 +104,7 @@ class EuclidLikelihood_3x2pt_Cls:
         self.data['cells'] = cells_ave
 
     def _bin_mixmat(self):
-        r"""Rebin 3x2pt mixing matrix
+        r"""Rebin 2x2pt mixing matrix
         """
         # self.mixmat = {k: np.tensordot(self.weight_mat, self.mixmat[k], axes=([1], [-2]))
         #                for k in self.mixmat}
@@ -136,19 +134,12 @@ class EuclidLikelihood_3x2pt_Cls:
         r""" Arranges data vectors into flattened vectors and mask them
         """
         self.data_vector = np.concatenate([
-            np.transpose([self.data['cells'][key][:2]
-                          for key in self.WL_keys], axes=(1, 0, 2)).flatten(),
             np.array([self.data['cells'][key][:1]
                       for key in self.GGL_keys]).flatten(),
             np.array([self.data['cells'][key]
                       for key in self.GG_keys]).flatten()])
 
         self.masking_vector = np.concatenate([
-            np.transpose([[
-                self._masking(self.data['ells'],
-                              self.scale_cuts[key][i])
-                for i in [0, 1]] for key in self.WL_keys],
-            axes=(1, 0, 2)).flatten(),
             np.transpose([
                 self._masking(self.data['ells'], self.scale_cuts[key])
                 for key in self.GGL_keys]).flatten(),
@@ -166,7 +157,7 @@ class EuclidLikelihood_3x2pt_Cls:
         self.inverse_masked_covariance_matrix = np.linalg.inv(
             self.covariance_matrix[self.masking_vector][:, self.masking_vector])
 
-    def get_theory_vector(self, parameters):
+    def get_theory_vector(self, parameters: dict):
         r""" Generate theory vectors based on specified parameters
         Parameters
         ----------
@@ -198,14 +189,11 @@ class EuclidLikelihood_3x2pt_Cls:
                              for key in self.full_she_keys} | {'CIA': 0.0134})
 
         cell_all_th = {
-            **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
             **AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
             **AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat),
             }
 
         theory_vector = np.concatenate([
-            np.transpose([cell_all_th[key][:2] for key in self.WL_keys],
-                         axes=(1, 0, 2)).flatten(),
             np.array([cell_all_th[key] for key in self.GGL_keys]).flatten(),
             np.array([cell_all_th[key] for key in self.GG_keys]).flatten()])
 
@@ -217,7 +205,7 @@ class EuclidLikelihood_3x2pt_Cls:
         self.masked_theory_vector = self.theory_vector[self.masking_vector]
 
     def loglike(self, parameters: dict):
-        r""" Log-likelihood of 3x2pt probe
+        r""" Log-likelihood of 2x2pt probe
         Parameters
         ----------
         parameters: dict

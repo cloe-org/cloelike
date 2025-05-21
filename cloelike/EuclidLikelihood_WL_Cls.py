@@ -1,13 +1,16 @@
 import numpy as np
+
+from copy import deepcopy
+from dataclasses import replace
+
 from cloelib.cosmology.cosmology import Background, Perturbations
+from cloelib.cosmology.HMcode2020Emu_cosmology \
+    import HMemuNonLinearPerturbations
 from cloelib.observables.photo import ShearTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
-from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
-from dataclasses import replace
-from copy import deepcopy
 
 
-class EuclidLikelihoodWLCls:
+class EuclidLikelihood_WL_Cls:
 
     def __init__(self, data: dict, settings: dict,
                  Background: type, LinPerturbations: type,
@@ -20,11 +23,11 @@ class EuclidLikelihoodWLCls:
         settings: dict
             Settings dictionary
         Background: type
-            Protocol-consistent Background class
+            Protocol-consistent Background class type
         LinPerturbations: type
-            Protocol-consistent Perturbations class
+            Protocol-consistent Perturbations class type
         NonLinPerturbations: type
-            Protocol-consistent Perturbation class
+            Protocol-consistent Perturbation class type
         """
         self.data = data
         self.settings = settings
@@ -186,6 +189,10 @@ class EuclidLikelihoodWLCls:
         ----------
         parameters: dict
             Ensemble of cosmological and nuisance parameters
+        Returns
+        -------
+        loglike: float
+            Log-likelihood
         """
         self.theory_vector = self.get_theory_vector(parameters)
         self._mask_theory_vector()
