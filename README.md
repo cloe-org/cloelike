@@ -1,8 +1,8 @@
 # cloelike – The likelihood module for the Cosmology Likelihood for Observables in Euclid project
 
-🚀 **cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`
+**cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`
 
-🛠️ **Work in Progress** – We welcome feedback from the **Euclid community** and beyond to refine and improve this library!  
+We welcome feedback from the **Euclid community** and beyond to refine and improve this module!  
 
 ---
 
@@ -19,6 +19,7 @@
 ## ✨ Features  
 
 🔹 **Intuitive & User-Friendly** – General description of the likelihood options by classes
+🔹 **loglike calculation for Euclid primary probes** – currently supporting 3x2pt and spectroscopic galaxy clustering full-shape
 
 ---
 
@@ -28,6 +29,20 @@ To install `cloelike` source code, clone the repository and install it via `pip`
 ```sh
 pip install .
 ```
+
+To work with the latest stable release of the code, move to the latest tag by typing: 
+ ```sh
+ git checkout name-latest-release
+ ```
+ with name-latest-release the latest name that appears in "Releases".
+
+---
+
+## 📂 Dependency: `cloelib`
+
+`cloelike` depends on the [`cloelib`](https://github.com/cloe-org/cloelib) package (private for now).
+
+For the time being, please install `cloelib` manually by following the installation instructions provided in its [GitHub repository](https://github.com/cloe-org/cloelib).
 
 ---
 
