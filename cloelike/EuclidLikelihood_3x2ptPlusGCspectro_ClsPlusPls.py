@@ -56,12 +56,6 @@ class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
         self.zs = data['3x2pt']['z_arr']
         self.mixmat = {}
         self.mixmat['3x2pt'] = deepcopy(data['3x2pt']['mixmat'])
-        self.mixmat['GCspectro'] = (
-            {z: data['GCspectro'][z]['mixing_matrix']
-             for z in self.redshifts}
-            if all('mixing_matrix' in data['GCspectro'][z]
-                   for z in self.redshifts)
-            else None)
 
         self.n_pos_bins = self.data['3x2pt']['dndz_pos'].shape[0]
         bias_keys = [f'b1_photo_poly{i}' for i in range(4)]
@@ -94,6 +88,13 @@ class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
         self.ells = [0, 2, 4]
         self.redshifts = list(data['GCspectro'].keys())
         self.nbar = [data['GCspectro'][z]['nbar'] for z in self.redshifts]
+
+        self.mixmat['GCspectro'] = (
+            {z: data['GCspectro'][z]['mixing_matrix']
+             for z in self.redshifts}
+            if all('mixing_matrix' in data['GCspectro'][z]
+                   for z in self.redshifts)
+            else None)
 
         params_fid = data['fiducial_cosmology']
         self.background_fiducial = Background(**params_fid)
