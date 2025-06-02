@@ -250,14 +250,14 @@ class EuclidLikelihood_GCspectro_Pls:
         for i,z in enumerate(self.redshifts):
             RSD_parameters = {key: parameters[key][i]
                               for key in self.RSD_parameter_names}
-            spectro_power = self.SpectroPower(
+            power = self.SpectroPower(
                 background=background,
                 RSD_parameters=RSD_parameters,
                 redshift=float(z))
             nois_syst_parameters = {key: parameters[key][i]
                                     for key in self.noise_syst_parameter_names}
             obs = LegendreMultipoles(
-                spectro_power=spectro_power,
+                spectro_power=power,
                 background_fiducial=self.background_fiducial,
                 parameters=nois_syst_parameters,
                 nbar=self.nbar[i])
