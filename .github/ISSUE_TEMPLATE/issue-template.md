@@ -1,6 +1,6 @@
 ---
 name: Issue template
-about: General template for cloelib issues
+about: General template for cloelike issues
 title: ''
 labels: ''
 assignees: ''
