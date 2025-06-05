@@ -7,8 +7,7 @@ from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 class EuclidLikelihood_BAO:
 
     def __init__(self, data: dict,
-                 Background: type,
-                 BaryonAcousticOscillations: type):
+                 Background: type):
         r"""Class constructor
 
         Parameters
@@ -27,6 +26,8 @@ class EuclidLikelihood_BAO:
         self.Background = Background
         self.BaryonAcousticOscillations = BaryonAcousticOscillations
 
+        # All data files hav a fiducal_cosmology entry, we take the
+        # first one as they are supposed to be the same
         params_fid = data['BAO'][self.redshifts[0]]['fiducial_cosmology']
         self.background_fiducial = Background(**params_fid)
 
@@ -104,5 +105,4 @@ class EuclidLikelihood_BAO:
         diff = self.theory_vector - self.data_vector
         chi2 = np.dot(np.dot(diff, self.inverse_covariance_matrix), diff)
         return -0.5 * chi2
-    
-        
+
