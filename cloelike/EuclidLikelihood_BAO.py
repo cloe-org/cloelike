@@ -21,7 +21,7 @@ class EuclidLikelihood_BAO:
         """
         self.data = data
 
-        self.redshifts = list(data['BAO'].keys())
+        self.redshifts = np.array(list(data['BAO'].keys()))
 
         self.Background = Background
         self.BaryonAcousticOscillations = BaryonAcousticOscillations
