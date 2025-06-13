@@ -1,6 +1,8 @@
+import os
 import numpy as np
 import pytest
 from scipy import integrate
+import requests
 
 # --- External Libraries ---
 import euclidlib as el
@@ -10,70 +12,6 @@ from cloelib.cosmology.HMcode2020Emu_cosmology import (
     HMemuNonLinearPerturbations,
 )
 from cloelike.EuclidLikelihood_3x2pt_Cls import EuclidLikelihood_3x2pt_Cls
-
-# --- Data Preparation ---
-
-import os
-
-# Load redshift distributions
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-print(os.path.join(DATA_DIR, 'nz_example.fits'))
-z_nz, nz_heracles = el.photo.redshift_distributions(os.path.join(DATA_DIR, 'nz_example.fits'))
-
-# Define a common redshift grid
-myz = np.linspace(1e-4, 3.0, 100)
-
-def normalize_and_resample(nz_dict, z_grid, z_target):
-    """Normalize and resample n(z) distributions onto a target grid."""
-    nz_array = np.vstack([
-        nz / integrate.trapezoid(nz, z_grid) for nz in nz_dict.values()
-    ])
-    return np.array([
-        np.interp(z_target, z_grid, nz) for nz in nz_array
-    ])
-
-my_dndz_pos_norm = normalize_and_resample(
-    nz_heracles, z_nz, myz
-)
-my_dndz_she_norm = normalize_and_resample(
-    nz_heracles, z_nz, myz
-)
-
-# Normalized and resampled n(z) for position and shear
-# Load angular power spectra and mixing matrices
-cells_data = el.photo.angular_power_spectra(os.path.join(DATA_DIR, 'synth_cells_5000_binned.fits'))
-mixmat = el.photo.mixing_matrices(os.path.join(DATA_DIR, 'mixmat_identity_5000_binned.fits'))
-
-# Load covariance matrix
-full_cov = np.load(
-    os.path.join(DATA_DIR, 'cov_Gauss_3x2pt_2D_probe_zpair_ell_2500deg2_ellmax5000_Bmode.npy')
-)
-
-def build_data(ell_key, cov, include_pos=False, include_she=False):
-    """Build the data dictionary for the likelihood."""
-    data = {
-        'cells': cells_data,
-        'ells': cells_data[ell_key].ell,
-        'z_arr': myz,
-        'cov': cov,
-        'mixmat': mixmat,
-    }
-    if include_pos:
-        data['dndz_pos'] = my_dndz_pos_norm
-    if include_she:
-        data['dndz_she'] = my_dndz_she_norm
-    return data
-
-def build_settings():
-    """Build the settings dictionary for the likelihood."""
-    scale_cuts = {key: [10, 1500] for key in cells_data}
-    for key in cells_data:
-        if key[:2] == ('SHE', 'SHE'):
-            scale_cuts[key] = [scale_cuts[key], [0, 0]]
-    return {
-        'n_ell_bins': 32,
-        'scale_cuts': scale_cuts,
-    }
 
 # --- Default Parameters ---
 default_pars = {
@@ -95,12 +33,81 @@ default_pars = {
     'dz_shear_4': 0.0, 'dz_shear_5': 0.0, 'dz_shear_6': 0.0,
 }
 
+urls = {
+    'nz_example.fits': 'https://zenodo.org/records/15092862/files/nz_example.fits',
+    'cov_Gauss_3x2pt_2D_probe_zpair_ell_2500deg2_ellmax5000_Bmode_copy.npy': 'https://zenodo.org/records/15496892/files/cov_Gauss_3x2pt_2D_probe_zpair_ell_2500deg2_ellmax5000_Bmode_copy.npy',
+    'mixmat_identity_5000_binned.fits': 'https://zenodo.org/records/15496892/files/mixmat_identity_5000_binned.fits',
+    'synth_cells_5000_binned.fits': 'https://zenodo.org/records/15496892/files/synth_cells_5000_binned.fits',
+}
+
+@pytest.fixture(scope="module")
+def data_setup(tmp_path_factory):
+    tmpdir = tmp_path_factory.mktemp("data")
+
+    def download_file(url, dest_path):
+        r = requests.get(url)
+        r.raise_for_status()
+        with open(dest_path, 'wb') as f:
+            f.write(r.content)
+
+    for filename, url in urls.items():
+        download_file(url, tmpdir / filename)
+
+    z_nz, nz_heracles = el.photo.redshift_distributions(tmpdir / 'nz_example.fits')
+    myz = np.linspace(1e-4, 3.0, 100)
+
+    def normalize_and_resample(nz_dict, z_grid, z_target):
+        nz_array = np.vstack([
+            nz / integrate.trapezoid(nz, z_grid) for nz in nz_dict.values()
+        ])
+        return np.array([
+            np.interp(z_target, z_grid, nz) for nz in nz_array
+        ])
+
+    my_dndz_pos_norm = normalize_and_resample(nz_heracles, z_nz, myz)
+    my_dndz_she_norm = normalize_and_resample(nz_heracles, z_nz, myz)
+    cells_data = el.photo.angular_power_spectra(tmpdir / 'synth_cells_5000_binned.fits')
+    mixmat = el.photo.mixing_matrices(tmpdir / 'mixmat_identity_5000_binned.fits')
+    full_cov = np.load(tmpdir / 'cov_Gauss_3x2pt_2D_probe_zpair_ell_2500deg2_ellmax5000_Bmode_copy.npy')
+
+    return {
+        'myz': myz,
+        'my_dndz_pos_norm': my_dndz_pos_norm,
+        'my_dndz_she_norm': my_dndz_she_norm,
+        'cells_data': cells_data,
+        'mixmat': mixmat,
+        'full_cov': full_cov,
+    }
+
+def build_data(ell_key, cov, dset, include_pos=False, include_she=False):
+    data = {
+        'cells': dset['cells_data'],
+        'ells': dset['cells_data'][ell_key].ell,
+        'z_arr': dset['myz'],
+        'cov': cov,
+        'mixmat': dset['mixmat'],
+    }
+    if include_pos:
+        data['dndz_pos'] = dset['my_dndz_pos_norm']
+    if include_she:
+        data['dndz_she'] = dset['my_dndz_she_norm']
+    return data
+
+def build_settings(dset):
+    scale_cuts = {key: [10, 1500] for key in dset['cells_data']}
+    for key in dset['cells_data']:
+        if key[:2] == ('SHE', 'SHE'):
+            scale_cuts[key] = [scale_cuts[key], [0, 0]]
+    return {
+        'n_ell_bins': 32,
+        'scale_cuts': scale_cuts,
+    }
+
 # --- Tests ---
 
-def test_likelihood_negative_or_zero():
-    """Test that the likelihood is finite and negative (or zero within tolerance) for default parameters."""
-    data = build_data(('POS', 'POS', 1, 1), full_cov, include_pos=True, include_she=True)
-    settings = build_settings()
+def test_likelihood_negative_or_zero(data_setup):
+    data = build_data(('POS', 'POS', 1, 1), data_setup['full_cov'], data_setup, include_pos=True, include_she=True)
+    settings = build_settings(data_setup)
     like = EuclidLikelihood_3x2pt_Cls(
         data=data,
         settings=settings,
@@ -112,10 +119,9 @@ def test_likelihood_negative_or_zero():
     assert np.isfinite(logl), "Likelihood should be finite"
     assert logl <= 1e-8, "Likelihood should be negative or zero within small tolerance"
 
-def test_likelihood_changes_with_parameters():
-    """Test that the likelihood changes when cosmological parameters are varied."""
-    data = build_data(('POS', 'POS', 1, 1), full_cov, include_pos=True, include_she=True)
-    settings = build_settings()
+def test_likelihood_changes_with_parameters(data_setup):
+    data = build_data(('POS', 'POS', 1, 1), data_setup['full_cov'], data_setup, include_pos=True, include_she=True)
+    settings = build_settings(data_setup)
     like = EuclidLikelihood_3x2pt_Cls(
         data=data,
         settings=settings,
@@ -129,10 +135,9 @@ def test_likelihood_changes_with_parameters():
     logl_changed = like.loglike(test_pars)
     assert logl_default != logl_changed, "Likelihood should change with parameters"
 
-def test_likelihood_handles_bad_parameters():
-    """Test that the likelihood raises an error for unphysical parameters."""
-    data = build_data(('POS', 'POS', 1, 1), full_cov, include_pos=True, include_she=True)
-    settings = build_settings()
+def test_likelihood_handles_bad_parameters(data_setup):
+    data = build_data(('POS', 'POS', 1, 1), data_setup['full_cov'], data_setup, include_pos=True, include_she=True)
+    settings = build_settings(data_setup)
     like = EuclidLikelihood_3x2pt_Cls(
         data=data,
         settings=settings,
