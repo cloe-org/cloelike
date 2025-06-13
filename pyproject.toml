@@ -19,7 +19,7 @@ numpy = "<2.0"
 requests = "^2.32.3"
 euclidlib = "v2025.2"
 scipy = "<1.14"
-cloelib = { git = "https://github.com/cloe-org/cloelib.git", optional = true }
+cloelib = { git = "https://github.com/cloe-org/cloelib.git" }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"
