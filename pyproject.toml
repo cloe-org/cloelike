@@ -36,6 +36,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+numpy = "<2.0"
+euclidlib = "v2025.2"
+cloelib = { git = "https://github.com/cloe-org/cloelib.git", optional = true }
 
 [tool.poetry.extras]
 test = [
