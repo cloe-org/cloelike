@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "cloelike"
 version = "0.1"
-description = "cloelike is the likelihood module for Euclid primary observables for the CLOE project (Cosmology Likelihood for Observables in Euclid)"
+description = "Likelihood module for Euclid primary observables for the CLOE project"
 authors = [
     "M. Bonici <marco.bonici@uwaterloo.ca>",
     "G. Cañas-Herrera <guadalupe.canasherrera@esa.int>",
@@ -18,8 +18,14 @@ python = "^3.10"
 numpy = "<2.0"
 requests = "^2.32.3"
 euclidlib = "v2025.2"
-scipy = "<1.14"
+
+# core cloelib functionality
 cloelib = { git = "https://github.com/cloe-org/cloelib.git" }
+
+# explicitly install extras
+camb = "*"
+comet-emu = "*"
+HMcode2020Emu = { git = "https://github.com/MariaTsedrik/HMcode2020Emu.git" }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"
