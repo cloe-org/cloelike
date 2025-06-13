@@ -29,4 +29,4 @@ HMcode2020Emu = { git = "https://github.com/MariaTsedrik/HMcode2020Emu.git" }
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"
-pytest-cov = "^4.1"
+pytest-cov = "6.1.1"
