@@ -4,6 +4,9 @@
 
 We welcome feedback from the **Euclid community** and beyond to refine and improve this module!  
 
+[![Coverage Status](https://coveralls.io/repos/github/cloe-org/cloelike/badge.svg?branch=main)](https://coveralls.io/github/cloe-org/cloelike?branch=main)
+[![CI](https://github.com/cloe-org/cloelike/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/cloe-org/cloelike/actions/workflows/ci.yaml)
+
 ---
 
 ## 📖 Table of Contents  
