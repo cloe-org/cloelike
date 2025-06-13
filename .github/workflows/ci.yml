@@ -26,6 +26,10 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      # <-- Step 2: Configure Git to use the secret token -->
+      - name: Configure Git for private repo access
+        run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
       - name: Install dependencies
         run: poetry install --with test
 
