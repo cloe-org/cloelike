@@ -58,7 +58,13 @@ jobs:
       - name: Install build tools
         run: pipx run build
 
-      - name: Install pre-commit
+      - name: Install ruff and prettier
         run: |
-          pip install pre-commit
-          pre-commit run --all-files --show-diff-on-failure
+          pip install ruff
+          npm install --global prettier
+
+      - name: Run ruff linter
+        run: ruff check .
+
+      - name: Run prettier check
+        run: prettier --check "**/*.{js,ts,css,html,json,md,yml}"
