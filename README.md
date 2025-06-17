@@ -74,6 +74,7 @@ git checkout -b feature/your-feature-name
 ```
 
 2️⃣ Implement your changes following project style guidelines.
+
 3️⃣ Commit your modifications:
 
 ```sh
