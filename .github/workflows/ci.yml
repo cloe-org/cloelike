@@ -33,6 +33,14 @@ jobs:
       - name: Install dependencies
         run: poetry install --with test
 
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit install
+
+      - name: Run pre-commit checks (format + lint)
+        run: pre-commit run --all-files --show-diff-on-failure
+
       - name: Run tests with coverage
         run: poetry run pytest -vv --cov=cloelike --cov-report=term-missing
 
@@ -50,13 +58,7 @@ jobs:
       - name: Install build tools
         run: pipx run build
 
-      - name: Install ruff and prettier
+      - name: Install pre-commit
         run: |
-          pip install ruff
-          npm install --global prettier
-
-      - name: Run ruff linter
-        run: ruff check .
-
-      - name: Run prettier check
-        run: prettier --check "**/*.{js,ts,css,html,json,md,yml}"
+          pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure
