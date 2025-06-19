@@ -40,6 +40,11 @@ class EuclidLikelihood_GCspectro_Pls:
 
         self.scale_cuts = settings['scale_cuts']
 
+        self.mixmat = (
+            {z: data['GCspectro'][z]['mixing_matrix'] for z in self.redshifts}
+            if all('mixing_matrix' in data['GCspectro'][z] for z in self.redshifts)
+            else None)
+
         self.Background = Background
         self.SpectroPower = SpectroPower
 
@@ -189,7 +194,11 @@ class EuclidLikelihood_GCspectro_Pls:
                 parameters=syst_params, nbar=self.nbar[i])
 
             k = self.data['GCspectro'][z]['k']
-            mps = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
+            if self.mixmat:
+                mps = obs.convolved_power_multipoles(
+                    self.mixmat[z], ells=self.ells, use_AP=True)
+            else:
+                mps = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
             theory_vec.extend(
                 np.concatenate([mps[f'ell{ell}'] for ell in self.ells]))
 
@@ -241,27 +250,35 @@ class EuclidLikelihood_GCspectro_Pls:
         for i,z in enumerate(self.redshifts):
             RSD_parameters = {key: parameters[key][i]
                               for key in self.RSD_parameter_names}
-            spectro_power = self.SpectroPower(
+            power = self.SpectroPower(
                 background=background,
                 RSD_parameters=RSD_parameters,
                 redshift=float(z))
             nois_syst_parameters = {key: parameters[key][i]
                                     for key in self.noise_syst_parameter_names}
-            spectro_obs = LegendreMultipoles(
-                spectro_power=spectro_power,
+            obs = LegendreMultipoles(
+                spectro_power=power,
                 background_fiducial=self.background_fiducial,
                 parameters=nois_syst_parameters,
                 nbar=self.nbar[i])
-            mps_dict = spectro_obs.power_multipoles(
-                k=self.data['GCspectro'][z]['k'],
-                ells=self.ells, use_AP=True
-            )
+            k = self.data['GCspectro'][z]['k']
+            if self.mixmat:
+                mps_dict = obs.convolved_power_multipoles(
+                    self.mixmat[z], ells=self.ells, use_AP=True)
+            else:
+                mps_dict = obs.power_multipoles(
+                    k=k, ells=self.ells, use_AP=True)
             mps_list = [mps_dict[f'ell{ell}'] for ell in self.ells]
             theory_vec = np.concatenate((theory_vec, np.concatenate(mps_list)))
             if z in self.AM_params.keys():
-                mps_AM_dict = spectro_obs.power_term_multipoles(
-                    k=self.data['GCspectro'][z]['k'], term_list=term_list[z],
-                    ells=self.ells, use_AP=True)
+                if self.mixmat:
+                    mps_AM_dict = obs.convolved_power_term_multipoles(
+                        self.mixmat[z], term_list=term_list[z],
+                        ells=self.ells, use_AP=True)
+                else:
+                    mps_AM_dict = obs.power_term_multipoles(
+                        k=k, term_list=term_list[z],
+                        ells=self.ells, use_AP=True)
                 terms_to_scale = [term for term in term_list[z]
                                   if term in coeff]
                 indices_to_scale = [term_list[z].index(term)

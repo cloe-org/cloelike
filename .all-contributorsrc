@@ -1,0 +1,92 @@
+{
+  "projectName": "cloelike",
+  "projectOwner": "cloe-org",
+  "files": [
+    "README.md"
+  ],
+  "commitType": "docs",
+  "commitConvention": "angular",
+  "contributorsPerLine": 7,
+  "contributors": [
+    {
+      "login": "gcanasherrera",
+      "name": "Guadalupe Cañas-Herrera",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13239454?v=4",
+      "profile": "http://gcanasherrera.com",
+      "contributions": [
+        "code",
+        "maintenance",
+        "ideas",
+        "bug",
+        "content",
+        "data",
+        "doc",
+        "infra",
+        "projectManagement",
+        "question",
+        "test",
+        "talk"
+      ]
+    },
+    {
+      "login": "AndreaPezzotta",
+      "name": "AndreaPezzotta",
+      "avatar_url": "https://avatars.githubusercontent.com/u/29603598?v=4",
+      "profile": "https://github.com/AndreaPezzotta",
+      "contributions": [
+        "code",
+        "maintenance",
+        "ideas",
+        "bug",
+        "content",
+        "data",
+        "doc",
+        "talk"
+      ]
+    },
+    {
+      "login": "PedroCarrilho",
+      "name": "Pedro Carrilho",
+      "avatar_url": "https://avatars.githubusercontent.com/u/60090062?v=4",
+      "profile": "https://github.com/PedroCarrilho",
+      "contributions": [
+        "code",
+        "maintenance",
+        "ideas",
+        "bug",
+        "content",
+        "data",
+        "doc",
+        "talk"
+      ]
+    },
+    {
+      "login": "itutusaus",
+      "name": "itutusaus",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20775836?v=4",
+      "profile": "https://github.com/itutusaus",
+      "contributions": [
+        "review"
+      ]
+    },
+    {
+      "login": "marcobonici",
+      "name": "Marco Bonici",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58727599?v=4",
+      "profile": "https://marcobonici.github.io/",
+      "contributions": [
+        "review"
+      ]
+    },
+    {
+      "login": "santiagocasas",
+      "name": "Santiago Casas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/6987716?v=4",
+      "profile": "http://www.cosmostat.org/people/santiago-casas",
+      "contributions": [
+        "ideas",
+        "review"
+      ]
+    }
+  ]
+}

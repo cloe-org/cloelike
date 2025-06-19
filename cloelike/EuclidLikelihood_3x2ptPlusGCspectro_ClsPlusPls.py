@@ -54,7 +54,8 @@ class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
         self.rebin = False
         # Need to think how to homogenise redshifts
         self.zs = data['3x2pt']['z_arr']
-        self.mixmat = deepcopy(data['3x2pt']['mixmat'])
+        self.mixmat = {}
+        self.mixmat['3x2pt'] = deepcopy(data['3x2pt']['mixmat'])
 
         self.n_pos_bins = self.data['3x2pt']['dndz_pos'].shape[0]
         bias_keys = [f'b1_photo_poly{i}' for i in range(4)]
@@ -87,6 +88,13 @@ class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
         self.ells = [0, 2, 4]
         self.redshifts = list(data['GCspectro'].keys())
         self.nbar = [data['GCspectro'][z]['nbar'] for z in self.redshifts]
+
+        self.mixmat['GCspectro'] = (
+            {z: data['GCspectro'][z]['mixing_matrix']
+             for z in self.redshifts}
+            if all('mixing_matrix' in data['GCspectro'][z]
+                   for z in self.redshifts)
+            else None)
 
         params_fid = data['fiducial_cosmology']
         self.background_fiducial = Background(**params_fid)
@@ -136,11 +144,11 @@ class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
     def _bin_mixmat(self):
         r"""Rebin 3x2pt mixing matrix
         """
-        for k in self.mixmat.keys():
-            new_array = np.tensordot(self.weight_mat, self.mixmat[k], axes=([1], [-2]))
+        for k in self.mixmat['3x2pt'].keys():
+            new_array = np.tensordot(self.weight_mat, self.mixmat['3x2pt'][k], axes=([1], [-2]))
             if k[:2]==('SHE','SHE'):
                 new_array = np.transpose(new_array,axes=(1,0,2))
-            self.mixmat[k] = replace(self.mixmat[k], array=new_array)
+            self.mixmat['3x2pt'][k] = replace(self.mixmat['3x2pt'][k], array=new_array)
 
     def _masking(self, arr: np.ndarray, interval: list) -> np.ndarray:
         r""" Get a 1/0 mask for the elements of arr contained in interval
@@ -261,9 +269,9 @@ class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
                              for key in self.full_she_keys} | {'CIA': 0.0134})
 
         cell_all_th = {
-            **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
-            **AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat),
-            **AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)}
+            **AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat['3x2pt']),
+            **AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat['3x2pt']),
+            **AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat['3x2pt'])}
 
         theory_vector_3x2pt = np.concatenate([
             np.transpose([cell_all_th[key][:2] for key in self.WL_keys],
@@ -284,8 +292,13 @@ class EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls:
                 spectro_power=power,
                 background_fiducial=self.background_fiducial,
                 parameters=syst_params, nbar=self.nbar[i])
+
             k = self.data['GCspectro'][z]['k']
-            mps = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
+            if self.mixmat['GCspectro']:
+                mps = obs.convolved_power_multipoles(
+                    self.mixmat['GCspectro'][z], ells=self.ells, use_AP=True)
+            else:
+                mps = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
             theory_vector_GCspectro.extend(
                 np.concatenate([mps[f'ell{ell}'] for ell in self.ells]))
 
