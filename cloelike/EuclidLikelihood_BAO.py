@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 from cloelib.cosmology.cosmology import Background
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
@@ -16,17 +15,14 @@ class EuclidLikelihood_BAO:
             Data dictionary
         Background: type
             Protocol-consistent background class
-        BaryonAcousticOscillations: object
-            BaryonAcousticOscillations object
         """
         self.data = data
 
         self.redshifts = np.array(list(data['BAO'].keys()))
 
         self.Background = Background
-        self.BaryonAcousticOscillations = BaryonAcousticOscillations
 
-        # All data files hav a fiducal_cosmology entry, we take the
+        # All data files have a fiducal_cosmology entry, we take the
         # first one as they are supposed to be the same
         params_fid = data['BAO'][self.redshifts[0]]['fiducial_cosmology']
         self.background_fiducial = Background(**params_fid)
@@ -84,7 +80,7 @@ class EuclidLikelihood_BAO:
             As=parameters['As'], gamma_MG=parameters['gamma_MG'],
             mnu=parameters['mnu'])
 
-        alphas_dict = self.BaryonAcousticOscillations(
+        alphas_dict = BaryonAcousticOscillations(
             background=background,
             background_fiducial=self.background_fiducial,
             redshifts=self.redshifts).alphas_dict
