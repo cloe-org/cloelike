@@ -70,7 +70,19 @@
       "name": "Marco Bonici",
       "avatar_url": "https://avatars.githubusercontent.com/u/58727599?v=4",
       "profile": "https://marcobonici.github.io/",
-      "contributions": ["review"]
+      "contributions": [
+        "review"
+      ]
+    },
+    {
+      "login": "santiagocasas",
+      "name": "Santiago Casas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/6987716?v=4",
+      "profile": "http://www.cosmostat.org/people/santiago-casas",
+      "contributions": [
+        "ideas",
+        "review"
+      ]
     }
   ]
 }
