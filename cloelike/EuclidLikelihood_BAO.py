@@ -22,7 +22,7 @@ class EuclidLikelihood_BAO:
 
         self.Background = Background
 
-        # All data files have a fiducal_cosmology entry, we take the
+        # All data files have a fiducial_cosmology entry, we take the
         # first one as they are supposed to be the same
         params_fid = data['BAO'][self.redshifts[0]]['fiducial_cosmology']
         self.background_fiducial = Background(**params_fid)
