@@ -1,19 +1,19 @@
 import os
 import numpy as np
 import pytest
-from scipy import integrate
 import requests
 from astropy.io import fits
 
 from cloelib.cosmology.camb_cosmology import CAMBBackground
 from cloelike.EuclidLikelihood_BAO import EuclidLikelihood_BAO
 
-# --- Default Parameters ---
+# Default Parameters
 default_pars = {
     'H0': 67, 'Omega_cdm0': 0.27, 'Omega_b0': 0.049, 'ns': 0.96, 'As': 2.1e-9,
     'w0': -1, 'wa': 0, 'Omega_k0': 0, 'mnu': 0.0, 'gamma_MG': 0.545,
 }
 
+# Mock data from Zenodo
 urls = {
         'bao_z1.00.fits': 'https://zenodo.org/records/15698427/files/bao_z1.00.fits',
         'bao_z1.20.fits': 'https://zenodo.org/records/15698427/files/bao_z1.20.fits',
@@ -23,6 +23,7 @@ urls = {
 
 @pytest.fixture(scope="module")
 def data_setup(tmp_path_factory):
+    # Downloads the mock data from Zenodo and constructs the `data` dictionary
     tmpdir = tmp_path_factory.mktemp("data")
 
     def download_file(url, dest_path):
@@ -62,7 +63,7 @@ def data_setup(tmp_path_factory):
 
     return data
 
-# --- Tests ---
+# Tests
 
 def test_likelihood_negative_or_zero(data_setup):
     like = EuclidLikelihood_BAO(
@@ -90,6 +91,6 @@ def test_likelihood_handles_bad_parameters(data_setup):
         Background=CAMBBackground,
     )
     bad_pars = default_pars.copy()
-    bad_pars['H0'] = -100  # Unphysical value
+    bad_pars['H0'] = -100
     with pytest.raises(Exception):
         like.loglike(bad_pars)
