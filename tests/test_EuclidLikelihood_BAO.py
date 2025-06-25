@@ -85,6 +85,16 @@ def test_likelihood_changes_with_parameters(data_setup):
     logl_changed = like.loglike(test_pars)
     assert logl_default != logl_changed, "Likelihood should change with parameters"
 
+def test_likelihood_value(data_setup):
+    like = EuclidLikelihood_BAO(
+        data=data_setup,
+        Background=CAMBBackground,
+    )
+    test_pars = default_pars.copy()
+    test_pars['H0'] += 3
+    logl = like.loglike(test_pars)
+    assert logl == pytest.approx(-3.2305), "Likelihood for test parameters should be -3.23"
+
 def test_likelihood_handles_bad_parameters(data_setup):
     like = EuclidLikelihood_BAO(
         data=data_setup,
