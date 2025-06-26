@@ -70,7 +70,7 @@ Please review the organization's general contribution guidelines and the specifi
 1️⃣ Create a new branch:
 
 ```sh
-git checkout -b feature/your-feature-name
+git checkout -b issue-<number>-<short-descriptive-title>
 ```
 
 2️⃣ Implement your changes following project style guidelines.
