@@ -3,8 +3,7 @@ import pytest
 import requests
 from astropy.io import fits
 
-from cloelib.cosmology.camb_cosmology i
-mport CAMBBackground
+from cloelib.cosmology.camb_cosmology import CAMBBackground
 from cloelike.EuclidLikelihood_BAO import EuclidLikelihood_BAO
 
 # Default Parameters
@@ -28,6 +27,7 @@ urls = {
     "bao_z1.40.fits": "https://zenodo.org/records/15698427/files/bao_z1.40.fits",
     "bao_z1.65.fits": "https://zenodo.org/records/15698427/files/bao_z1.65.fits",
 }
+
 
 @pytest.fixture(scope="module")
 def data_setup(tmp_path_factory):
@@ -80,6 +80,7 @@ def data_setup(tmp_path_factory):
 
     return data
 
+
 def test_likelihood_negative_or_zero(data_setup):
     like = EuclidLikelihood_BAO(
         data=data_setup,
@@ -88,6 +89,7 @@ def test_likelihood_negative_or_zero(data_setup):
     logl = like.loglike(default_pars)
     assert np.isfinite(logl), "Likelihood should be finite"
     assert logl <= 1e-8, "Likelihood should be negative or zero within small tolerance"
+
 
 def test_likelihood_changes_with_parameters(data_setup):
     like = EuclidLikelihood_BAO(
@@ -100,6 +102,7 @@ def test_likelihood_changes_with_parameters(data_setup):
     logl_changed = like.loglike(test_pars)
     assert logl_default != logl_changed, "Likelihood should change with parameters"
 
+
 def test_likelihood_value(data_setup):
     like = EuclidLikelihood_BAO(
         data=data_setup,
@@ -111,6 +114,7 @@ def test_likelihood_value(data_setup):
     assert logl == pytest.approx(
         -3.2305
     ), "Likelihood for test parameters should be -3.23"
+
 
 def test_likelihood_handles_bad_parameters(data_setup):
     like = EuclidLikelihood_BAO(

@@ -1,5 +1,4 @@
 import numpy as np
-from cloelib.cosmology.cosmology import Background
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 
 
