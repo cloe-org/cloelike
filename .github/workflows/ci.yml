@@ -33,6 +33,14 @@ jobs:
       - name: Install dependencies
         run: poetry install --with test
 
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit install
+
+      - name: Run pre-commit checks (format + lint)
+        run: pre-commit run --all-files --show-diff-on-failure
+
       - name: Run tests with coverage
         run: poetry run pytest -vv --cov=cloelike --cov-report=term-missing
 
@@ -41,4 +49,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pipx run build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pipx run build
+
+      - name: Install pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure
