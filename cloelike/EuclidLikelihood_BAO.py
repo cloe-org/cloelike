@@ -1,5 +1,5 @@
 import numpy as np
-
+from cloelib.cosmology.cosmology import Background
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 
 
@@ -23,6 +23,7 @@ class EuclidLikelihood_BAO:
         # All data files have a fiducial_cosmology entry, we take the
         # first one as they are supposed to be the same
         params_fid = data["BAO"][self.redshifts[0]]["fiducial_cosmology"]
+
         self.background_fiducial = Background(**params_fid)
 
         self._prepare()
