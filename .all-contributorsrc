@@ -1,7 +1,9 @@
 {
   "projectName": "cloelike",
   "projectOwner": "cloe-org",
-  "files": ["README.md"],
+  "files": [
+    "README.md"
+  ],
   "commitType": "docs",
   "commitConvention": "angular",
   "contributorsPerLine": 7,
@@ -39,7 +41,8 @@
         "content",
         "data",
         "doc",
-        "talk"
+        "talk",
+        "review"
       ]
     },
     {
@@ -63,21 +66,28 @@
       "name": "itutusaus",
       "avatar_url": "https://avatars.githubusercontent.com/u/20775836?v=4",
       "profile": "https://github.com/itutusaus",
-      "contributions": ["review"]
+      "contributions": [
+        "review"
+      ]
     },
     {
       "login": "marcobonici",
       "name": "Marco Bonici",
       "avatar_url": "https://avatars.githubusercontent.com/u/58727599?v=4",
       "profile": "https://marcobonici.github.io/",
-      "contributions": ["review"]
+      "contributions": [
+        "review"
+      ]
     },
     {
       "login": "santiagocasas",
       "name": "Santiago Casas",
       "avatar_url": "https://avatars.githubusercontent.com/u/6987716?v=4",
       "profile": "http://www.cosmostat.org/people/santiago-casas",
-      "contributions": ["ideas", "review"]
+      "contributions": [
+        "ideas",
+        "review"
+      ]
     }
   ]
 }
