@@ -157,29 +157,31 @@ def data_setup(tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def settings_setup():
+def settings_setup(data_setup):
+    fid_h = data_setup["fiducial_cosmology"]["H0"] / 100.0
+
     settings = {
         "scale_cuts": {
             "GCspectro": {
                 "bin1": {
-                    "ell0": [0.0, 0.20 * 0.67],
-                    "ell2": [0.0, 0.15 * 0.67],
-                    "ell4": [0.0, 0.15 * 0.67],
+                    "ell0": [0.0, 0.20 * fid_h],
+                    "ell2": [0.0, 0.15 * fid_h],
+                    "ell4": [0.0, 0.15 * fid_h],
                 },
                 "bin2": {
-                    "ell0": [0.0, 0.25 * 0.67],
-                    "ell2": [0.0, 0.20 * 0.67],
-                    "ell4": [0.0, 0.20 * 0.67],
+                    "ell0": [0.0, 0.25 * fid_h],
+                    "ell2": [0.0, 0.20 * fid_h],
+                    "ell4": [0.0, 0.20 * fid_h],
                 },
                 "bin3": {
-                    "ell0": [0.0, 0.25 * 0.67],
-                    "ell2": [0.0, 0.20 * 0.67],
-                    "ell4": [0.0, 0.20 * 0.67],
+                    "ell0": [0.0, 0.25 * fid_h],
+                    "ell2": [0.0, 0.20 * fid_h],
+                    "ell4": [0.0, 0.20 * fid_h],
                 },
                 "bin4": {
-                    "ell0": [0.0, 0.30 * 0.67],
-                    "ell2": [0.0, 0.25 * 0.67],
-                    "ell4": [0.0, 0.25 * 0.67],
+                    "ell0": [0.0, 0.30 * fid_h],
+                    "ell2": [0.0, 0.25 * fid_h],
+                    "ell4": [0.0, 0.25 * fid_h],
                 },
             }
         }
