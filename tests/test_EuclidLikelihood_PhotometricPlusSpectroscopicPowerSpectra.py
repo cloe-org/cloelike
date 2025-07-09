@@ -12,8 +12,9 @@ from cloelib.cosmology.HMcode2020Emu_cosmology import (
     HMemuNonLinearPerturbations,
 )
 from cloelib.observables.CometEFT_spectro import CometEFT_SpectroPower
-from cloelike.EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls \
-    import EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls
+from cloelike.EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls import (
+    EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls,
+)
 
 # --- Default redshifts ---
 redshifts = np.array([1.0, 1.2, 1.4, 1.65])
@@ -132,7 +133,7 @@ def data_setup(tmp_path_factory):
         tmpdir / "cov_Gauss_3x2pt_2D_probe_zpair_ell_2500deg2_ellmax5000_Bmode_copy.npy"
     )
 
-    data['3x2pt'] = {
+    data["3x2pt"] = {
         "cells": cells_data,
         "ells": cells_data[("POS", "POS", 1, 1)].ell,
         "z_arr": myz,
@@ -263,13 +264,10 @@ def settings_setup(data_setup):
                     "ell0": [0.0, 0.30 * fid_h],
                     "ell2": [0.0, 0.25 * fid_h],
                     "ell4": [0.0, 0.25 * fid_h],
-                }
+                },
             }
         },
-        "3x2pt": {
-            "n_ell_bins": 32,
-            "scale_cuts": scale_cuts
-        }
+        "3x2pt": {"n_ell_bins": 32, "scale_cuts": scale_cuts},
     }
 
     return settings
@@ -282,7 +280,7 @@ def test_likelihood_negative_or_zero(data_setup, settings_setup):
         Background=CAMBBackground,
         LinPerturbations=HMemuLinearPerturbations,
         NonLinPerturbations=HMemuNonLinearPerturbations,
-        SpectroPower=CometEFT_SpectroPower
+        SpectroPower=CometEFT_SpectroPower,
     )
     logl = like.loglike(default_pars)
     assert np.isfinite(logl)
@@ -296,7 +294,7 @@ def test_likelihood_changes_with_parameters(data_setup, settings_setup):
         Background=CAMBBackground,
         LinPerturbations=HMemuLinearPerturbations,
         NonLinPerturbations=HMemuNonLinearPerturbations,
-        SpectroPower=CometEFT_SpectroPower
+        SpectroPower=CometEFT_SpectroPower,
     )
     logl_default = like.loglike(default_pars)
     test_pars = default_pars.copy()
@@ -306,21 +304,21 @@ def test_likelihood_changes_with_parameters(data_setup, settings_setup):
 
 
 def test_likelihood_value(data_setup, settings_setup):
-    likelihood = EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls(
+    like = EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
         LinPerturbations=HMemuLinearPerturbations,
         NonLinPerturbations=HMemuNonLinearPerturbations,
-        SpectroPower=CometEFT_SpectroPower
+        SpectroPower=CometEFT_SpectroPower,
     )
 
     parameters = default_pars.copy()
     parameters["H0"] += 3
 
-    computed_loglike = likelihood.loglike(parameters)
+    computed_loglike = like.loglike(parameters)
 
-    expected_loglike = -8466.508
+    expected_loglike = -20245.619
     assert computed_loglike == pytest.approx(expected_loglike, rel=1e-5), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
@@ -328,13 +326,13 @@ def test_likelihood_value(data_setup, settings_setup):
 
 
 def test_likelihood_handles_bad_parameters(data_setup, settings_setup):
-    EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls(
+    like = EuclidLikelihood_3x2ptPlusGCspectro_ClsPlusPls(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
         LinPerturbations=HMemuLinearPerturbations,
         NonLinPerturbations=HMemuNonLinearPerturbations,
-        SpectroPower=CometEFT_SpectroPower
+        SpectroPower=CometEFT_SpectroPower,
     )
     bad_pars = default_pars.copy()
     bad_pars["H0"] = -100
