@@ -19,6 +19,7 @@ dist/
 
 # Jupyter notebooks
 .ipynb_checkpoints/
+*.ipynb
 
 # Logs and databases
 *.log
