@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cloelike"
-version = "0.1"
+version = "0.2"
 description = "Likelihood module for Euclid primary observables for the CLOE project"
 authors = [
     "M. Bonici <marco.bonici@uwaterloo.ca>",
