@@ -27,6 +27,7 @@ default_pars = {
     "wa": 0.0,
     "Omega_k0": 0.0,
     "gamma_MG": 0.545,
+    "N_mnu": 0,
     "b1": np.array([1.412, 1.769, 2.039, 2.496]),
     "b2": np.array([0.695, 0.870, 1.162, 2.010]),
     "bG2": np.array([-0.156, -0.299, -0.400, -0.555]),
@@ -89,8 +90,8 @@ def data_setup(tmp_path_factory):
             )
 
             for key, val in zip(
-                ["Omega_k0", "As", "ns", "mnu", "w0", "wa", "gamma_MG"],
-                [0.0, 2.1e-9, 0.96, 0.0, -1.0, 0.0, 0.545],
+                ["Omega_k0", "As", "ns", "mnu", "w0", "wa", "gamma_MG", "N_mnu"],
+                [0.0, 2.1e-9, 0.96, 0.0, -1.0, 0.0, 0.545, 0],
             ):
                 fiducial_cosmo.setdefault(key, val)
 

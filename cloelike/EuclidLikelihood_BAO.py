@@ -86,6 +86,7 @@ class EuclidLikelihood_BAO:
             As=parameters["As"],
             gamma_MG=parameters["gamma_MG"],
             mnu=parameters["mnu"],
+            N_mnu=parameters["N_mnu"],
         )
 
         alphas_dict = BaryonAcousticOscillations(

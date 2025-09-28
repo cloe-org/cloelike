@@ -44,6 +44,7 @@ def fiducial_params():
         "CIA": 0,
         "EtaIA": 0,
         "log10TAGN": 7.75,
+        "N_mnu": 1,
         **{f"b1_photo_poly{i}": 0.0 for i in range(4)},
         **{f"magnification_bias_{i}": 0.0 for i in range(1, 7)},
         **{f"dz_pos_{i}": 0.0 for i in range(1, 7)},

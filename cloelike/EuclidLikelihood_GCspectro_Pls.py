@@ -204,6 +204,7 @@ class EuclidLikelihood_GCspectro_Pls:
             As=parameters["As"],
             gamma_MG=parameters["gamma_MG"],
             mnu=parameters["mnu"],
+            N_mnu=parameters["N_mnu"]
         )
         theory_vec = []
 
@@ -276,6 +277,7 @@ class EuclidLikelihood_GCspectro_Pls:
             As=parameters["As"],
             gamma_MG=parameters["gamma_MG"],
             mnu=parameters["mnu"],
+            N_mnu=parameters["N_mnu"]
         )
 
         theory_vec = []

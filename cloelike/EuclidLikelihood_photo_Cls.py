@@ -228,6 +228,7 @@ class WLMixin:
                     "As",
                     "mnu",
                     "gamma_MG",
+                    "N_mnu"
                 ]
             }
         )
@@ -285,6 +286,7 @@ class GCphMixin:
                     "As",
                     "mnu",
                     "gamma_MG",
+                    "N_mnu"
                 ]
             }
         )
@@ -350,6 +352,7 @@ class GGLMixin:
                     "As",
                     "mnu",
                     "gamma_MG",
+                    "N_mnu"
                 ]
             }
         )
