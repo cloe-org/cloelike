@@ -113,6 +113,8 @@ class PhotoLikelihoodBase:
             Returns the masked data vector.
         get_covariance_matrix_masked_inv():
             Returns the inverse of the masked covariance matrix.
+        get_theory_vector_full(parameters):
+            Returns the full theoretical prediction vector for given parameters.
         get_theory_vector_masked(parameters):
             Returns the masked theoretical prediction vector for given parameters.
         loglike(parameters):
@@ -172,18 +174,29 @@ class PhotoLikelihoodBase:
     def _masking(self, arr, interval):
         return (arr >= interval[0]) & (arr <= interval[1])
 
+    def get_masking_vector(self):
+        return np.array([], dtype=bool)
+
     def get_covariance_matrix_full(self):
         return self.data["cov"]
 
+    def get_data_vector_full(self):
+        return np.array([])
+
     def get_data_vector_masked(self):
-        return self.get_data_vector_full()[self.masking_vector]
+        return self.get_data_vector_full()[self.get_masking_vector()]
 
     def get_covariance_matrix_masked_inv(self):
         cov = self.get_covariance_matrix_full()
-        return np.linalg.inv(cov[self.masking_vector][:, self.masking_vector])
+        return np.linalg.inv(
+            cov[self.get_masking_vector()][:, self.get_masking_vector()]
+        )
+
+    def get_theory_vector_full(self, parameters):
+        return np.array([])
 
     def get_theory_vector_masked(self, parameters):
-        return self.get_theory_vector_full(parameters)[self.masking_vector]
+        return self.get_theory_vector_full(parameters)[self.get_masking_vector()]
 
     def loglike(self, parameters):
         t_vec = self.get_theory_vector_masked(parameters)
@@ -194,6 +207,10 @@ class PhotoLikelihoodBase:
 
 
 class WLMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)  # Call the next class in the MRO
+        self._init_wl()
+
     def _init_wl(self):
         self.n_she_bins = self.data["dndz_she"].shape[0]
         IA_keys = ["AIA", "EtaIA", "CIA"]
@@ -208,12 +225,25 @@ class WLMixin:
             for j in range(i, self.n_she_bins + 1)
         ]
 
+    def get_masking_vector(self):
+        v = super().get_masking_vector()
+        vec = np.concatenate(
+            [
+                self._masking(self.data["ells"], self.scale_cuts[key])
+                for key in self.WL_keys
+            ]
+        )
+        return np.concatenate([v, vec])
+
     def get_data_vector_full(self):
-        return np.array(
+        v = super().get_data_vector_full()
+        vec = np.array(
             [self.data["cells"][key][0, 0] for key in self.WL_keys]
         ).flatten()
+        return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
+        v = super().get_theory_vector_full(parameters)
         background = self.Background(
             **{
                 k: parameters[k]
@@ -250,10 +280,14 @@ class WLMixin:
             vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cell_all_th
-        return vec
+        return np.concatenate([v, vec])
 
 
 class GCphMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._init_gcph()
+
     def _init_gcph(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
@@ -268,10 +302,23 @@ class GCphMixin:
             for j in range(i, self.n_pos_bins + 1)
         ]
 
+    def get_masking_vector(self):
+        v = super().get_masking_vector()
+        vec = np.concatenate(
+            [
+                self._masking(self.data["ells"], self.scale_cuts[key])
+                for key in self.GG_keys
+            ]
+        )
+        return np.concatenate([v, vec])
+
     def get_data_vector_full(self):
-        return np.array([self.data["cells"][key] for key in self.GG_keys]).flatten()
+        v = super().get_data_vector_full()
+        vec = np.array([self.data["cells"][key] for key in self.GG_keys]).flatten()
+        return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
+        v = super().get_theory_vector_full(parameters)
         background = self.Background(
             **{
                 k: parameters[k]
@@ -309,10 +356,14 @@ class GCphMixin:
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cell_all_th
-        return vec
+        return np.concatenate([v, vec])
 
 
 class GGLMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._init_ggl()
+
     def _init_ggl(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self.n_she_bins = self.data["dndz_she"].shape[0]
@@ -334,10 +385,23 @@ class GGLMixin:
             for j in range(1, self.n_she_bins + 1)
         ]
 
+    def get_masking_vector(self):
+        v = super().get_masking_vector()
+        vec = np.concatenate(
+            [
+                self._masking(self.data["ells"], self.scale_cuts[key])
+                for key in self.GGL_keys
+            ]
+        )
+        return np.concatenate([v, vec])
+
     def get_data_vector_full(self):
-        return np.array([self.data["cells"][key][0] for key in self.GGL_keys]).flatten()
+        v = super().get_data_vector_full()
+        vec = np.array([self.data["cells"][key][0] for key in self.GGL_keys]).flatten()
+        return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
+        v = super().get_theory_vector_full(parameters)
         background = self.Background(
             **{
                 k: parameters[k]
@@ -381,10 +445,10 @@ class GGLMixin:
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cell_all_th
-        return vec
+        return np.concatenate([v, vec])
 
 
-class EuclidLikelihood_WL(PhotoLikelihoodBase, WLMixin):
+class EuclidLikelihood_WL(WLMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_WL computes the weak lensing (WL) likelihood for photometric surveys using Euclid data.
 
@@ -392,55 +456,26 @@ class EuclidLikelihood_WL(PhotoLikelihoodBase, WLMixin):
         PhotoLikelihoodBase: Base class for photometric likelihoods.
         WLMixin: Mixin providing weak lensing specific functionality.
 
-    Args:
-        data (dict): Input data containing observed quantities, including 'ells'.
-        settings (dict): Configuration settings for the likelihood calculation.
-        Background: Cosmological background model instance.
-        LinPerturbations: Linear perturbations model instance.
-        NonLinPerturbations: Non-linear perturbations model instance.
-        mode (str, optional): Mode for likelihood calculation. Default is "coupled".
-
-    Attributes:
-        masking_vector (np.ndarray): Vector indicating which multipoles are masked based on scale cuts.
-        WL_keys (list): Keys corresponding to weak lensing bins or probes.
-        scale_cuts (dict): Dictionary specifying scale cuts for each WL key.
-
-    Methods:
-        _init_wl(): Initializes weak lensing specific parameters and settings.
-
-    Example:
-        likelihood = EuclidLikelihood_WL(
-            data=my_data,
-            settings=my_settings,
-            Background=background_model,
-            LinPerturbations=lin_pert_model,
-            NonLinPerturbations=nonlin_pert_model,
-            mode="coupled"
+    Parameters
+    ----------
+    data : dict
+        Input data required for likelihood computation, including observed ells and other relevant quantities.
+    settings : dict
+        Configuration settings for the likelihood calculation.
+    Background : object
+        Instance representing the cosmological background model.
+    LinPerturbations : object
+        Instance representing linear perturbations.
+    NonLinPerturbations : object
+        Instance representing non-linear perturbations.
+    mode : str, optional
+        Mode of operation, default is "coupled".
     """
 
-    def __init__(
-        self,
-        *,
-        data,
-        settings,
-        Background,
-        LinPerturbations,
-        NonLinPerturbations,
-        mode="coupled",
-    ):
-        super().__init__(
-            data, settings, Background, LinPerturbations, NonLinPerturbations, mode
-        )
-        self._init_wl()
-        self.masking_vector = np.concatenate(
-            [
-                self._masking(self.data["ells"], self.scale_cuts[key])
-                for key in self.WL_keys
-            ]
-        )
+    pass
 
 
-class EuclidLikelihood_GCph(PhotoLikelihoodBase, GCphMixin):
+class EuclidLikelihood_GCph(GCphMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_GCph computes the likelihood for galaxy clustering photometric (GCph) data
     using the Euclid survey specifications.
@@ -449,52 +484,26 @@ class EuclidLikelihood_GCph(PhotoLikelihoodBase, GCphMixin):
         PhotoLikelihoodBase: Base class for photometric likelihoods.
         GCphMixin: Mixin providing GCph-specific functionality.
 
-    Args:
-        data (dict): Input observational data, including 'ells' and other relevant fields.
-        settings (dict): Configuration settings for the likelihood calculation.
-        Background: Instance providing background cosmology calculations.
-        LinPerturbations: Instance for linear perturbation theory calculations.
-        NonLinPerturbations: Instance for non-linear perturbation theory calculations.
-        mode (str, optional): Calculation mode, defaults to "coupled".
-
-    Attributes:
-        masking_vector (np.ndarray): Vector used to mask multipoles according to scale cuts.
-        GG_keys (list): Keys identifying galaxy-galaxy correlations.
-        scale_cuts (dict): Dictionary specifying scale cuts for each GG_key.
-
-    Methods:
-        _init_gcph(): Initializes GCph-specific parameters and settings.
-
-    Notes:
-        - The masking_vector is constructed by concatenating masks for each GG_key using the
-          corresponding scale cuts.
-        - This class is tailored for Euclid GCph likelihood analysis and expects data in euclidlib
-          specific format.
+    Parameters
+    ----------
+    data : dict
+        Input data required for likelihood computation, including observed ells and other relevant quantities.
+    settings : dict
+        Configuration settings for the likelihood calculation.
+    Background : object
+        Instance representing the cosmological background model.
+    LinPerturbations : object
+        Instance representing linear perturbations.
+    NonLinPerturbations : object
+        Instance representing non-linear perturbations.
+    mode : str, optional
+        Mode of operation, default is "coupled".
     """
 
-    def __init__(
-        self,
-        *,
-        data,
-        settings,
-        Background,
-        LinPerturbations,
-        NonLinPerturbations,
-        mode="coupled",
-    ):
-        super().__init__(
-            data, settings, Background, LinPerturbations, NonLinPerturbations, mode
-        )
-        self._init_gcph()
-        self.masking_vector = np.concatenate(
-            [
-                self._masking(self.data["ells"], self.scale_cuts[key])
-                for key in self.GG_keys
-            ]
-        )
+    pass
 
 
-class EuclidLikelihood_GGL(PhotoLikelihoodBase, GGLMixin):
+class EuclidLikelihood_GGL(GGLMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_GGL class for galaxy-galaxy lensing likelihood computation.
 
@@ -517,47 +526,12 @@ class EuclidLikelihood_GGL(PhotoLikelihoodBase, GGLMixin):
         Instance representing non-linear perturbations.
     mode : str, optional
         Mode of operation, default is "coupled".
-
-    Attributes
-    ----------
-    masking_vector : np.ndarray
-        Concatenated masking vector for all GGL keys, constructed using scale cuts.
-    GGL_keys : list
-        List of keys corresponding to different GGL components (inherited from GGLMixin).
-    scale_cuts : dict
-        Dictionary specifying scale cuts for each GGL key (inherited from GGLMixin).
-
-    Methods
-    -------
-    _init_ggl()
-        Initializes GGL-specific components.
-    _masking(ells, scale_cut)
-        Applies masking to the input ells based on the provided scale cut.
     """
 
-    def __init__(
-        self,
-        *,
-        data,
-        settings,
-        Background,
-        LinPerturbations,
-        NonLinPerturbations,
-        mode="coupled",
-    ):
-        super().__init__(
-            data, settings, Background, LinPerturbations, NonLinPerturbations, mode
-        )
-        self._init_ggl()
-        self.masking_vector = np.concatenate(
-            [
-                self._masking(self.data["ells"], self.scale_cuts[key])
-                for key in self.GGL_keys
-            ]
-        )
+    pass
 
 
-class EuclidLikelihood_3x2pt(PhotoLikelihoodBase, WLMixin, GCphMixin, GGLMixin):
+class EuclidLikelihood_3x2pt(WLMixin, GCphMixin, GGLMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_3x2pt combines weak lensing (WL), galaxy clustering (GCph), and galaxy-galaxy lensing (GGL)
     likelihoods for photometric cosmological analyses, supporting scale cuts and masking.
@@ -575,74 +549,12 @@ class EuclidLikelihood_3x2pt(PhotoLikelihoodBase, WLMixin, GCphMixin, GGLMixin):
         Instance for non-linear perturbation theory calculations.
     mode : str, optional
         Mode for likelihood calculation, default is "coupled".
-    Attributes
-    ----------
-    masking_vector : np.ndarray
-        Boolean or integer array used to mask data and theory vectors according to scale cuts.
-    Methods
-    -------
-    get_data_vector_full()
-        Returns the full concatenated data vector from WL, GCph, and GGL components.
-    get_theory_vector_full(parameters)
-        Returns the full concatenated theory vector for given parameters.
-    get_data_vector_masked()
-        Returns the masked data vector according to the masking_vector.
-    get_theory_vector_masked(parameters)
-        Returns the masked theory vector for given parameters.
-    get_covariance_matrix_masked_inv()
-        Returns the inverse of the masked covariance matrix.
-    loglike(parameters)
-        Computes the log-likelihood for the given parameters using masked data, theory, and covariance.
     """
 
-    def __init__(
-        self,
-        *,
-        data,
-        settings,
-        Background,
-        LinPerturbations,
-        NonLinPerturbations,
-        mode="coupled",
-    ):
-        super().__init__(
-            data, settings, Background, LinPerturbations, NonLinPerturbations, mode
-        )
-        self._init_wl()
-        self._init_gcph()
-        self._init_ggl()
-        self.masking_vector = np.concatenate(
-            [
-                np.concatenate(
-                    [
-                        self._masking(self.data["ells"], self.scale_cuts[key])
-                        for key in keys
-                    ]
-                )
-                for keys in (self.WL_keys, self.GG_keys, self.GGL_keys)
-            ]
-        )
-
-    def get_data_vector_full(self):
-        return np.concatenate(
-            [
-                WLMixin.get_data_vector_full(self),
-                GCphMixin.get_data_vector_full(self),
-                GGLMixin.get_data_vector_full(self),
-            ]
-        )
-
-    def get_theory_vector_full(self, parameters):
-        return np.concatenate(
-            [
-                WLMixin.get_theory_vector_full(self, parameters),
-                GCphMixin.get_theory_vector_full(self, parameters),
-                GGLMixin.get_theory_vector_full(self, parameters),
-            ]
-        )
+    pass
 
 
-class EuclidLikelihood_2x2pt(PhotoLikelihoodBase, GCphMixin, GGLMixin):
+class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
     """
     Likelihood class for Euclid 2x2pt photometric clustering and galaxy-galaxy lensing analysis.
 
@@ -663,59 +575,6 @@ class EuclidLikelihood_2x2pt(PhotoLikelihoodBase, GCphMixin, GGLMixin):
         Non-linear perturbations model instance.
     mode : str, optional
         Mode for likelihood computation, default is "coupled".
-
-    Attributes
-    ----------
-    masking_vector : np.ndarray
-        Combined masking vector for all GCph and GGL keys, used to apply scale cuts.
-
-    Methods
-    -------
-    get_data_vector_full()
-        Returns the concatenated data vector for both GCph and GGL probes.
-    get_theory_vector_full(parameters)
-        Returns the concatenated theory vector for both GCph and GGL probes, given model parameters.
     """
 
-    def __init__(
-        self,
-        *,
-        data,
-        settings,
-        Background,
-        LinPerturbations,
-        NonLinPerturbations,
-        mode="coupled",
-    ):
-        super().__init__(
-            data, settings, Background, LinPerturbations, NonLinPerturbations, mode
-        )
-        self._init_gcph()
-        self._init_ggl()
-        self.masking_vector = np.concatenate(
-            [
-                np.concatenate(
-                    [
-                        self._masking(self.data["ells"], self.scale_cuts[key])
-                        for key in keys
-                    ]
-                )
-                for keys in (self.GG_keys, self.GGL_keys)
-            ]
-        )
-
-    def get_data_vector_full(self):
-        return np.concatenate(
-            [
-                GCphMixin.get_data_vector_full(self),
-                GGLMixin.get_data_vector_full(self),
-            ]
-        )
-
-    def get_theory_vector_full(self, parameters):
-        return np.concatenate(
-            [
-                GCphMixin.get_theory_vector_full(self, parameters),
-                GGLMixin.get_theory_vector_full(self, parameters),
-            ]
-        )
+    pass
