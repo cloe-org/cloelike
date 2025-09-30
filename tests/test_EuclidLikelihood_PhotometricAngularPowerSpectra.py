@@ -113,6 +113,7 @@ def build_settings_DR1(ds):
     scale_cuts = {key: [4, 3000] for key in cls}
     return {"n_ell_bins": 32, "scale_cuts": scale_cuts}
 
+
 def test_euclid_likelihood_wl(data_setup, fiducial_params):
     ds = data_setup
     data_ll_DR1 = build_data(
