@@ -20,7 +20,7 @@ requests = "^2.32.3"
 euclidlib = "v2025.2"
 tensorflow = "2.13.0"
 tf-keras = "2.14.1"
-cosmolib = 0.1
+cosmolib = "0.1"
 
 # core cloelib functionality
 cloelib = { git = "https://github.com/cloe-org/cloelib.git" }
