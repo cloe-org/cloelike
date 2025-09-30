@@ -21,6 +21,8 @@ euclidlib = "v2025.2"
 tensorflow = "2.13.0"
 tf-keras = "2.14.1"
 cosmolib = "0.1"
+pytest = "8.3.5"
+pytest-cov = "6.1.1"
 
 # core cloelib functionality
 cloelib = { git = "https://github.com/cloe-org/cloelib.git" }
@@ -29,7 +31,3 @@ cloelib = { git = "https://github.com/cloe-org/cloelib.git" }
 camb = "*"
 comet-emu = "*"
 HMcode2020Emu = { git = "https://github.com/MariaTsedrik/HMcode2020Emu.git" }
-
-[tool.poetry.group.test.dependencies]
-pytest = "^8.3"
-pytest-cov = "6.1.1"
