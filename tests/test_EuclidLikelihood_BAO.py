@@ -18,6 +18,7 @@ default_pars = {
     "Omega_k0": 0,
     "mnu": 0.0,
     "gamma_MG": 0.545,
+    "N_mnu": 0,
 }
 
 # Mock data from Zenodo
@@ -61,8 +62,8 @@ def data_setup(tmp_path_factory):
             )
 
             for key, val in zip(
-                ["Omega_k0", "As", "ns", "mnu", "w0", "wa", "gamma_MG"],
-                [0.0, 2.1e-9, 0.96, 0.0, -1.0, 0.0, 0.545],
+                ["Omega_k0", "As", "ns", "mnu", "w0", "wa", "gamma_MG", "N_mnu"],
+                [0.0, 2.1e-9, 0.96, 0.0, -1.0, 0.0, 0.545, 0],
             ):
                 fiducial_cosmo.setdefault(key, val)
 
