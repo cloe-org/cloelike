@@ -114,7 +114,6 @@ def build_settings_DR1(ds):
     return {"n_ell_bins": 32, "scale_cuts": scale_cuts}
 
 
-# Example usage inside a test
 def test_euclid_likelihood_wl(data_setup, fiducial_params):
     ds = data_setup
     data_ll_DR1 = build_data(
