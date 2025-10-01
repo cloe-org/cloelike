@@ -10,7 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 authors = [
     { name = "M. Bonici", email = "marco.bonici@uwaterloo.ca" },
-    { name = "G. Cañas-Herrera", email = "guadalupe.canasherrera@esa.int" },
+    { name = "G. Cañas-Herrera", email = "canasherrera@strw.leidenuniv.nl" },
     { name = "P. Carrilho", email = "pedro.carrilho@ed.ac.uk" },
     { name = "S. Casas", email = "casas@physik.rwth-aachen.de" },
     { name = "C. Moretti", email = "cmoretti@sissa.it" },

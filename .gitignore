@@ -78,3 +78,4 @@ jax_cache/
 *.jpg
 *.pdf
 *.xml
+*.npz
