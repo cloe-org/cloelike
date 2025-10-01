@@ -42,19 +42,17 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
       - name: Configure Git for private repo access
         run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
+      - name: Install cloelike
+        run: pip install .
+
       - name: Install dependencies
-        run: python -m pip install .
+        run: python -m pip install -r requirements.txt
 
       - name: Run tests with coverage
-        run: poetry run pytest -vv --cov=cloelike --cov-report=term-missing
+        run: pytest -vv --cov=cloelike --cov-report=term-missing
 
   build:
     name: Build

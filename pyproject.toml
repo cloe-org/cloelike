@@ -1,33 +1,20 @@
-[tool.poetry]
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
 name = "cloelike"
 version = "0.2"
 description = "Likelihood module for Euclid primary observables for the CLOE project"
-authors = [
-    "M. Bonici <marco.bonici@uwaterloo.ca>",
-    "G. Cañas-Herrera <guadalupe.canasherrera@esa.int>",
-    "P. Carrilho <pedro.carrilho@ed.ac.uk>",
-    "S. Casas <casas@physik.rwth-aachen.de>",
-    "C. Moretti <cmoretti@sissa.it>",
-    "A. Pezzotta <andrea.pezzotta@inaf.it>"
-]
-license = "MIT"
 readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "M. Bonici", email = "marco.bonici@uwaterloo.ca" },
+    { name = "G. Cañas-Herrera", email = "guadalupe.canasherrera@esa.int" },
+    { name = "P. Carrilho", email = "pedro.carrilho@ed.ac.uk" },
+    { name = "S. Casas", email = "casas@physik.rwth-aachen.de" },
+    { name = "C. Moretti", email = "cmoretti@sissa.it" },
+    { name = "A. Pezzotta", email = "andrea.pezzotta@inaf.it" }
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-numpy = "1.24.3"
-requests = "^2.32.3"
-euclidlib = "v2025.2"
-tensorflow = "2.13.0"
-tf-keras = "2.14.1"
-cosmolib = "0.1"
-pytest = "8.3.5"
-pytest-cov = "6.1.1"
-
-# core cloelib functionality
-cloelib = { git = "https://github.com/cloe-org/cloelib.git" }
-
-# explicitly install extras
-camb = "*"
-comet-emu = "*"
-HMcode2020Emu = { git = "https://github.com/MariaTsedrik/HMcode2020Emu.git" }
+requires-python = ">=3.10,<3.11"
