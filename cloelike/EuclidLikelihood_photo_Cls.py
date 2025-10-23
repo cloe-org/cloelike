@@ -531,7 +531,7 @@ class EuclidLikelihood_GGL(GGLMixin, PhotoLikelihoodBase):
     pass
 
 
-class EuclidLikelihood_3x2pt(WLMixin, GCphMixin, GGLMixin, PhotoLikelihoodBase):
+class EuclidLikelihood_3x2pt(GCphMixin, GGLMixin, WLMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_3x2pt combines weak lensing (WL), galaxy clustering (GCph), and galaxy-galaxy lensing (GGL)
     likelihoods for photometric cosmological analyses, supporting scale cuts and masking.
