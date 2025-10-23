@@ -1,7 +1,9 @@
 {
   "projectName": "cloelike",
   "projectOwner": "cloe-org",
-  "files": ["README.md"],
+  "files": [
+    "README.md"
+  ],
   "commitType": "docs",
   "commitConvention": "angular",
   "contributorsPerLine": 7,
@@ -23,7 +25,8 @@
         "projectManagement",
         "question",
         "test",
-        "talk"
+        "talk",
+        "review"
       ]
     },
     {
@@ -64,21 +67,28 @@
       "name": "itutusaus",
       "avatar_url": "https://avatars.githubusercontent.com/u/20775836?v=4",
       "profile": "https://github.com/itutusaus",
-      "contributions": ["review"]
+      "contributions": [
+        "review"
+      ]
     },
     {
       "login": "marcobonici",
       "name": "Marco Bonici",
       "avatar_url": "https://avatars.githubusercontent.com/u/58727599?v=4",
       "profile": "https://marcobonici.github.io/",
-      "contributions": ["review"]
+      "contributions": [
+        "review"
+      ]
     },
     {
       "login": "santiagocasas",
       "name": "Santiago Casas",
       "avatar_url": "https://avatars.githubusercontent.com/u/6987716?v=4",
       "profile": "http://www.cosmostat.org/people/santiago-casas",
-      "contributions": ["ideas", "review"]
+      "contributions": [
+        "ideas",
+        "review"
+      ]
     },
     {
       "login": "chiaramoretti",
@@ -99,14 +109,20 @@
       "name": "Nicolas Tessore",
       "avatar_url": "https://avatars.githubusercontent.com/u/3993688?v=4",
       "profile": "http://ntessore.page",
-      "contributions": ["review", "ideas"]
+      "contributions": [
+        "review",
+        "ideas"
+      ]
     },
     {
       "login": "davidesciotti",
       "name": "Davide Sciotti",
       "avatar_url": "https://avatars.githubusercontent.com/u/84071067?v=4",
       "profile": "https://github.com/davidesciotti",
-      "contributions": ["code", "bug"]
+      "contributions": [
+        "code",
+        "bug"
+      ]
     }
   ]
 }
