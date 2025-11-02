@@ -42,7 +42,7 @@
 ### ✅ PR Checklist for Developers
 
 - [ ] I have titled this PR before merging as "gh-#:", where "#" represents the task it closes
-- [ ] My code follows the repository's coding style
+- [ ] I have run locally pre-commit using `pre-commit run --all-files`
 - [ ] I have tested my changes locally
 - [ ] No new warnings or errors introduced
 - [ ] I have updated documentation (if applicable)
@@ -63,6 +63,5 @@
 - [ ] Implementation follows the agreed task description point by point
 - [ ] Check that there are no `No newline at the end of file` warnings
 - [ ] Check that any added folder/file has been added to the `README.md` file
-- [ ] Check that the implementation follows the contributing guidelines and style choices
 - [ ] Check that the documentation has been updated accordantly
 - [ ] Check that the corresponding branch has been deleted after merging. If not, delete it
