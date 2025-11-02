@@ -2,6 +2,7 @@
 import numpy as np
 from copy import deepcopy
 from typing import Protocol, runtime_checkable
+from functools import cached_property
 
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
@@ -75,50 +76,75 @@ class PhotoLikelihoodProtocol(Protocol):
 class PhotoLikelihoodBase:
     """
     Base class for photometric likelihood calculations using angular power spectra (Cls).
-    This class provides methods for preparing, binning, and masking data, as well as computing
+    Provides methods for preparing, binning, and masking data, and computing
     likelihoods based on theoretical predictions and observed data vectors.
-    Args:
-        data (dict): Dictionary containing observational data, including 'cells', 'ells', 'z_arr', 'mixmat', and 'cov'.
-        settings (dict): Configuration settings, including 'scale_cuts' and 'n_ell_bins'.
-        Background: Object representing background cosmology.
-        LinPerturbations: Object representing linear perturbations.
-        NonLinPerturbations: Object representing non-linear perturbations.
-        mode (str, optional): Mode of operation, default is "coupled".
-    Attributes:
-        data (dict): Observational data.
-        settings (dict): Configuration settings.
-        derived (dict): Dictionary for storing derived quantities.
-        Background: Background cosmology object.
-        LinPerturbations: Linear perturbations object.
-        NonLinPerturbations: Non-linear perturbations object.
-        mode (str): Mode of operation.
-        scale_cuts: Scale cuts from settings.
-        rebin (bool): Flag indicating if data has been rebinned.
-        zs: Redshift array from data.
-        mixmat: Mixing matrix, possibly rebinned.
-        weight_mat: Weight matrix used for binning.
-        masking_vector: Boolean mask for selecting data vector elements.
-    Methods:
-        _prepare():
-            Prepares the data, performing binning if necessary.
-        _bin_data(cells_data, ells, n_bins):
-            Bins the data vectors and updates the weight matrix.
-        _bin_mixmat():
-            Bins the mixing matrix according to the weight matrix.
-        _masking(arr, interval):
-            Returns a boolean mask for elements within the specified interval.
-        get_covariance_matrix_full():
-            Returns the full covariance matrix from the data.
-        get_data_vector_masked():
-            Returns the masked data vector.
-        get_covariance_matrix_masked_inv():
-            Returns the inverse of the masked covariance matrix.
-        get_theory_vector_full(parameters):
-            Returns the full theoretical prediction vector for given parameters.
-        get_theory_vector_masked(parameters):
-            Returns the masked theoretical prediction vector for given parameters.
-        loglike(parameters):
-            Computes the log-likelihood for the given parameters using the masked data and theory vectors.
+
+    Parameters
+    ----------
+    data : dict
+        Input data required for likelihood computation, including observed ells and other relevant quantities.
+    settings : dict
+        Configuration settings for the likelihood calculation, such as scale cuts and binning options.
+    Background : object
+        Instance representing the cosmological background model from cloelib.cosmology.
+    LinPerturbations : object
+        Instance representing linear perturbations from cloelib.cosmology.
+    NonLinPerturbations : object
+        Instance representing non-linear perturbations from cloelib.cosmology.
+    mode : str, optional
+        Mode of operation, default is "coupled".
+
+    Attributes
+    ----------
+    data : dict
+        Observational data dictionary.
+    settings : dict
+        Configuration settings dictionary.
+    derived : dict
+        Dictionary for derived quantities.
+    Background : object
+        Cosmological background instance.
+    LinPerturbations : object
+        Linear perturbations instance.
+    NonLinPerturbations : object
+        Non-linear perturbations instance.
+    mode : str
+        Mode of operation (e.g., "coupled").
+    scale_cuts : dict
+        Scale cuts for different probes.
+    rebin : bool
+        Flag indicating if rebinning was performed.
+    zs : np.ndarray
+        Array of redshift values.
+    mixmat : dict
+        Mixing matrix for pseudo-Cl calculations.
+
+    Methods
+    -------
+    _prepare():
+        Prepares the data by performing rebinning if required by settings.
+    _bin_data(cells_data, ells, n_bins):
+        Geometric rebinning of data vectors.
+    _bin_mixmat():
+        Applies binning to the mixing matrix.
+    _masking(arr, interval):
+        Helper method to create a boolean mask for elements within a given interval.
+    get_masking_vector():
+        To be extended by mixins to provide a combined masking vector.
+    get_covariance_matrix_full():
+        Returns the full covariance matrix.
+    get_data_vector_full():
+        To be extended by mixins to provide the full data vector.
+    get_theory_vector_full(parameters):
+        To be extended by mixins to provide the full theory vector for given parameters.
+    get_theory_vector_masked(parameters):
+        Returns the masked theory vector for given parameters.
+    get_covariance_matrix_masked_inv():
+        Returns the inverse of the masked covariance matrix.
+    get_data_vector_masked():
+        Returns the masked data vector.
+    loglike(parameters):
+        Computes the Gaussian log-likelihood based on the masked data and theory vectors.
     """
 
     def __init__(
@@ -143,7 +169,11 @@ class PhotoLikelihoodBase:
         self.mixmat = deepcopy(data["mixmat"])
         self._prepare()
 
+    # -------------------------------
+    #  Core preparation utilities
+    # -------------------------------
     def _prepare(self):
+        """Perform rebinning if required by settings."""
         if self.settings["n_ell_bins"] < len(self.data["ells"]):
             self.rebin = True
             self.data["cells_unbin"] = self.data["cells"]
@@ -154,6 +184,7 @@ class PhotoLikelihoodBase:
             self._bin_mixmat()
 
     def _bin_data(self, cells_data, ells, n_bins):
+        """Geometric rebinning of data vectors."""
         bin_edges = np.geomspace(10, ells[-1], n_bins + 1)
         mask_bins = [
             (ells >= bin_edges[i]) & (ells < bin_edges[i + 1]) for i in range(n_bins)
@@ -165,6 +196,7 @@ class PhotoLikelihoodBase:
             self.data["cells"][k] = cells_data[k] @ self.weight_mat.T
 
     def _bin_mixmat(self):
+        """Apply the same binning to the mixing matrix."""
         for k in self.mixmat.keys():
             new_array = np.tensordot(self.weight_mat, self.mixmat[k], axes=([1], [-2]))
             if k[:2] == ("SHE", "SHE"):
@@ -172,41 +204,76 @@ class PhotoLikelihoodBase:
             self.mixmat[k] = new_array
 
     def _masking(self, arr, interval):
+        """Helper: boolean mask for elements within a given interval."""
         return (arr >= interval[0]) & (arr <= interval[1])
 
+    # -------------------------------
+    #  Default empty definitions
+    # -------------------------------
     def get_masking_vector(self):
+        """To be extended by mixins."""
         return np.array([], dtype=bool)
 
     def get_covariance_matrix_full(self):
         return self.data["cov"]
 
     def get_data_vector_full(self):
+        """To be extended by mixins."""
         return np.array([])
-
-    def get_data_vector_masked(self):
-        return self.get_data_vector_full()[self.get_masking_vector()]
-
-    def get_covariance_matrix_masked_inv(self):
-        cov = self.get_covariance_matrix_full()
-        return np.linalg.inv(
-            cov[self.get_masking_vector()][:, self.get_masking_vector()]
-        )
 
     def get_theory_vector_full(self, parameters):
+        """To be extended by mixins."""
         return np.array([])
 
+    # -------------------------------
+    #  Cached functional attributes
+    # -------------------------------
+    @cached_property
+    def masking_vector(self):
+        """Combined boolean mask for all probes."""
+        return self.get_masking_vector()
+
+    @cached_property
+    def data_vector_masked(self):
+        """Observed data vector with the full combined mask applied."""
+        return self.get_data_vector_full()[self.masking_vector]
+
+    @cached_property
+    def inv_cov_masked(self):
+        """Inverse of the masked covariance matrix (computed once)."""
+        cov = self.get_covariance_matrix_full()
+        cov_masked = cov[self.masking_vector][:, self.masking_vector]
+        return np.linalg.inv(cov_masked)
+
+    # -------------------------------
+    #  Public API
+    # -------------------------------
     def get_theory_vector_masked(self, parameters):
-        return self.get_theory_vector_full(parameters)[self.get_masking_vector()]
+        """Theoretical vector masked identically to the data vector."""
+        return self.get_theory_vector_full(parameters)[self.masking_vector]
+
+    def get_covariance_matrix_masked_inv(self):
+        """Return cached inverse covariance matrix."""
+        return self.inv_cov_masked
+
+    def get_data_vector_masked(self):
+        """Return cached masked data vector."""
+        return self.data_vector_masked
 
     def loglike(self, parameters):
-        t_vec = self.get_theory_vector_masked(parameters)
-        d_vec = self.get_data_vector_masked()
-        inv_cov = self.get_covariance_matrix_masked_inv()
-        diff = t_vec - d_vec
-        return -0.5 * diff @ inv_cov @ diff
+        """Compute Gaussian log-likelihood."""
+        diff = self.get_theory_vector_masked(parameters) - self.data_vector_masked
+        return -0.5 * diff @ self.inv_cov_masked @ diff
 
 
 class WLMixin:
+    """
+    Mixin class providing weak lensing (WL) specific functionality for photometric likelihoods.
+    This mixin extends the base photometric likelihood class to include methods and attributes
+    necessary for handling weak lensing data, such as initializing shear bins, constructing
+    masking vectors, and computing data and theory vectors specific to weak lensing.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)  # Call the next class in the MRO
         self._init_wl()
@@ -284,6 +351,13 @@ class WLMixin:
 
 
 class GCphMixin:
+    """
+    Mixin class providing photometric angular galaxy clustering specific functionality for photometric likelihoods.
+    This mixin extends the base photometric likelihood class to include methods and attributes
+    necessary for handling weak lensing data, such as initializing shear bins, constructing
+    masking vectors, and computing data and theory vectors specific to weak lensing.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_gcph()
@@ -360,6 +434,13 @@ class GCphMixin:
 
 
 class GGLMixin:
+    """
+    Mixin class providing galaxy-galaxy lensing specific functionality for photometric likelihoods.
+    This mixin extends the base photometric likelihood class to include methods and attributes
+    necessary for handling weak lensing data, such as initializing shear bins, constructing
+    masking vectors, and computing data and theory vectors specific to weak lensing.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_ggl()
@@ -512,6 +593,10 @@ class EuclidLikelihood_GGL(GGLMixin, PhotoLikelihoodBase):
     the necessary components and constructs a masking vector based on scale cuts for each
     GGL key.
 
+    Inherits from:
+        PhotoLikelihoodBase: Base class for photometric likelihoods.
+        GGLMixin: Mixin providing GGL-specific functionality.
+
     Parameters
     ----------
     data : dict
@@ -535,6 +620,17 @@ class EuclidLikelihood_3x2pt(GCphMixin, GGLMixin, WLMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_3x2pt combines weak lensing (WL), galaxy clustering (GCph), and galaxy-galaxy lensing (GGL)
     likelihoods for photometric cosmological analyses, supporting scale cuts and masking.
+
+    Inherits from:
+        PhotoLikelihoodBase: Base class for photometric likelihoods.
+        GCphMixin: Mixin providing galaxy clustering specific functionality.
+        GGLMixin: Mixin providing galaxy-galaxy lensing specific functionality.
+        WLMixin: Mixin providing weak lensing specific functionality.
+
+    Note: The order of inheritance matters due to the method resolution order (MRO) in Python
+    and how mixins extend the base class functionality. Also, the order of the mixins assumes
+    the ordering of the covariance matrix blocks is GCph, GGL and WL.
+
     Parameters
     ----------
     data : dict
@@ -560,6 +656,10 @@ class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
 
     This class combines galaxy clustering (GCph) and galaxy-galaxy lensing (GGL) likelihoods,
     providing methods to compute the full data and theory vectors for both probes.
+
+    Note: The order of inheritance matters due to the method resolution order (MRO) in Python
+    and how mixins extend the base class functionality. Also, the order of the mixins assumes
+    the ordering of the covariance matrix blocks is GCph, GGL.
 
     Parameters
     ----------
