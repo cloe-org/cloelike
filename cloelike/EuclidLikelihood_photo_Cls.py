@@ -2,7 +2,7 @@
 import numpy as np
 from copy import deepcopy
 from typing import Protocol, runtime_checkable
-from functools import cached_property
+from functools import lru_cache
 
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
@@ -26,24 +26,6 @@ class PhotoLikelihoodProtocol(Protocol):
         NonLinPerturbations (Perturbations): Non-linear perturbations instance.
         derived (dict): Dictionary for derived quantities.
         mode (str): Mode of operation (e.g., "coupled").
-
-    Methods:
-        __init__(data, settings, Background, LinPerturbations, NonLinPerturbations, mode):
-            Initializes the likelihood protocol.
-        get_data_vector_full() -> np.ndarray:
-            Returns the full data vector.
-        get_data_vector_masked() -> np.ndarray:
-            Returns the masked data vector.
-        get_theory_vector_full(parameters: dict) -> np.ndarray:
-            Returns the full theory vector for given parameters.
-        get_theory_vector_masked(parameters: dict) -> np.ndarray:
-            Returns the masked theory vector for given parameters.
-        get_covariance_matrix_full() -> np.ndarray:
-            Returns the full covariance matrix.
-        get_covariance_matrix_masked_inv() -> np.ndarray:
-            Returns the inverse of the masked covariance matrix.
-        loglike(parameters: dict) -> float:
-            Computes the log-likelihood for the given parameters.
     """
 
     def __init__(
@@ -76,75 +58,24 @@ class PhotoLikelihoodProtocol(Protocol):
 class PhotoLikelihoodBase:
     """
     Base class for photometric likelihood calculations using angular power spectra (Cls).
+
     Provides methods for preparing, binning, and masking data, and computing
     likelihoods based on theoretical predictions and observed data vectors.
 
     Parameters
     ----------
     data : dict
-        Input data required for likelihood computation, including observed ells and other relevant quantities.
+        Input data required for likelihood computation.
     settings : dict
-        Configuration settings for the likelihood calculation, such as scale cuts and binning options.
-    Background : object
-        Instance representing the cosmological background model from cloelib.cosmology.
-    LinPerturbations : object
-        Instance representing linear perturbations from cloelib.cosmology.
-    NonLinPerturbations : object
-        Instance representing non-linear perturbations from cloelib.cosmology.
-    mode : str, optional
-        Mode of operation, default is "coupled".
-
-    Attributes
-    ----------
-    data : dict
-        Observational data dictionary.
-    settings : dict
-        Configuration settings dictionary.
-    derived : dict
-        Dictionary for derived quantities.
+        Configuration settings for the likelihood calculation.
     Background : object
         Cosmological background instance.
     LinPerturbations : object
         Linear perturbations instance.
     NonLinPerturbations : object
         Non-linear perturbations instance.
-    mode : str
-        Mode of operation (e.g., "coupled").
-    scale_cuts : dict
-        Scale cuts for different probes.
-    rebin : bool
-        Flag indicating if rebinning was performed.
-    zs : np.ndarray
-        Array of redshift values.
-    mixmat : dict
-        Mixing matrix for pseudo-Cl calculations.
-
-    Methods
-    -------
-    _prepare():
-        Prepares the data by performing rebinning if required by settings.
-    _bin_data(cells_data, ells, n_bins):
-        Geometric rebinning of data vectors.
-    _bin_mixmat():
-        Applies binning to the mixing matrix.
-    _masking(arr, interval):
-        Helper method to create a boolean mask for elements within a given interval.
-    get_masking_vector():
-        To be extended by mixins to provide a combined masking vector.
-    get_covariance_matrix_full():
-        Returns the full covariance matrix.
-    get_data_vector_full():
-        To be extended by mixins to provide the full data vector.
-    get_theory_vector_full(parameters):
-        To be extended by mixins to provide the full theory vector for given parameters.
-    get_theory_vector_masked(parameters):
-        Returns the masked theory vector for given parameters.
-    get_covariance_matrix_masked_inv():
-        Returns the inverse of the masked covariance matrix.
-    get_data_vector_masked():
-        Returns the masked data vector.
-    loglike(parameters):
-        Computes the Gaussian log-likelihood based on the masked data and theory vectors.
+    mode : str, optional
+        Mode of operation, default is "coupled".
     """
 
     def __init__(
@@ -208,62 +139,53 @@ class PhotoLikelihoodBase:
         return (arr >= interval[0]) & (arr <= interval[1])
 
     # -------------------------------
-    #  Default empty definitions
+    #  Default methods
     # -------------------------------
     def get_masking_vector(self):
-        """To be extended by mixins."""
+        """Return the combined masking vector (to be extended by mixins)."""
         return np.array([], dtype=bool)
 
     def get_covariance_matrix_full(self):
+        """Return the full covariance matrix."""
         return self.data["cov"]
 
     def get_data_vector_full(self):
-        """To be extended by mixins."""
+        """Return the full observed data vector (to be extended by mixins)."""
         return np.array([])
 
     def get_theory_vector_full(self, parameters):
-        """To be extended by mixins."""
+        """Return the full theoretical data vector (to be extended by mixins)."""
         return np.array([])
 
-    # -------------------------------
-    #  Cached functional attributes
-    # -------------------------------
-    @cached_property
-    def masking_vector(self):
-        """Combined boolean mask for all probes."""
+    @lru_cache(maxsize=None)
+    def get_masking_vector_cached(self):
+        """Compute (once) and cache the combined boolean mask."""
         return self.get_masking_vector()
 
-    @cached_property
-    def data_vector_masked(self):
-        """Observed data vector with the full combined mask applied."""
-        return self.get_data_vector_full()[self.masking_vector]
+    @lru_cache(maxsize=None)
+    def get_data_vector_masked(self):
+        """Compute (once) and cache masked data vector."""
+        mask = self.get_masking_vector_cached()
+        return self.get_data_vector_full()[mask]
 
-    @cached_property
-    def inv_cov_masked(self):
-        """Inverse of the masked covariance matrix (computed once)."""
+    @lru_cache(maxsize=None)
+    def get_covariance_matrix_masked_inv(self):
+        """Compute (once) and cache inverse masked covariance matrix."""
         cov = self.get_covariance_matrix_full()
-        cov_masked = cov[self.masking_vector][:, self.masking_vector]
+        mask = self.get_masking_vector_cached()
+        cov_masked = cov[mask][:, mask]
         return np.linalg.inv(cov_masked)
 
-    # -------------------------------
-    #  Public API
-    # -------------------------------
     def get_theory_vector_masked(self, parameters):
-        """Theoretical vector masked identically to the data vector."""
-        return self.get_theory_vector_full(parameters)[self.masking_vector]
-
-    def get_covariance_matrix_masked_inv(self):
-        """Return cached inverse covariance matrix."""
-        return self.inv_cov_masked
-
-    def get_data_vector_masked(self):
-        """Return cached masked data vector."""
-        return self.data_vector_masked
+        """Return theoretical vector masked identically to the data vector."""
+        mask = self.get_masking_vector_cached()
+        return self.get_theory_vector_full(parameters)[mask]
 
     def loglike(self, parameters):
         """Compute Gaussian log-likelihood."""
-        diff = self.get_theory_vector_masked(parameters) - self.data_vector_masked
-        return -0.5 * diff @ self.inv_cov_masked @ diff
+        diff = self.get_theory_vector_masked(parameters) - self.get_data_vector_masked()
+        inv_cov = self.get_covariance_matrix_masked_inv()
+        return -0.5 * diff @ inv_cov @ diff
 
 
 class WLMixin:
