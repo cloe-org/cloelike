@@ -1,12 +1,14 @@
 # file: euclid_likelihoods.py
 import numpy as np
-from copy import deepcopy
 from typing import Protocol, runtime_checkable
+from functools import lru_cache
 
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
-from cloelib.summary_statistics.angular_correlation_function_wigner import AngularCorrelationFunctionWigner
+from cloelib.summary_statistics.angular_correlation_function_wigner import (
+    AngularCorrelationFunctionWigner,
+)
 
 
 @runtime_checkable
@@ -61,7 +63,6 @@ class PhotoLikelihoodProtocol(Protocol):
     LinPerturbations: Perturbations
     NonLinPerturbations: Perturbations
     derived: dict
-    
 
     def get_data_vector_full(self) -> np.ndarray: ...
     def get_data_vector_masked(self) -> np.ndarray: ...
@@ -128,7 +129,7 @@ class PhotoLikelihoodBase:
         Background,
         LinPerturbations,
         NonLinPerturbations,
-        ells_integration = np.arange(2, 60000)
+        ells_integration=np.arange(2, 60000),
     ):
         self.data = data
         self.settings = settings
@@ -139,11 +140,6 @@ class PhotoLikelihoodBase:
         self.ells_integration = ells_integration
         self.scale_cuts = settings["scale_cuts"]
         self.zs = data["z_arr"]
-       
-        
-
-   
-
 
     def _masking(self, arr, interval):
         return (arr >= interval[0]) & (arr <= interval[1])
@@ -157,26 +153,34 @@ class PhotoLikelihoodBase:
     def get_data_vector_full(self):
         return np.array([])
 
-    def get_data_vector_masked(self):
-        return self.get_data_vector_full()[self.get_masking_vector()]
+    @lru_cache(maxsize=None)
+    def get_masking_vector_cached(self):
+        """Compute (once) and cache the combined boolean mask."""
+        return self.get_masking_vector()
 
+    @lru_cache(maxsize=None)
+    def get_data_vector_masked(self):
+        mask = self.get_masking_vector_cached()
+        return self.get_data_vector_full()[mask]
+
+    @lru_cache(maxsize=None)
     def get_covariance_matrix_masked_inv(self):
+        """Compute (once) and cache inverse masked covariance matrix."""
         cov = self.get_covariance_matrix_full()
-        return np.linalg.inv(
-            cov[self.get_masking_vector()][:, self.get_masking_vector()]
-        )
+        mask = self.get_masking_vector_cached()
+        cov_masked = cov[mask][:, mask]
+        return np.linalg.inv(cov_masked)
 
     def get_theory_vector_full(self, parameters):
         return np.array([])
 
     def get_theory_vector_masked(self, parameters):
-        return self.get_theory_vector_full(parameters)[self.get_masking_vector()]
+        mask = self.get_masking_vector_cached()
+        return self.get_theory_vector_full(parameters)[mask]
 
     def loglike(self, parameters):
-        t_vec = self.get_theory_vector_masked(parameters)
-        d_vec = self.get_data_vector_masked()
+        diff = self.get_theory_vector_masked(parameters) - self.get_data_vector_masked()
         inv_cov = self.get_covariance_matrix_masked_inv()
-        diff = t_vec - d_vec
         return -0.5 * diff @ inv_cov @ diff
 
 
@@ -201,16 +205,30 @@ class WLMixin:
 
     def get_masking_vector(self):
         v = super().get_masking_vector()
-        vec1 = np.concatenate([self._masking(self.data["theta"], self.scale_cuts[key][:2]) for key in self.WL_keys])
-        vec2 = np.concatenate([self._masking(self.data["theta"], self.scale_cuts[key][2:]) for key in self.WL_keys])
-        vec = np.concatenate([vec1,vec2])
+        vec1 = np.concatenate(
+            [
+                self._masking(self.data["theta"], self.scale_cuts[key][:2])
+                for key in self.WL_keys
+            ]
+        )
+        vec2 = np.concatenate(
+            [
+                self._masking(self.data["theta"], self.scale_cuts[key][2:4])
+                for key in self.WL_keys
+            ]
+        )
+        vec = np.concatenate([vec1, vec2])
         return np.concatenate([v, vec])
 
     def get_data_vector_full(self):
         v = super().get_data_vector_full()
-        vec1 = np.array([self.data["2pcf"][key][0,0] for key in self.WL_keys]).flatten()
-        vec2 = np.array([self.data["2pcf"][key][1,1] for key in self.WL_keys]).flatten()
-        vec = np.concatenate([vec1,vec2])
+        vec1 = np.array(
+            [self.data["2pcf"][key][0, 0] for key in self.WL_keys]
+        ).flatten()
+        vec2 = np.array(
+            [self.data["2pcf"][key][1, 1] for key in self.WL_keys]
+        ).flatten()
+        vec = np.concatenate([vec1, vec2])
         return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
@@ -243,10 +261,12 @@ class WLMixin:
             self.zs,
             nuisance_params={key: parameters[key] for key in self.full_she_keys},
         )
-        cf_all_th = AngularCorrelationFunctionWigner(AngularTwoPoint(she,she),self.ells_integration,nlp.k).get_xi(np.radians(self.data["theta"]/60))
-        vec1 = np.array([cf_all_th[key][0,0] for key in self.WL_keys]).flatten()
-        vec2 = np.array([cf_all_th[key][1,1] for key in self.WL_keys]).flatten()
-        vec = np.concatenate([vec1,vec2])
+        cf_all_th = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(she, she), self.ells_integration, nlp.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
+        vec1 = np.array([cf_all_th[key][0, 0] for key in self.WL_keys]).flatten()
+        vec2 = np.array([cf_all_th[key][1, 1] for key in self.WL_keys]).flatten()
+        vec = np.concatenate([vec1, vec2])
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
@@ -317,7 +337,9 @@ class GCphMixin:
             nuisance_params={key: parameters[key] for key in self.full_pos_keys},
             galaxy_bias_model="poly",
         )
-        cf_all_th = AngularCorrelationFunctionWigner(AngularTwoPoint(pos, pos),self.ells_integration,nlp.k).get_xi(np.radians(self.data["theta"]/60))
+        cf_all_th = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(pos, pos), self.ells_integration, nlp.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key] for key in self.GG_keys]).flatten()
 
         self.derived["sigma8_0"] = nlp.sigma8_0()
@@ -403,11 +425,12 @@ class GGLMixin:
             self.zs,
             nuisance_params={key: parameters[key] for key in self.full_she_keys},
         )
-        
-        cf_all_th = AngularCorrelationFunctionWigner(AngularTwoPoint(she,pos),self.ells_integration,nlp.k).get_xi(np.radians(self.data["theta"]/60))
+
+        cf_all_th = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(pos, she), self.ells_integration, nlp.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key][0] for key in self.GGL_keys]).flatten()
-        
-        
+
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
