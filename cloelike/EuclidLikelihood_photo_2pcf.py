@@ -1,9 +1,7 @@
 # file: euclid_likelihoods.py
 import numpy as np
-from typing import Protocol, runtime_checkable
 from functools import lru_cache
 
-from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.summary_statistics.angular_correlation_function_wigner import (
@@ -11,76 +9,14 @@ from cloelib.summary_statistics.angular_correlation_function_wigner import (
 )
 
 
-@runtime_checkable
-class PhotoLikelihoodProtocol(Protocol):
-    """
-    Protocol for photo-z likelihood classes.
-
-    This protocol defines the required interface for photometric likelihood implementations,
-    specifying initialization, required attributes, and methods for computing data vectors,
-    theory vectors, covariance matrices, and log-likelihoods.
-
-    Attributes:
-        data (dict): Observational data dictionary.
-        settings (dict): Configuration settings dictionary.
-        Background (Background): Cosmological background instance.
-        LinPerturbations (Perturbations): Linear perturbations instance.
-        NonLinPerturbations (Perturbations): Non-linear perturbations instance.
-        derived (dict): Dictionary for derived quantities.
-        mode (str): Mode of operation (e.g., "coupled").
-
-    Methods:
-        __init__(data, settings, Background, LinPerturbations, NonLinPerturbations, mode):
-            Initializes the likelihood protocol.
-        get_data_vector_full() -> np.ndarray:
-            Returns the full data vector.
-        get_data_vector_masked() -> np.ndarray:
-            Returns the masked data vector.
-        get_theory_vector_full(parameters: dict) -> np.ndarray:
-            Returns the full theory vector for given parameters.
-        get_theory_vector_masked(parameters: dict) -> np.ndarray:
-            Returns the masked theory vector for given parameters.
-        get_covariance_matrix_full() -> np.ndarray:
-            Returns the full covariance matrix.
-        get_covariance_matrix_masked_inv() -> np.ndarray:
-            Returns the inverse of the masked covariance matrix.
-        loglike(parameters: dict) -> float:
-            Computes the log-likelihood for the given parameters.
-    """
-
-    def __init__(
-        self,
-        data: dict,
-        settings: dict,
-        Background: Background,
-        LinPerturbations: Perturbations,
-        NonLinPerturbations: Perturbations,
-    ) -> None: ...
-
-    data: dict
-    settings: dict
-    Background: Background
-    LinPerturbations: Perturbations
-    NonLinPerturbations: Perturbations
-    derived: dict
-
-    def get_data_vector_full(self) -> np.ndarray: ...
-    def get_data_vector_masked(self) -> np.ndarray: ...
-    def get_theory_vector_full(self, parameters: dict) -> np.ndarray: ...
-    def get_theory_vector_masked(self, parameters: dict) -> np.ndarray: ...
-    def get_covariance_matrix_full(self) -> np.ndarray: ...
-    def get_covariance_matrix_masked_inv(self) -> np.ndarray: ...
-    def loglike(self, parameters: dict) -> float: ...
-
-
 class PhotoLikelihoodBase:
     """
-    Base class for photometric likelihood calculations using angular power spectra (Cls).
+    Base class for photometric likelihood calculations using angular correlation functions.
     This class provides methods for preparing, binning, and masking data, as well as computing
     likelihoods based on theoretical predictions and observed data vectors.
     Args:
-        data (dict): Dictionary containing observational data, including 'cells', 'ells', 'z_arr', 'mixmat', and 'cov'.
-        settings (dict): Configuration settings, including 'scale_cuts' and 'n_ell_bins'.
+        data (dict): Dictionary containing observational data, including '2pcf', 'theta', 'z_arr', and 'cov'.
+        settings (dict): Configuration settings, including 'scale_cuts'.
         Background: Object representing background cosmology.
         LinPerturbations: Object representing linear perturbations.
         NonLinPerturbations: Object representing non-linear perturbations.
@@ -92,20 +28,12 @@ class PhotoLikelihoodBase:
         Background: Background cosmology object.
         LinPerturbations: Linear perturbations object.
         NonLinPerturbations: Non-linear perturbations object.
-        mode (str): Mode of operation.
         scale_cuts: Scale cuts from settings.
-        rebin (bool): Flag indicating if data has been rebinned.
         zs: Redshift array from data.
         mixmat: Mixing matrix, possibly rebinned.
         weight_mat: Weight matrix used for binning.
         masking_vector: Boolean mask for selecting data vector elements.
     Methods:
-        _prepare():
-            Prepares the data, performing binning if necessary.
-        _bin_data(cells_data, ells, n_bins):
-            Bins the data vectors and updates the weight matrix.
-        _bin_mixmat():
-            Bins the mixing matrix according to the weight matrix.
         _masking(arr, interval):
             Returns a boolean mask for elements within the specified interval.
         get_covariance_matrix_full():
@@ -205,30 +133,32 @@ class WLMixin:
 
     def get_masking_vector(self):
         v = super().get_masking_vector()
-        vec1 = np.concatenate(
+        vec_plus = np.concatenate(
             [
                 self._masking(self.data["theta"], self.scale_cuts[key][:2])
                 for key in self.WL_keys
             ]
         )
-        vec2 = np.concatenate(
+        vec_minus = np.concatenate(
             [
                 self._masking(self.data["theta"], self.scale_cuts[key][2:4])
                 for key in self.WL_keys
             ]
         )
-        vec = np.concatenate([vec1, vec2])
+        vec = np.concatenate(
+            [vec_plus, vec_minus]
+        )  # vec_plus:xi_plus,vec_minus:xi_minus
         return np.concatenate([v, vec])
 
     def get_data_vector_full(self):
         v = super().get_data_vector_full()
-        vec1 = np.array(
+        vec_plus = np.array(
             [self.data["2pcf"][key][0, 0] for key in self.WL_keys]
         ).flatten()
-        vec2 = np.array(
+        vec_minus = np.array(
             [self.data["2pcf"][key][1, 1] for key in self.WL_keys]
         ).flatten()
-        vec = np.concatenate([vec1, vec2])
+        vec = np.concatenate([vec_plus, vec_minus])
         return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
@@ -264,9 +194,9 @@ class WLMixin:
         cf_all_th = AngularCorrelationFunctionWigner(
             AngularTwoPoint(she, she), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
-        vec1 = np.array([cf_all_th[key][0, 0] for key in self.WL_keys]).flatten()
-        vec2 = np.array([cf_all_th[key][1, 1] for key in self.WL_keys]).flatten()
-        vec = np.concatenate([vec1, vec2])
+        vec_plus = np.array([cf_all_th[key][0, 0] for key in self.WL_keys]).flatten()
+        vec_minus = np.array([cf_all_th[key][1, 1] for key in self.WL_keys]).flatten()
+        vec = np.concatenate([vec_plus, vec_minus])
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])

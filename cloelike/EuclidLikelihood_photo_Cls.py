@@ -1,58 +1,10 @@
 # file: euclid_likelihoods.py
 import numpy as np
 from copy import deepcopy
-from typing import Protocol, runtime_checkable
 from functools import lru_cache
 
-from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
-
-
-@runtime_checkable
-class PhotoLikelihoodProtocol(Protocol):
-    """
-    Protocol for photo-z likelihood classes.
-
-    This protocol defines the required interface for photometric likelihood implementations,
-    specifying initialization, required attributes, and methods for computing data vectors,
-    theory vectors, covariance matrices, and log-likelihoods.
-
-    Attributes:
-        data (dict): Observational data dictionary.
-        settings (dict): Configuration settings dictionary.
-        Background (Background): Cosmological background instance.
-        LinPerturbations (Perturbations): Linear perturbations instance.
-        NonLinPerturbations (Perturbations): Non-linear perturbations instance.
-        derived (dict): Dictionary for derived quantities.
-        mode (str): Mode of operation (e.g., "coupled").
-    """
-
-    def __init__(
-        self,
-        data: dict,
-        settings: dict,
-        Background: Background,
-        LinPerturbations: Perturbations,
-        NonLinPerturbations: Perturbations,
-        mode: str = "coupled",
-    ) -> None: ...
-
-    data: dict
-    settings: dict
-    Background: Background
-    LinPerturbations: Perturbations
-    NonLinPerturbations: Perturbations
-    derived: dict
-    mode: str
-
-    def get_data_vector_full(self) -> np.ndarray: ...
-    def get_data_vector_masked(self) -> np.ndarray: ...
-    def get_theory_vector_full(self, parameters: dict) -> np.ndarray: ...
-    def get_theory_vector_masked(self, parameters: dict) -> np.ndarray: ...
-    def get_covariance_matrix_full(self) -> np.ndarray: ...
-    def get_covariance_matrix_masked_inv(self) -> np.ndarray: ...
-    def loglike(self, parameters: dict) -> float: ...
 
 
 class PhotoLikelihoodBase:
