@@ -1,7 +1,6 @@
 # file: euclid_likelihoods.py
 import numpy as np
 from functools import lru_cache
-
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.summary_statistics.angular_correlation_function_wigner import (
