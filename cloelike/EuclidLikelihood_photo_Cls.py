@@ -455,41 +455,12 @@ class BNTMixin:
     """
     Mixin that applies a BNT transform to shear-related blocks (WL and GGL)
     in the photometric likelihood.
-
-    IMPORTANT
-    ---------
-    - This mixin does NOT compute the BNT matrix.
-    - It REQUIRES a precomputed BNT matrix to be provided in
-      `data["BNT_matrix"]`.
-    - It also requires `data["dndz_she"]` to be present in order to check
-      that the BNT matrix is compatible with the number of shear bins.
-
-    This mixin assumes the following data-vector structure (for classes that
-    include the corresponding mixins):
-
-        EuclidLikelihood_WL:       [ WL ]
-        EuclidLikelihood_2x2pt:    [ GCph ; GGL ]
-        EuclidLikelihood_3x2pt:    [ GCph ; GGL ; WL ]
-
-    where each block is built exactly as in GCphMixin, GGLMixin, WLMixin:
-    - GCph:  vec_GC  = [ cells[("POS","POS", i,j)](ℓ) ]
-    - GGL:   vec_GGL = [ cells[("POS","SHE", i,j)][0](ℓ) ]
-    - WL:    vec_WL  = [ cells[("SHE","SHE", i,j)][0,0](ℓ) ]
-
-    The BNT matrix T (shape [n_she, n_she]) is applied:
-    - To WL:   C'_{ab}(ℓ) = sum_{i,j} T_{ai} T_{bj} C_{ij}(ℓ)
-    - To GGL:  C'_{p,a}(ℓ) = sum_{j} T_{aj} C_{p,j}(ℓ)
-
-    and encoded as a linear projection P acting on the full data/theory vector.
     """
 
     def __init__(self, *args, **kwargs):
-        # Let the rest of the hierarchy initialize first
         super().__init__(*args, **kwargs)
 
-        # ------------------------------
-        # 1. Require shear n(z) for sanity checks
-        # ------------------------------
+        # test to make sure n(z) is in data
         if "dndz_she" not in self.data:
             raise ValueError(
                 "BNTMixin requires 'dndz_she' in self.data to determine "
@@ -499,9 +470,7 @@ class BNTMixin:
 
         n_she_bins = self.data["dndz_she"].shape[0]
 
-        # ------------------------------
-        # 2. Require a precomputed BNT matrix in data
-        # ------------------------------
+        # check to make sure BNT matrix is present.
         if "BNT_matrix" not in self.data:
             raise ValueError(
                 "BNTMixin requires a precomputed BNT matrix to be provided in "
@@ -510,6 +479,7 @@ class BNTMixin:
                 "in the data dict before constructing the likelihood."
             )
 
+        # check to make sure BNT matrix is valid.
         T = np.asarray(self.data["BNT_matrix"])
         if T.ndim != 2 or T.shape[0] != T.shape[1]:
             raise ValueError(
@@ -524,9 +494,7 @@ class BNTMixin:
 
         self.BNT_matrix = T
 
-        # ------------------------------
-        # 3. Build projection matrix P and precompute transformed data/cov
-        # ------------------------------
+        #  Build projection matrix P and precompute transformed data/cov
         self._P = self._build_full_projection_matrix(T)
 
         base_data = super().get_data_vector_full()
@@ -535,9 +503,6 @@ class BNTMixin:
         self._data_vec_full_BNT = self._P @ base_data
         self._cov_full_BNT = self._P @ base_cov @ self._P.T
 
-    # ------------------------------------------------------------------
-    #  Projection builders
-    # ------------------------------------------------------------------
     def _build_full_projection_matrix(self, T: np.ndarray) -> np.ndarray:
         """
         Build the full projection matrix P given a BNT matrix T acting on WL
@@ -571,10 +536,10 @@ class BNTMixin:
                 f"GC={dim_GC}, GGL={dim_GGL}, WL={dim_WL}."
             )
 
-        # Start with identity
+        # Start with identity.
         P = np.eye(dim_total)
 
-        # Offsets in the full vector
+        # Offsets in the full vector.
         start_GC = 0
         end_GC = start_GC + dim_GC
         start_GGL = end_GC
@@ -582,17 +547,17 @@ class BNTMixin:
         start_WL = end_GGL
         end_WL = start_WL + dim_WL
 
-        # --- GGL block: transform shear index only ---
+        # GGL block: transform shear index only.
         if dim_GGL > 0:
             P_GGL = self._build_GGL_projection(T, n_ell)
             P[start_GGL:end_GGL, start_GGL:end_GGL] = P_GGL
 
-        # --- WL block: transform both shear indices ---
+        # WL block: transform both shear indices.
         if dim_WL > 0:
             P_WL = self._build_WL_projection(T, n_ell, n_she)
             P[start_WL:end_WL, start_WL:end_WL] = P_WL
 
-        # GCph block is left as identity (no transform)
+        # GCph block is left as identity (no transform).
         return P
 
     def _build_WL_projection(self, T: np.ndarray, n_ell: int, n_she: int) -> np.ndarray:
@@ -605,8 +570,8 @@ class BNTMixin:
         - for each key, we take cells[key][0,0], a 1D array over ell
         - final WL vector is flattened in (pair, ell) order.
 
-        For each ℓ, we implement:
-            C'_{ab}(ℓ) = sum_{i,j} T_{ai} T_{bj} C_{ij}(ℓ)
+        For each ell, we implement:
+            C'_{ab}(ell) = sum_{i,j} T_{ai} T_{bj} C_{ij}(ell)
         using symmetry C_{ij} = C_{ji}.
         """
         if not hasattr(self, "WL_keys"):
@@ -615,8 +580,7 @@ class BNTMixin:
                 "Make sure WLMixin is in the MRO."
             )
 
-        # Use the *actual* WL pair ordering used to build the data vector
-        # WL_keys entries are of the form ("SHE", "SHE", i, j)
+        # Use the WL pair ordering used to build the data vector
         pairs = [(key[2], key[3]) for key in self.WL_keys]
         n_pairs = len(pairs)
 
@@ -630,7 +594,7 @@ class BNTMixin:
 
         pair_to_idx = {pair: idx for idx, pair in enumerate(pairs)}
 
-        # Build pair-level transformation L_pairs (n_pairs x n_pairs)
+        # Build pair-level transformation L_pairs (n_pairs x n_pairs).
         L_pairs = np.zeros((n_pairs, n_pairs))
 
         for a in range(1, n_she + 1):
@@ -649,7 +613,7 @@ class BNTMixin:
                         idx_in = pair_to_idx[in_pair]
                         row[idx_in] += coeff
 
-        # Lift L_pairs to include ell: WL vector has shape (n_pairs * n_ell,)
+        # Lift L_pairs to include ell: WL vector has shape (n_pairs * n_ell,).
         dim = n_pairs * n_ell
         P_WL = np.zeros((dim, dim))
 
@@ -678,8 +642,8 @@ class BNTMixin:
         - final GGL vector is flattened in (pair, ell) order, where
           'pair' is (pos_bin, she_bin).
 
-        For each ℓ and each position bin p, we implement:
-            C'_{p,a}(ℓ) = sum_{j} T_{a j} C_{p,j}(ℓ)
+        For each ell and each position bin p, we implement:
+            C'_{p,a}(ell) = sum_{j} T_{a j} C_{p,j}(ell)
         i.e. a BNT transform on the shear index only.
         """
         if "dndz_pos" not in self.data:
@@ -695,8 +659,7 @@ class BNTMixin:
         n_pos = self.data["dndz_pos"].shape[0]
         n_she = self.data["dndz_she"].shape[0]
 
-        # Use the *actual* GGL pair ordering used to build the data vector
-        # GGL_keys entries are of the form ("POS", "SHE", p, s)
+        # Use the GGL pair ordering used to build the data vector.
         pairs = [(key[2], key[3]) for key in self.GGL_keys]
         n_pairs = len(pairs)
 
@@ -709,8 +672,7 @@ class BNTMixin:
 
         pair_to_idx = {pair: idx for idx, pair in enumerate(pairs)}
 
-        # Build pair-level transformation L_GGL (n_pairs x n_pairs)
-        # Only the shear index transforms; position index p is preserved.
+        # Build pair-level transformation L_GGL (n_pairs x n_pairs).
         L_GGL = np.zeros((n_pairs, n_pairs))
 
         for p in range(1, n_pos + 1):
@@ -724,7 +686,7 @@ class BNTMixin:
                     in_idx = pair_to_idx[in_pair]
                     row[in_idx] += T[a - 1, j - 1]
 
-        # Lift L_GGL to include ell: GGL vector has shape (n_pairs * n_ell,)
+        # Lift L_GGL to include ell: GGL vector has shape (n_pairs * n_ell,).
         dim = n_pairs * n_ell
         P_GGL = np.zeros((dim, dim))
 
@@ -740,9 +702,7 @@ class BNTMixin:
 
         return P_GGL
 
-    # ------------------------------------------------------------------
-    #  Overrides of base interface
-    # ------------------------------------------------------------------
+    #  Overrides of base interface.
     def get_data_vector_full(self) -> np.ndarray:
         """Return BNT-transformed full data vector."""
         return self._data_vec_full_BNT
@@ -909,6 +869,7 @@ class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
     mode : str, optional
         Mode for likelihood computation, default is "coupled".
     """
+
     pass
 
 
@@ -935,6 +896,35 @@ class EuclidLikelihood_WL_BNT(BNTMixin, EuclidLikelihood_WL):
     mode : str, optional
         Mode of operation, default is "coupled".
     """
+
+    pass
+
+
+class EuclidLikelihood_GGL_BNT(BNTMixin, EuclidLikelihood_GGL):
+    """
+    EuclidLikelihood_GGL_BNT class for galaxy-galaxy lensing likelihood computation in the BNT basis.
+
+
+    Inherits from:
+        EuclidLikelihood_GGL: Base class for galaxy-galaxy lensing likelihoods.
+        BNTMixin: Mixin providing BNT specific functionality.
+
+    Parameters
+    ----------
+    data : dict
+        Input data required for likelihood computation, including observed ells and other relevant quantities.
+    settings : dict
+        Configuration settings for the likelihood calculation.
+    Background : object
+        Instance representing the cosmological background model.
+    LinPerturbations : object
+        Instance representing linear perturbations.
+    NonLinPerturbations : object
+        Instance representing non-linear perturbations.
+    mode : str, optional
+        Mode of operation, default is "coupled".
+    """
+
     pass
 
 
@@ -963,7 +953,9 @@ class EuclidLikelihood_3x2pt_BNT(BNTMixin, EuclidLikelihood_3x2pt):
     mode : str, optional
         Mode of operation, default is "coupled".
     """
+
     pass
+
 
 class EuclidLikelihood_2x2pt_BNT(BNTMixin, EuclidLikelihood_2x2pt):
     """
@@ -990,4 +982,5 @@ class EuclidLikelihood_2x2pt_BNT(BNTMixin, EuclidLikelihood_2x2pt):
     mode : str, optional
         Mode of operation, default is "coupled".
     """
+
     pass
