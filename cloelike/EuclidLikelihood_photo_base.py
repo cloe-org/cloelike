@@ -131,7 +131,7 @@ class PhotoLikelihoodBase:
         self.mixmat = deepcopy(data.get("mixmat", {}))
 
         if (ells_integration is None) and ("2pcf" in data):
-            self.ells_integration = np.arange(2, 60000)
+            self.ells_integration = np.arange(2, 40000)
 
         else:
             self.ells_integration = ells_integration
