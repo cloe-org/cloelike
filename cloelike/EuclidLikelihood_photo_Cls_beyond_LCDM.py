@@ -7,7 +7,10 @@ from functools import lru_cache
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
-from cloelib.cosmology.ReACTEmu_cosmology import MGemuNonlinearBoost, BoostedPerturbations
+from cloelib.cosmology.ReACTEmu_cosmology import (
+    MGemuNonlinearBoost,
+    BoostedPerturbations,
+)
 from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
 from cloelib.cosmology.emantis_cosmology import EmantisFofrNonLinearPerturbations
 
@@ -40,8 +43,8 @@ class PhotoLikelihoodProtocol(Protocol):
         Background: Background,
         LinPerturbations: Perturbations,
         NonLinPerturbations: Perturbations,
-        LinPerturbationsBase=None, #type
-        gravity_model=None, #str
+        LinPerturbationsBase=None,  # type
+        gravity_model=None,  # str
         mode: str = "coupled",
     ) -> None: ...
 
@@ -98,8 +101,8 @@ class PhotoLikelihoodBase:
         Background,
         LinPerturbations,
         NonLinPerturbations,
-        LinPerturbationsBase=None, #type
-        gravity_model=None, #str
+        LinPerturbationsBase=None,  # type
+        gravity_model=None,  # str
         mode="coupled",
     ):
         self.data = data
@@ -112,21 +115,21 @@ class PhotoLikelihoodBase:
 
         if NonLinPerturbations == HMemuNonLinearPerturbations:
             self.NonLinPerturbations = NonLinPerturbations
-            self.model = 'hmcode'
+            self.model = "hmcode"
             self.gravity_model = None
-        elif NonLinPerturbations == None:
-            self.model = 'mgrowth'
+        elif NonLinPerturbations is None:
+            self.model = "mgrowth"
             self.LinPerturbationsBase = LinPerturbationsBase
             self.gravity_model = gravity_model
         elif NonLinPerturbations == BoostedPerturbations:
             self.NonLinPerturbations = NonLinPerturbations
-            self.model = 'mgemu'
+            self.model = "mgemu"
             self.LinPerturbationsBase = LinPerturbationsBase
-            self.gravity_model = gravity_model 
+            self.gravity_model = gravity_model
         elif NonLinPerturbations == EmantisFofrNonLinearPerturbations:
             self.NonLinPerturbations = NonLinPerturbations
-            self.model = 'emantis'
-            self.gravity_model = None 
+            self.model = "emantis"
+            self.gravity_model = None
         else:
             raise TypeError(
                 "Currenty, this only works for the HMcode "
@@ -134,14 +137,12 @@ class PhotoLikelihoodBase:
                 "type HMemuNonLinearPerturbations or None or BoostedPerturbations"
             )
 
-
         self.scale_cuts = settings["scale_cuts"]
         self.rebin = False
         self.zs = data["z_arr"]
         self.mixmat = deepcopy(data["mixmat"])
 
         self._prepare()
-
 
     # -------------------------------
     #  Core preparation utilities
@@ -303,15 +304,15 @@ class WLMixin:
         # Build Background object
         background = self.Background(**background_params)
 
-        if self.model == 'hmcode':
+        if self.model == "hmcode":
             lp = self.LinPerturbations(background, self.zs)
             nlp = self.NonLinPerturbations(
                 background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
             )
-        elif self.model == 'mgrowth': 
+        elif self.model == "mgrowth":
             # Physical background always uses the true (w0, wa)
             # (If not IDE, this is identical to background_base; cheap duplication.)
-            background_phys =self.Background(
+            background_phys = self.Background(
                 **{
                     k: parameters[k]
                     for k in [
@@ -330,12 +331,15 @@ class WLMixin:
                 }
             )
             base = self.LinPerturbationsBase(background, self.zs)
-            nlp = self.LinPerturbations(background_phys, base,
-                                        gravity_model=self.gravity_model,
-                                        mgpars=parameters) 
+            nlp = self.LinPerturbations(
+                background_phys,
+                base,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
             # if nlp.check_ranges==False:
             #     return None, False
-        elif self.model == 'mgemu':
+        elif self.model == "mgemu":
             # Physical background always uses the true (w0, wa)
             # (If not IDE, this is identical to background_base; cheap duplication.)
             background_phys = self.Background(
@@ -357,26 +361,37 @@ class WLMixin:
                 }
             )
             lp_base = self.LinPerturbationsBase(background, self.zs)
-            nlp_base = HMemuNonLinearPerturbations(background, lp_base, self.zs, 
-                                                   log10TAGN=parameters["log10TAGN"])
-            lp = self.LinPerturbations(background_phys, lp_base,
-                                        gravity_model=self.gravity_model,
-                                        mgpars=parameters) 
-            boost = MGemuNonlinearBoost(background_phys, lp_base,self.zs, gravity_model=self.gravity_model, mgpars=parameters)
-            #if boost.check_ranges==False:
+            nlp_base = HMemuNonLinearPerturbations(
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
+            )
+            lp = self.LinPerturbations(
+                background_phys,
+                lp_base,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
+            boost = MGemuNonlinearBoost(
+                background_phys,
+                lp_base,
+                self.zs,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
+            # if boost.check_ranges==False:
             #    return None, False
-            nlp = self.NonLinPerturbations(lp, 
-                nlp_base, boost.MGboost_interp)
+            nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
 
-        elif self.model == 'emantis':
+        elif self.model == "emantis":
             lp = self.LinPerturbations(background, self.zs)
             nlp_base = HMemuNonLinearPerturbations(
                 background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
             )
             if "fr0" not in parameters:
-                raise KeyError("Parameter 'fr0' is required for model='emantis' but was not provided.")
+                raise KeyError(
+                    "Parameter 'fr0' is required for model='emantis' but was not provided."
+                )
             fr0 = parameters["fr0"]
-            nlp = self. NonLinPerturbations(background, nlp_base, fr0, self.zs)
+            nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
 
         she = ShearTracer(
             nlp,
@@ -465,15 +480,15 @@ class GCphMixin:
         # Build Background object
         background = self.Background(**background_params)
 
-        if self.model == 'hmcode':
+        if self.model == "hmcode":
             lp = self.LinPerturbations(background, self.zs)
             nlp = self.NonLinPerturbations(
                 background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
             )
-        elif self.model == 'mgrowth': 
+        elif self.model == "mgrowth":
             # Physical background always uses the true (w0, wa)
             # (If not IDE, this is identical to background_base; cheap duplication.)
-            background_phys =self.Background(
+            background_phys = self.Background(
                 **{
                     k: parameters[k]
                     for k in [
@@ -492,12 +507,15 @@ class GCphMixin:
                 }
             )
             base = self.LinPerturbationsBase(background, self.zs)
-            nlp = self.LinPerturbations(background_phys, base,
-                                        gravity_model=self.gravity_model,
-                                        mgpars=parameters) 
+            nlp = self.LinPerturbations(
+                background_phys,
+                base,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
             # if nlp.check_ranges==False:
             #     return None, False
-        elif self.model == 'mgemu':
+        elif self.model == "mgemu":
             # Physical background always uses the true (w0, wa)
             # (If not IDE, this is identical to background_base; cheap duplication.)
             background_phys = self.Background(
@@ -519,27 +537,37 @@ class GCphMixin:
                 }
             )
             lp_base = self.LinPerturbationsBase(background, self.zs)
-            nlp_base = HMemuNonLinearPerturbations(background, lp_base, self.zs, 
-                                                   log10TAGN=parameters["log10TAGN"])
-            lp = self.LinPerturbations(background_phys, lp_base,
-                                        gravity_model=self.gravity_model,
-                                        mgpars=parameters) 
-            boost = MGemuNonlinearBoost(background_phys, lp_base,self.zs, gravity_model=self.gravity_model, mgpars=parameters)
-            #if boost.check_ranges==False:
+            nlp_base = HMemuNonLinearPerturbations(
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
+            )
+            lp = self.LinPerturbations(
+                background_phys,
+                lp_base,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
+            boost = MGemuNonlinearBoost(
+                background_phys,
+                lp_base,
+                self.zs,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
+            # if boost.check_ranges==False:
             #    return None, False
-            nlp = self.NonLinPerturbations(lp, 
-                nlp_base, boost.MGboost_interp)
+            nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
 
-        elif self.model == 'emantis':
+        elif self.model == "emantis":
             lp = self.LinPerturbations(background, self.zs)
             nlp_base = HMemuNonLinearPerturbations(
                 background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
             )
             if "fr0" not in parameters:
-                raise KeyError("Parameter 'fr0' is required for model='emantis' but was not provided.")
+                raise KeyError(
+                    "Parameter 'fr0' is required for model='emantis' but was not provided."
+                )
             fr0 = parameters["fr0"]
-            nlp = self. NonLinPerturbations(background, nlp_base, fr0, self.zs)
-
+            nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
 
         pos = PositionsTracer(
             nlp,
@@ -636,15 +664,15 @@ class GGLMixin:
         # Build Background object
         background = self.Background(**background_params)
 
-        if self.model == 'hmcode':
+        if self.model == "hmcode":
             lp = self.LinPerturbations(background, self.zs)
             nlp = self.NonLinPerturbations(
                 background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
             )
-        elif self.model == 'mgrowth': 
+        elif self.model == "mgrowth":
             # Physical background always uses the true (w0, wa)
             # (If not IDE, this is identical to background_base; cheap duplication.)
-            background_phys =self.Background(
+            background_phys = self.Background(
                 **{
                     k: parameters[k]
                     for k in [
@@ -663,12 +691,15 @@ class GGLMixin:
                 }
             )
             base = self.LinPerturbationsBase(background, self.zs)
-            nlp = self.LinPerturbations(background_phys, base,
-                                        gravity_model=self.gravity_model,
-                                        mgpars=parameters) 
+            nlp = self.LinPerturbations(
+                background_phys,
+                base,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
             # if nlp.check_ranges==False:
             #     return None, False
-        elif self.model == 'mgemu':
+        elif self.model == "mgemu":
             # Physical background always uses the true (w0, wa)
             # (If not IDE, this is identical to background_base; cheap duplication.)
             background_phys = self.Background(
@@ -690,27 +721,37 @@ class GGLMixin:
                 }
             )
             lp_base = self.LinPerturbationsBase(background, self.zs)
-            nlp_base = HMemuNonLinearPerturbations(background, lp_base, self.zs, 
-                                                   log10TAGN=parameters["log10TAGN"])
-            lp = self.LinPerturbations(background_phys, lp_base,
-                                        gravity_model=self.gravity_model,
-                                        mgpars=parameters) 
-            boost = MGemuNonlinearBoost(background_phys, lp_base,self.zs, gravity_model=self.gravity_model, mgpars=parameters)
-            #if boost.check_ranges==False:
+            nlp_base = HMemuNonLinearPerturbations(
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
+            )
+            lp = self.LinPerturbations(
+                background_phys,
+                lp_base,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
+            boost = MGemuNonlinearBoost(
+                background_phys,
+                lp_base,
+                self.zs,
+                gravity_model=self.gravity_model,
+                mgpars=parameters,
+            )
+            # if boost.check_ranges==False:
             #    return None, False
-            nlp = self.NonLinPerturbations(lp, 
-                nlp_base, boost.MGboost_interp)
+            nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
 
-        elif self.model == 'emantis':
+        elif self.model == "emantis":
             lp = self.LinPerturbations(background, self.zs)
             nlp_base = HMemuNonLinearPerturbations(
                 background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
             )
             if "fr0" not in parameters:
-                raise KeyError("Parameter 'fr0' is required for model='emantis' but was not provided.")
+                raise KeyError(
+                    "Parameter 'fr0' is required for model='emantis' but was not provided."
+                )
             fr0 = parameters["fr0"]
-            nlp = self. NonLinPerturbations(background, nlp_base, fr0, self.zs)
-
+            nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
 
         pos = PositionsTracer(
             nlp,
