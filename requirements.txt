@@ -2,7 +2,7 @@
 appnope==0.1.4
 asttokens==3.0.0
 camb==1.6.4
-# cloelib @ git+https://github.com/cloe-org/cloelib.git
+cloelib @ git+https://github.com/cloe-org/cloelib.git
 comet-emu==2.0.9
 comm==0.2.3
 cosmolib==0.1
@@ -11,7 +11,7 @@ decorator==5.2.1
 euclidlib==2025.2
 exceptiongroup==1.3.0
 executing==2.2.1
-# HMcode2020Emu @ git+https://github.com/MariaTsedrik/HMcode2020Emu.git
+HMcode2020Emu @ git+https://github.com/MariaTsedrik/HMcode2020Emu.git
 importlib-metadata==8.7.0
 ipykernel==6.30.1
 ipython==8.37.0
