@@ -9,11 +9,10 @@ from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.cosmology.ReACTEmu_cosmology import (
     MGemuNonlinearBoost,
-    BoostedPerturbations,
 )
 from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
-from cloelib.cosmology.emantis_cosmology import EmantisFofrNonLinearPerturbations
 from cloelib.cosmology.mochi_class_cosmology import mochiCLASSNonLinearPerturbations
+
 
 @runtime_checkable
 class PhotoLikelihoodProtocol(Protocol):
@@ -300,7 +299,7 @@ class WLMixin:
                     "N_mnu",
                     "mg_stable_basis_on",
                     "stable_MG_dict",
-                    "mg_background_model"
+                    "mg_background_model",
                 ]
             }
         else:
@@ -438,7 +437,7 @@ class WLMixin:
                         "N_mnu",
                         "mg_stable_basis_on",
                         "stable_MG_dict",
-                        "mg_background_model"
+                        "mg_background_model",
                     ]
                 }
             )
@@ -535,7 +534,7 @@ class GCphMixin:
                     "N_mnu",
                     "mg_stable_basis_on",
                     "stable_MG_dict",
-                    "mg_background_model"
+                    "mg_background_model",
                 ]
             }
         else:
@@ -673,7 +672,7 @@ class GCphMixin:
                         "N_mnu",
                         "mg_stable_basis_on",
                         "stable_MG_dict",
-                        "mg_background_model"
+                        "mg_background_model",
                     ]
                 }
             )
@@ -778,7 +777,7 @@ class GGLMixin:
                     "N_mnu",
                     "mg_stable_basis_on",
                     "stable_MG_dict",
-                    "mg_background_model"
+                    "mg_background_model",
                 ]
             }
         else:
@@ -897,7 +896,7 @@ class GGLMixin:
                 )
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
-        
+
         elif self.model == "mochiCLASS":
             background_phys = self.Background(
                 **{
@@ -916,7 +915,7 @@ class GGLMixin:
                         "N_mnu",
                         "mg_stable_basis_on",
                         "stable_MG_dict",
-                        "mg_background_model"
+                        "mg_background_model",
                     ]
                 }
             )
