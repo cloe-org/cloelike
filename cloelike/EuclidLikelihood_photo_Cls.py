@@ -1,5 +1,4 @@
 import numpy as np
-
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
