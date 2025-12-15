@@ -1,4 +1,3 @@
-# file: euclid_likelihoods.py
 import numpy as np
 
 from cloelib.observables.photo import ShearTracer, PositionsTracer
