@@ -87,6 +87,8 @@ class PhotoLikelihoodBase:
         LinPerturbations: Linear perturbations object.
         NonLinPerturbations: Non-linear perturbations object.
         scale_cuts: Scale cuts from settings.
+        selected_modes: COSEBIs, selected modes from settings, defaults to the first seven
+        levin_threads: COSEBIs, numbers of threads used to get the W_ells, defaults to one
         zs: Redshift array from data.
         mixmat: Mixing matrix, possibly rebinned.
         weight_mat: Weight matrix used for binning.
@@ -116,6 +118,7 @@ class PhotoLikelihoodBase:
         LinPerturbations,
         NonLinPerturbations,
         ells_integration=None,
+        ells_integration_COSEBI=None,
         mode="coupled",
     ):
         self.data = data
@@ -126,6 +129,13 @@ class PhotoLikelihoodBase:
         self.NonLinPerturbations = NonLinPerturbations
         self.mode = mode
         self.scale_cuts = settings["scale_cuts"]
+        self.selected_modes = settings.get("selected_modes", np.arange(1, 8))
+        self.thetagrid = (
+            np.geomspace(self.scale_cuts[0], self.scale_cuts[1], int(1e5))
+            * np.pi
+            / 10800
+        )
+        self.n_thread = settings.get("levin_threads", 1)
         self.rebin = False
         self.zs = data["z_arr"]
         self.mixmat = deepcopy(data.get("mixmat", {}))
@@ -135,6 +145,12 @@ class PhotoLikelihoodBase:
 
         else:
             self.ells_integration = ells_integration
+
+        if (ells_integration_COSEBI is None) and ("EE" in data):
+            self.ells_integration_COSEBI = np.arange(2, int(1e5) + 1)
+
+        else:
+            self.ells_integration_COSEBI = ells_integration_COSEBI
 
         if ("cells" in data) and ("n_ell_bins" in settings):
             self._prepare()
