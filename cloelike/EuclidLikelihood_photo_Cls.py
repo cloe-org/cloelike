@@ -133,6 +133,7 @@ class PhotoLikelihoodBase:
         self.data = data
         self.settings = settings
         self.derived = {}
+        self.theory_prediction = {}
         self.Background = Background
         self.LinPerturbations = LinPerturbations
         self.NonLinPerturbations = NonLinPerturbations
@@ -279,7 +280,7 @@ class WLMixin:
             cell_all_th = AngularTwoPoint(she, she).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction = cell_all_th
+        self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
 
@@ -355,7 +356,7 @@ class GCphMixin:
             cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction = cell_all_th
+        self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
 
@@ -444,7 +445,7 @@ class GGLMixin:
             cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction = cell_all_th
+        self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
 
