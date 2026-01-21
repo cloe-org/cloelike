@@ -851,7 +851,7 @@ class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
     providing methods to compute the full data and theory vectors for both probes.
 
     Note: The order of inheritance matters due to the method resolution order (MRO) in Python
-    and how mixins extend the base class functionality. Also, the order of the mixins assumes
+    and how mixins extend the base class functionality. The order of the mixins assumes
     the ordering of the covariance matrix blocks is GCph, GGL.
 
     Parameters
