@@ -441,9 +441,10 @@ class WLMixin:
                     ]
                 }
             )
-            lp = self.LinPerturbations(background_phys, self.zs)
+            ks = np.logspace(np.log10(1e-4), np.log10(5), 100)
+            lp = self.LinPerturbations(background_phys, self.zs, ks)
             # (LISA G) FOR NOW: just linear from mochiclass
-            nlp = self.NonLinPerturbations(background_phys, self.zs)
+            nlp = self.NonLinPerturbations(background_phys, self.zs, ks)
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
             #     background_phys,
@@ -676,9 +677,10 @@ class GCphMixin:
                     ]
                 }
             )
-            lp = self.LinPerturbations(background_phys, self.zs)
+            ks = np.logspace(np.log10(1e-4), np.log10(5), 100)
+            lp = self.LinPerturbations(background_phys, self.zs, ks)
             # (LISA G) FOR NOW: just linear from mochiclass
-            nlp = self.NonLinPerturbations(background_phys, self.zs)
+            nlp = self.NonLinPerturbations(background_phys, self.zs, ks)
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
             #     background_phys,
@@ -919,9 +921,10 @@ class GGLMixin:
                     ]
                 }
             )
-            lp = self.LinPerturbations(background_phys, self.zs)
+            ks = np.logspace(np.log10(1e-4), np.log10(5), 100)
+            lp = self.LinPerturbations(background_phys, self.zs, ks)
             # (LISA G) FOR NOW: just linear from mochiclass
-            nlp = self.LinPerturbations(background_phys, self.zs)
+            nlp = self.NonLinPerturbations(background_phys, self.zs, ks)
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
             #     background_phys,
