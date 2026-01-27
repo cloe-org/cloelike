@@ -2,7 +2,7 @@
 appnope==0.1.4
 asttokens==3.0.0
 camb==1.6.4
-cloelib @ git+https://github.com/cloe-org/cloelib.git
+# cloelib @ git+https://github.com/cloe-org/cloelib.git
 comet-emu==2.0.9
 comm==0.2.3
 cosmolib==0.1

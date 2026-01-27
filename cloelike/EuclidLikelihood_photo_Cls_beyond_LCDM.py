@@ -281,44 +281,34 @@ class WLMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
+        background_params = {
+            k: parameters[k]
+            for k in [
+                "H0",
+                "Omega_cdm0",
+                "Omega_b0",
+                "Omega_k0",
+                "w0",
+                "wa",
+                "ns",
+                "As",
+                "mnu",
+                "gamma_MG",
+                "N_mnu",
+            ]
+        }
         # (LISA G)
         if self.model == "mochiCLASS":
-            background_params = {
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                    "mg_stable_basis_on",
-                    "stable_MG_dict",
-                    "mg_background_model",
-                ]
-            }
-        else:
-            background_params = {
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
+            background_params.update(
+                {
+                    k: parameters[k]
+                    for k in [
+                        "mg_stable_basis_on",
+                        "stable_MG_dict",
+                        "mg_background_model",
+                    ]
+                }
+            )
         # Check if IDE is active
         is_ide = self.gravity_model in ["ide", "mu"]
 
@@ -418,36 +408,19 @@ class WLMixin:
                 )
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
-
         elif self.model == "mochiCLASS":
-            background_phys = self.Background(
-                **{
-                    k: parameters[k]
-                    for k in [
-                        "H0",
-                        "Omega_cdm0",
-                        "Omega_b0",
-                        "Omega_k0",
-                        "w0",
-                        "wa",
-                        "ns",
-                        "As",
-                        "mnu",
-                        "gamma_MG",
-                        "N_mnu",
-                        "mg_stable_basis_on",
-                        "stable_MG_dict",
-                        "mg_background_model",
-                    ]
-                }
+            ks = np.geomspace(1e-4, 500, 500)
+            lp = self.LinPerturbations(background, self.zs, ks)
+            nlp = self.NonLinPerturbations(
+                background,
+                self.zs,
+                ks,
+                nonlinear_model="hmcode",
+                log10TAGN=parameters["log10TAGN"],
             )
-            ks = np.logspace(np.log10(1e-4), np.log10(5), 100)
-            lp = self.LinPerturbations(background_phys, self.zs, ks)
-            # (LISA G) FOR NOW: just linear from mochiclass
-            nlp = self.NonLinPerturbations(background_phys, self.zs, ks)
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
-            #     background_phys,
+            #     background,
             #     lp,
             #     self.zs,
             #     gravity_model=self.gravity_model,
@@ -517,44 +490,34 @@ class GCphMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
+        background_params = {
+            k: parameters[k]
+            for k in [
+                "H0",
+                "Omega_cdm0",
+                "Omega_b0",
+                "Omega_k0",
+                "w0",
+                "wa",
+                "ns",
+                "As",
+                "mnu",
+                "gamma_MG",
+                "N_mnu",
+            ]
+        }
         # (LISA G)
         if self.model == "mochiCLASS":
-            background_params = {
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                    "mg_stable_basis_on",
-                    "stable_MG_dict",
-                    "mg_background_model",
-                ]
-            }
-        else:
-            background_params = {
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
+            background_params.update(
+                {
+                    k: parameters[k]
+                    for k in [
+                        "mg_stable_basis_on",
+                        "stable_MG_dict",
+                        "mg_background_model",
+                    ]
+                }
+            )
         # Check if IDE is active
         is_ide = self.gravity_model in ["ide", "mu"]
 
@@ -654,33 +617,16 @@ class GCphMixin:
                 )
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
-
         elif self.model == "mochiCLASS":
-            background_phys = self.Background(
-                **{
-                    k: parameters[k]
-                    for k in [
-                        "H0",
-                        "Omega_cdm0",
-                        "Omega_b0",
-                        "Omega_k0",
-                        "w0",
-                        "wa",
-                        "ns",
-                        "As",
-                        "mnu",
-                        "gamma_MG",
-                        "N_mnu",
-                        "mg_stable_basis_on",
-                        "stable_MG_dict",
-                        "mg_background_model",
-                    ]
-                }
+            ks = np.geomspace(1e-4, 500, 500)
+            lp = self.LinPerturbations(background, self.zs, ks)
+            nlp = self.NonLinPerturbations(
+                background,
+                self.zs,
+                ks,
+                nonlinear_model="hmcode",
+                log10TAGN=parameters["log10TAGN"],
             )
-            ks = np.logspace(np.log10(1e-4), np.log10(5), 100)
-            lp = self.LinPerturbations(background_phys, self.zs, ks)
-            # (LISA G) FOR NOW: just linear from mochiclass
-            nlp = self.NonLinPerturbations(background_phys, self.zs, ks)
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
             #     background_phys,
@@ -761,44 +707,34 @@ class GGLMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
+        background_params = {
+            k: parameters[k]
+            for k in [
+                "H0",
+                "Omega_cdm0",
+                "Omega_b0",
+                "Omega_k0",
+                "w0",
+                "wa",
+                "ns",
+                "As",
+                "mnu",
+                "gamma_MG",
+                "N_mnu",
+            ]
+        }
         # (LISA G)
         if self.model == "mochiCLASS":
-            background_params = {
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                    "mg_stable_basis_on",
-                    "stable_MG_dict",
-                    "mg_background_model",
-                ]
-            }
-        else:
-            background_params = {
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
+            background_params.update(
+                {
+                    k: parameters[k]
+                    for k in [
+                        "mg_stable_basis_on",
+                        "stable_MG_dict",
+                        "mg_background_model",
+                    ]
+                }
+            )
         # Check if IDE is active
         is_ide = self.gravity_model in ["ide", "mu"]
 
@@ -898,33 +834,16 @@ class GGLMixin:
                 )
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
-
         elif self.model == "mochiCLASS":
-            background_phys = self.Background(
-                **{
-                    k: parameters[k]
-                    for k in [
-                        "H0",
-                        "Omega_cdm0",
-                        "Omega_b0",
-                        "Omega_k0",
-                        "w0",
-                        "wa",
-                        "ns",
-                        "As",
-                        "mnu",
-                        "gamma_MG",
-                        "N_mnu",
-                        "mg_stable_basis_on",
-                        "stable_MG_dict",
-                        "mg_background_model",
-                    ]
-                }
+            ks = np.geomspace(1e-4, 500, 500)
+            lp = self.LinPerturbations(background, self.zs, ks)
+            nlp = self.NonLinPerturbations(
+                background,
+                self.zs,
+                ks,
+                nonlinear_model="hmcode",
+                log10TAGN=parameters["log10TAGN"],
             )
-            ks = np.logspace(np.log10(1e-4), np.log10(5), 100)
-            lp = self.LinPerturbations(background_phys, self.zs, ks)
-            # (LISA G) FOR NOW: just linear from mochiclass
-            nlp = self.NonLinPerturbations(background_phys, self.zs, ks)
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
             #     background_phys,
