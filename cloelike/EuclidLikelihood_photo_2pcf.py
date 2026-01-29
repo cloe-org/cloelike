@@ -1,16 +1,13 @@
 import numpy as np
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
-from cloelike.EuclidLikelihood_photo_Cls_base import PhotoLikelihoodBase
+from cloelib.summary_statistics.angular_correlation_function_wigner import (
+    AngularCorrelationFunctionWigner,
+)
+from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
+
 
 class WLMixin:
-    """
-    Mixin class providing weak lensing (WL) specific functionality for photometric likelihoods.
-    This mixin extends the base photometric likelihood class to include methods and attributes
-    necessary for handling weak lensing data, such as initializing shear bins, constructing
-    masking vectors, and computing data and theory vectors specific to weak lensing.
-    """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)  # Call the next class in the MRO
         self._init_wl()
@@ -31,19 +28,32 @@ class WLMixin:
 
     def get_masking_vector(self):
         v = super().get_masking_vector()
-        vec = np.concatenate(
+        vec_plus = np.concatenate(
             [
-                self._masking(self.data["ells"], self.scale_cuts[key])
+                self._masking(self.data["theta"], self.scale_cuts[key][:2])
                 for key in self.WL_keys
             ]
         )
+        vec_minus = np.concatenate(
+            [
+                self._masking(self.data["theta"], self.scale_cuts[key][2:4])
+                for key in self.WL_keys
+            ]
+        )
+        vec = np.concatenate(
+            [vec_plus, vec_minus]
+        )  # vec_plus:xi_plus,vec_minus:xi_minus
         return np.concatenate([v, vec])
 
     def get_data_vector_full(self):
         v = super().get_data_vector_full()
-        vec = np.array(
-            [self.data["cells"][key][0, 0] for key in self.WL_keys]
+        vec_plus = np.array(
+            [self.data["2pcf"][key][0, 0] for key in self.WL_keys]
         ).flatten()
+        vec_minus = np.array(
+            [self.data["2pcf"][key][1, 1] for key in self.WL_keys]
+        ).flatten()
+        vec = np.concatenate([vec_plus, vec_minus])
         return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
@@ -76,25 +86,18 @@ class WLMixin:
             self.zs,
             nuisance_params={key: parameters[key] for key in self.full_she_keys},
         )
-        if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
-            vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
-        else:
-            cell_all_th = AngularTwoPoint(she, she).get_Cl(self.data["ells"], 0, nlp.k)
-            vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
+        cf_all_th = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(she, she), self.ells_integration, nlp.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
+        vec_plus = np.array([cf_all_th[key][0, 0] for key in self.WL_keys]).flatten()
+        vec_minus = np.array([cf_all_th[key][1, 1] for key in self.WL_keys]).flatten()
+        vec = np.concatenate([vec_plus, vec_minus])
         self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction.update(cell_all_th)
+        self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
 
 class GCphMixin:
-    """
-    Mixin class providing photometric angular galaxy clustering specific functionality for photometric likelihoods.
-    This mixin extends the base photometric likelihood class to include methods and attributes
-    necessary for handling weak lensing data, such as initializing shear bins, constructing
-    masking vectors, and computing data and theory vectors specific to weak lensing.
-    """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_gcph()
@@ -117,7 +120,7 @@ class GCphMixin:
         v = super().get_masking_vector()
         vec = np.concatenate(
             [
-                self._masking(self.data["ells"], self.scale_cuts[key])
+                self._masking(self.data["theta"], self.scale_cuts[key])
                 for key in self.GG_keys
             ]
         )
@@ -125,7 +128,7 @@ class GCphMixin:
 
     def get_data_vector_full(self):
         v = super().get_data_vector_full()
-        vec = np.array([self.data["cells"][key] for key in self.GG_keys]).flatten()
+        vec = np.array([self.data["2pcf"][key] for key in self.GG_keys]).flatten()
         return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
@@ -159,25 +162,17 @@ class GCphMixin:
             nuisance_params={key: parameters[key] for key in self.full_pos_keys},
             galaxy_bias_model="poly",
         )
-        if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
-            vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
-        else:
-            cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, nlp.k)
-            vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
+        cf_all_th = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(pos, pos), self.ells_integration, nlp.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
+        vec = np.array([cf_all_th[key] for key in self.GG_keys]).flatten()
+
         self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction.update(cell_all_th)
+        self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
 
 class GGLMixin:
-    """
-    Mixin class providing galaxy-galaxy lensing specific functionality for photometric likelihoods.
-    This mixin extends the base photometric likelihood class to include methods and attributes
-    necessary for handling weak lensing data, such as initializing shear bins, constructing
-    masking vectors, and computing data and theory vectors specific to weak lensing.
-    """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_ggl()
@@ -207,7 +202,7 @@ class GGLMixin:
         v = super().get_masking_vector()
         vec = np.concatenate(
             [
-                self._masking(self.data["ells"], self.scale_cuts[key])
+                self._masking(self.data["theta"], self.scale_cuts[key])
                 for key in self.GGL_keys
             ]
         )
@@ -215,7 +210,7 @@ class GGLMixin:
 
     def get_data_vector_full(self):
         v = super().get_data_vector_full()
-        vec = np.array([self.data["cells"][key][0] for key in self.GGL_keys]).flatten()
+        vec = np.array([self.data["2pcf"][key][0] for key in self.GGL_keys]).flatten()
         return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
@@ -255,14 +250,14 @@ class GGLMixin:
             self.zs,
             nuisance_params={key: parameters[key] for key in self.full_she_keys},
         )
-        if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
-            vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
-        else:
-            cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, nlp.k)
-            vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
+
+        cf_all_th = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(pos, she), self.ells_integration, nlp.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
+        vec = np.array([cf_all_th[key][0] for key in self.GGL_keys]).flatten()
+
         self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction.update(cell_all_th)
+        self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
 
@@ -330,10 +325,6 @@ class EuclidLikelihood_GGL(GGLMixin, PhotoLikelihoodBase):
     the necessary components and constructs a masking vector based on scale cuts for each
     GGL key.
 
-    Inherits from:
-        PhotoLikelihoodBase: Base class for photometric likelihoods.
-        GGLMixin: Mixin providing GGL-specific functionality.
-
     Parameters
     ----------
     data : dict
@@ -357,17 +348,6 @@ class EuclidLikelihood_3x2pt(GCphMixin, GGLMixin, WLMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_3x2pt combines weak lensing (WL), galaxy clustering (GCph), and galaxy-galaxy lensing (GGL)
     likelihoods for photometric cosmological analyses, supporting scale cuts and masking.
-
-    Inherits from:
-        PhotoLikelihoodBase: Base class for photometric likelihoods.
-        GCphMixin: Mixin providing galaxy clustering specific functionality.
-        GGLMixin: Mixin providing galaxy-galaxy lensing specific functionality.
-        WLMixin: Mixin providing weak lensing specific functionality.
-
-    Note: The order of inheritance matters due to the method resolution order (MRO) in Python
-    and how mixins extend the base class functionality. Also, the order of the mixins assumes
-    the ordering of the covariance matrix blocks is GCph, GGL and WL.
-
     Parameters
     ----------
     data : dict
@@ -393,10 +373,6 @@ class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
 
     This class combines galaxy clustering (GCph) and galaxy-galaxy lensing (GGL) likelihoods,
     providing methods to compute the full data and theory vectors for both probes.
-
-    Note: The order of inheritance matters due to the method resolution order (MRO) in Python
-    and how mixins extend the base class functionality. Also, the order of the mixins assumes
-    the ordering of the covariance matrix blocks is GCph, GGL.
 
     Parameters
     ----------

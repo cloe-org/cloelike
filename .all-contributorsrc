@@ -101,7 +101,8 @@
         "maintenance",
         "content",
         "data",
-        "talk"
+        "talk",
+        "bug"
       ]
     },
     {
@@ -121,7 +122,18 @@
       "profile": "https://github.com/davidesciotti",
       "contributions": [
         "code",
-        "bug"
+        "bug",
+        "ideas"
+      ]
+    },
+    {
+      "login": "zahrabaghkhani",
+      "name": "Zahra Baghkhani",
+      "avatar_url": "https://avatars.githubusercontent.com/u/47903409?v=4",
+      "profile": "https://github.com/zahrabaghkhani",
+      "contributions": [
+        "code",
+        "doc"
       ]
     }
   ]
