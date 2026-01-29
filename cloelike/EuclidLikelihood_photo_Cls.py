@@ -3,6 +3,7 @@ from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 
+
 class WLMixin:
     """
     Mixin class providing weak lensing (WL) specific functionality for photometric likelihoods.
