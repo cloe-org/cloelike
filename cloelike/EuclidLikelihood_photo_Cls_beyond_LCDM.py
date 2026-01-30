@@ -109,6 +109,7 @@ class PhotoLikelihoodBase:
         self.derived = {}
         self.Background = Background
         self.LinPerturbations = LinPerturbations
+        self.theory_prediction = {}
         self.model = None
         self.mode = mode
 
@@ -409,14 +410,20 @@ class WLMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4, 500, 500)
+            ks = np.geomspace(1e-4, 500, 100)
+            if background.mg_stable_basis_on:
+                nonlinear_model = "none"
+            else:
+                nonlinear_model = "hmcode"
             lp = self.LinPerturbations(background, self.zs, ks)
             nlp = self.NonLinPerturbations(
                 background,
                 self.zs,
                 ks,
-                nonlinear_model="hmcode",
-                log10TAGN=parameters["log10TAGN"],
+                nonlinear_model=nonlinear_model,
+                log10TAGN=parameters["log10TAGN"]
+                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
+                else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -618,14 +625,20 @@ class GCphMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4, 500, 500)
+            ks = np.geomspace(1e-4, 500, 100)
+            if background.mg_stable_basis_on:
+                nonlinear_model = "none"
+            else:
+                nonlinear_model = "hmcode"
             lp = self.LinPerturbations(background, self.zs, ks)
             nlp = self.NonLinPerturbations(
                 background,
                 self.zs,
                 ks,
-                nonlinear_model="hmcode",
-                log10TAGN=parameters["log10TAGN"],
+                nonlinear_model=nonlinear_model,
+                log10TAGN=parameters["log10TAGN"]
+                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
+                else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -835,14 +848,20 @@ class GGLMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4, 500, 500)
+            ks = np.geomspace(1e-4, 500, 100)
+            if background.mg_stable_basis_on:
+                nonlinear_model = "none"
+            else:
+                nonlinear_model = "hmcode"
             lp = self.LinPerturbations(background, self.zs, ks)
             nlp = self.NonLinPerturbations(
                 background,
                 self.zs,
                 ks,
-                nonlinear_model="hmcode",
-                log10TAGN=parameters["log10TAGN"],
+                nonlinear_model=nonlinear_model,
+                log10TAGN=parameters["log10TAGN"]
+                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
+                else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
