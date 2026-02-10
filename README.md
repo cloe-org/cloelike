@@ -33,11 +33,35 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 
 ## 🚀 Installation
 
+### Option 1: Using Mamba/Conda Environment (Recommended for development)
+
+To set up a complete development environment with all dependencies:
+
+```sh
+# Install the environment using mamba
+mamba env create -f environments/cloe-org-env-v2026.1.yaml
+
+# Activate the environment
+mamba activate cloe-org-env-v2026.1
+
+# Install additional packages
+pip install git+https://github.com/cloe-org/cloelib.git
+pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
+pip install camb
+
+# Install cloelike
+pip install .
+```
+
+### Option 2: Using pip
+
 To install `cloelike` source code, clone the repository and install it via `pip`:
 
 ```sh
 pip install .
 ```
+
+**Note:** You'll need to install `cloelib`, `HMCode2020emu`, and `CAMB` separately.
 
 To work with the latest stable release of the code, move to the latest tag by typing:
 
