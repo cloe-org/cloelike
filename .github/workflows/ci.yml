@@ -44,10 +44,8 @@ jobs:
           miniforge-variant: Mambaforge
           miniforge-version: latest
           activate-environment: cloe-org-env-v2026.1
+          environment-file: environments/cloe-org-env-v2026.1.yaml
           use-mamba: true
-
-      - name: Create environment from file
-        run: mamba env update -n cloe-org-env-v2026.1 -f environments/cloe-org-env-v2026.1.yaml
 
       - name: Configure Git for private repo access
         run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
