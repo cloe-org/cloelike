@@ -46,7 +46,7 @@ jobs:
       - name: Setup Mambaforge
         uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-variant: Mambaforge
+          miniforge-variant: Miniforge3
           miniforge-version: latest
           activate-environment: cloe-org-env-v2026.1
           environment-file: environments/cloe-org-env-v2026.1.yaml
