@@ -68,10 +68,6 @@ jobs:
         run: |
           mamba run -n cloe-org-env-v2026.1 pip install .
 
-      - name: Install test dependencies
-        run: |
-          mamba run -n cloe-org-env-v2026.1 pip install pytest pytest-cov
-
       - name: Run tests with coverage
         run: mamba run -n cloe-org-env-v2026.1 pytest -vv --cov=cloelike --cov-report=term-missing
 
