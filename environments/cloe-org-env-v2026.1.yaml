@@ -1,0 +1,120 @@
+# =====================================================================
+# cloe-org – Conda/Mamba Environment
+# ---------------------------------------------------------------------
+# Environment name:
+#   cloe-org-env-v2026.1
+#
+# Purpose:
+#   - smoothly run cloe-org ecosystem
+#
+# How to use:
+#   mamba env create -f cloe-org-env-v2026.1.yaml
+#   mamba activate cloe-org-env-v2026.1
+#
+# Notes:
+#   - Built primarily from conda-forge
+#   - Python 3.12
+#   - Includes compiler toolchain (Clang/GCC) for C++/pybind11 (needed)
+#   - pip section at the end for Euclid-specific and sampling packages
+# =====================================================================
+
+name: cloe-org-env-v2026.1
+
+# -----------------------------
+# Conda channels
+# -----------------------------
+channels:
+  - conda-forge
+
+# -----------------------------
+# Core dependencies
+# -----------------------------
+dependencies:
+
+  # --- Low-level runtime & threading ---
+  - _openmp_mutex=4.5=7_kmp_llvm
+  - llvm-openmp=21.1.8=h4a912ad_0
+
+  # --- Python runtime ---
+  - python=3.12.12=h18782d2_1_cpython
+  - cpython=3.12.12=py312hd8ed1ab_1
+  - python_abi=3.12=8_cp312
+  - python-gil=3.12.12=hd8ed1ab_1
+  - pip=25.3
+  - setuptools=80.10.1
+  - wheel=0.46.3
+
+  # --- Scientific stack ---
+  - numpy=2.4.1
+  - libblas=3.11.0=*_openblas
+  - libcblas=3.11.0=*_openblas
+  - liblapack=3.11.0=*_openblas
+  - libopenblas=0.3.30=openmp_*
+
+  # --- GSL & numerical utilities ---
+  - gsl=2.8
+  - libgfortran5
+  - libgfortran
+
+  # --- C++ / compiler toolchain ---
+  # Needed for pybind11, Boost, and compiled extensions
+  - clang=21.1.8
+  - clang-21=21.1.8
+  - llvm-tools=21.1.8
+  - compiler-rt=21.1.8
+  - gcc=15.2.0
+  - conda-gcc-specs=15.2.0
+
+  # --- Boost / pybind11 ---
+  - boost=1.85.0
+  - libboost=1.85.0
+  - libboost-python=1.85.0
+  - libboost-python-devel=1.85.0
+  - pybind11=3.0.1
+  - pybind11-global=3.0.1
+
+  # --- Interactive & debugging tools ---
+  - ipython=9.9.0
+  - ipykernel=7.1.0
+  - debugpy=1.8.19
+  - jupyter_client=8.8.0
+  - jupyter_core=5.9.1
+
+  # --- Plotting / UX helpers ---
+  - matplotlib-inline=0.2.1
+  - pygments=2.19.2
+  - prompt-toolkit=3.0.52
+  - wcwidth=0.4.0
+
+  # --- System & IO libraries ---
+  - openssl=3.6.0
+  - ca-certificates=2026.1.4
+  - libxml2=2.15.1
+  - libsqlite=3.51.2
+  - readline=8.3
+  - ncurses=6.5
+  - zstd=1.5.7
+  - zeromq=4.3.5
+
+  # --- Python utilities ---
+  - packaging=26.0
+  - psutil=7.2.1
+  - typing_extensions=4.15.0
+  - six=1.17.0
+  - python-dateutil=2.9.0.post0
+  - tzdata=2025c
+
+  # -----------------------------
+  # pip-only dependencies
+  # -----------------------------
+  # Euclid- and project-specific packages not available via conda
+  - pip:
+      - euclidlib==2026.1
+      - nautilus-sampler==1.0.6
+      - seaborn==0.13.2
+      - tf_keras==2.20.1
+      - pre-commit
+
+# ============================================================
+# End of environment definition
+# ============================================================

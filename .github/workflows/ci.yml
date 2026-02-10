@@ -33,26 +33,47 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.12"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: ${{ matrix.python-version }}
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          activate-environment: cloe-org-env-v2026.1
+          use-mamba: true
+
+      - name: Create environment from file
+        run: mamba env update -n cloe-org-env-v2026.1 -f environments/cloe-org-env-v2026.1.yaml
 
       - name: Configure Git for private repo access
         run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install cloelike
-        run: pip install .
+      - name: Install cloelib
+        run: |
+          mamba run -n cloe-org-env-v2026.1 pip install git+https://github.com/cloe-org/cloelib.git
 
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+      - name: Install HMCode2020emu
+        run: |
+          mamba run -n cloe-org-env-v2026.1 pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
+
+      - name: Install CAMB
+        run: |
+          mamba run -n cloe-org-env-v2026.1 pip install camb
+
+      - name: Install cloelike
+        run: |
+          mamba run -n cloe-org-env-v2026.1 pip install .
+
+      - name: Install test dependencies
+        run: |
+          mamba run -n cloe-org-env-v2026.1 pip install pytest pytest-cov
 
       - name: Run tests with coverage
-        run: pytest -vv --cov=cloelike --cov-report=term-missing
+        run: mamba run -n cloe-org-env-v2026.1 pytest -vv --cov=cloelike --cov-report=term-missing
 
   build:
     name: Build
