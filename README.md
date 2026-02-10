@@ -38,8 +38,9 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 To set up a complete development environment with all dependencies:
 
 ```sh
-# Install the environment using mamba
-mamba env create -f environments/cloe-org-env-v2026.1.yaml
+# Download and install the environment using mamba
+curl -o cloe-org-env-v2026.1.yaml https://raw.githubusercontent.com/cloe-org/cloe-org-environments/main/environments/cloe-org-env-v2026.1.yaml
+mamba env create -f cloe-org-env-v2026.1.yaml
 
 # Activate the environment
 mamba activate cloe-org-env-v2026.1
@@ -48,6 +49,9 @@ mamba activate cloe-org-env-v2026.1
 pip install git+https://github.com/cloe-org/cloelib.git
 pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
 pip install camb
+
+# Install test dependencies
+pip install pytest pytest-cov
 
 # Install cloelike
 pip install .

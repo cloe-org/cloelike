@@ -38,6 +38,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download environment file
+        run: |
+          mkdir -p environments
+          curl -o environments/cloe-org-env-v2026.1.yaml https://raw.githubusercontent.com/cloe-org/cloe-org-environments/main/environments/cloe-org-env-v2026.1.yaml
+
       - name: Setup Mambaforge
         uses: conda-incubator/setup-miniconda@v3
         with:
@@ -61,6 +66,10 @@ jobs:
       - name: Install CAMB
         run: |
           mamba run -n cloe-org-env-v2026.1 pip install camb
+
+      - name: Install test dependencies
+        run: |
+          mamba run -n cloe-org-env-v2026.1 pip install pytest pytest-cov
 
       - name: Install cloelike
         run: |
