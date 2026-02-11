@@ -39,6 +39,7 @@ dependencies:
 
   # --- Scientific stack ---
   - numpy>=2.4
+  - astropy
   - libblas=*=*openblas
   - libcblas=*=*openblas
   - liblapack=*=*openblas
@@ -107,6 +108,7 @@ dependencies:
       - pre-commit
       - pytest
       - pytest-cov
+      - satrapy
 
 # ============================================================
 # End of environment definition
