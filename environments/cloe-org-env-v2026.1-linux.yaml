@@ -108,6 +108,7 @@ dependencies:
       - pre-commit
       - pytest
       - pytest-cov
+      - comet-emu
 
 # ============================================================
 # End of environment definition
