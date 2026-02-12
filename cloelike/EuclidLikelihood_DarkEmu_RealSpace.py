@@ -13,8 +13,17 @@ from cloelib.observables.darkemu_hod import DarkEmuHODParameters
 
 def _extract_cosmo_params(parameters: dict) -> dict:
     cosmo_keys = [
-        "H0", "Omega_cdm0", "Omega_b0", "Omega_k0",
-        "w0", "wa", "ns", "As", "gamma_MG", "mnu", "N_mnu",
+        "H0",
+        "Omega_cdm0",
+        "Omega_b0",
+        "Omega_k0",
+        "w0",
+        "wa",
+        "ns",
+        "As",
+        "gamma_MG",
+        "mnu",
+        "N_mnu",
     ]
     out = {k: parameters[k] for k in cosmo_keys if k in parameters}
     out.setdefault("Omega_k0", 0.0)
@@ -27,8 +36,16 @@ def _extract_hod_params(parameters: dict, fixed_hod: dict) -> DarkEmuHODParamete
     if "hod_params" in parameters:
         return parameters["hod_params"]
     hod_keys = [
-        "logMmin", "sigma_sq", "logM1", "alpha", "kappa",
-        "poff", "Roff", "sat_dist_type", "alpha_inc", "logM_inc",
+        "logMmin",
+        "sigma_sq",
+        "logM1",
+        "alpha",
+        "kappa",
+        "poff",
+        "Roff",
+        "sat_dist_type",
+        "alpha_inc",
+        "logM_inc",
     ]
     hod_dict = {}
     for k in hod_keys:
@@ -111,9 +128,7 @@ class EuclidLikelihood_DarkEmu_RealSpace:
             self._z_lens = self.data_ggl["z_lens"]
             if not self.has_gc:
                 self._z_sample = (
-                    self._z_lens
-                    if np.isscalar(self._z_lens)
-                    else self._z_lens[0]
+                    self._z_lens if np.isscalar(self._z_lens) else self._z_lens[0]
                 )
 
         if self.has_wl:
@@ -124,6 +139,7 @@ class EuclidLikelihood_DarkEmu_RealSpace:
         self._data_vector = np.concatenate(parts) if parts else np.array([])
         if inv_blocks:
             from scipy.linalg import block_diag
+
             self._inv_cov = block_diag(*inv_blocks)
         else:
             self._inv_cov = np.array([]).reshape(0, 0)
@@ -176,14 +192,12 @@ class EuclidLikelihood_DarkEmu_RealSpace:
         self._z_arr_wl = np.asarray(self.data_wl["z_arr"])
         n_tomo = self._dndz.shape[0]
         self._bin_pairs = [
-            (i, j)
-            for i in range(1, n_tomo + 1)
-            for j in range(i, n_tomo + 1)
+            (i, j) for i in range(1, n_tomo + 1) for j in range(i, n_tomo + 1)
         ]
 
         xi_p_list = []
         xi_m_list = []
-        for (i, j) in self._bin_pairs:
+        for i, j in self._bin_pairs:
             xi_p_list.append(
                 np.asarray(self.data_wl["xi_plus"][(i, j)])[self._mask_xi_p]
             )
@@ -200,9 +214,7 @@ class EuclidLikelihood_DarkEmu_RealSpace:
         idx_m = []
         for p in range(n_pairs):
             idx_p.extend(p * n_theta + np.where(self._mask_xi_p)[0])
-            idx_m.extend(
-                n_pairs * n_theta + p * n_theta + np.where(self._mask_xi_m)[0]
-            )
+            idx_m.extend(n_pairs * n_theta + p * n_theta + np.where(self._mask_xi_m)[0])
         idx_all = np.array(idx_p + idx_m)
         cov_full = np.asarray(self.data_wl["covariance"])
         cov_cut = cov_full[np.ix_(idx_all, idx_all)]
@@ -222,11 +234,7 @@ class EuclidLikelihood_DarkEmu_RealSpace:
         background = self.Background(**cosmo)
 
         if self.has_gc or self.has_ggl:
-            z = (
-                self._z_sample
-                if np.isscalar(self._z_sample)
-                else self._z_sample[0]
-            )
+            z = self._z_sample if np.isscalar(self._z_sample) else self._z_sample[0]
             pert = DarkEmuHODPerturbations(
                 background=background,
                 redshifts=np.array([z]),
@@ -234,16 +242,10 @@ class EuclidLikelihood_DarkEmu_RealSpace:
                 validate_params=False,
             )
         if self.has_gc:
-            wp = pert.projected_correlation(
-                self._R_gc, z, pimax=self._pimax
-            )
+            wp = pert.projected_correlation(self._R_gc, z, pimax=self._pimax)
             parts.append(wp)
         if self.has_ggl:
-            z_ggl = (
-                self._z_lens
-                if np.isscalar(self._z_lens)
-                else self._z_lens[0]
-            )
+            z_ggl = self._z_lens if np.isscalar(self._z_lens) else self._z_lens[0]
             if not self.has_gc:
                 pert = DarkEmuHODPerturbations(
                     background=background,
@@ -280,10 +282,7 @@ class EuclidLikelihood_DarkEmu_RealSpace:
             self._z_arr_wl,
             log10TAGN=parameters.get("log10TAGN", 7.8),
         )
-        nuisance = {
-            k: parameters.get(k, v)
-            for k, v in self._wl_nuisance.items()
-        }
+        nuisance = {k: parameters.get(k, v) for k, v in self._wl_nuisance.items()}
         shear = ShearTracer(
             perturbations=nlp,
             dndz=self._dndz,
@@ -296,15 +295,11 @@ class EuclidLikelihood_DarkEmu_RealSpace:
 
         xi_p_list = []
         xi_m_list = []
-        for (i, j) in self._bin_pairs:
+        for i, j in self._bin_pairs:
             key = ("SHE", "SHE", i, j)
             tpcf = xi_dict[key]
-            xi_p_list.append(
-                np.asarray(tpcf.array[0, 0, :])[self._mask_xi_p]
-            )
-            xi_m_list.append(
-                np.asarray(tpcf.array[1, 1, :])[self._mask_xi_m]
-            )
+            xi_p_list.append(np.asarray(tpcf.array[0, 0, :])[self._mask_xi_p])
+            xi_m_list.append(np.asarray(tpcf.array[1, 1, :])[self._mask_xi_m])
         return np.concatenate(xi_p_list + xi_m_list)
 
     def loglike(self, parameters: dict) -> float:
