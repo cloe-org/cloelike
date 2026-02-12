@@ -8,6 +8,7 @@ __all__ = [
     "EuclidLikelihood_2x2pt",
     "EuclidLikelihood_GCspectro_Pls",
     "EuclidLikelihood_BAO",
+    "EuclidLikelihood_DarkEmu_RealSpace",
 ]
 
 from .EuclidLikelihood_photo_Cls import (
@@ -19,3 +20,4 @@ from .EuclidLikelihood_photo_Cls import (
 )
 from .EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
 from .EuclidLikelihood_BAO import EuclidLikelihood_BAO
+from .EuclidLikelihood_DarkEmu_RealSpace import EuclidLikelihood_DarkEmu_RealSpace
