@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+env:
+  ENV_NAME: cloe-org-env
+  ENV_FILE: cloe-org-environments/environments/cloe-org-env-linux-v2026.1.yaml
+
 jobs:
   style:
     name: Style (Lint & Format)
@@ -38,13 +42,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout cloe-org-environments
+        uses: actions/checkout@v4
+        with:
+          repository: cloe-org/cloe-org-environments
+          path: cloe-org-environments
+
       - name: Setup Mambaforge
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-variant: Miniforge3
           miniforge-version: latest
-          activate-environment: cloe-org-env-v2026.1
-          environment-file: environments/cloe-org-env-v2026.1-linux.yaml
+          activate-environment: ${{ env.ENV_NAME }}
+          environment-file: ${{ env.ENV_FILE }}
           use-mamba: true
 
       - name: Configure Git for private repo access
@@ -52,22 +62,22 @@ jobs:
 
       - name: Install cloelib
         run: |
-          mamba run -n cloe-org-env-v2026.1 pip install git+https://github.com/cloe-org/cloelib.git
+          mamba run -n $ENV_NAME pip install git+https://github.com/cloe-org/cloelib.git
 
       - name: Install HMCode2020emu
         run: |
-          mamba run -n cloe-org-env-v2026.1 pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
+          mamba run -n $ENV_NAME pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
 
       - name: Install CAMB
         run: |
-          mamba run -n cloe-org-env-v2026.1 pip install camb
+          mamba run -n $ENV_NAME pip install camb
 
       - name: Install cloelike
         run: |
-          mamba run -n cloe-org-env-v2026.1 pip install .
+          mamba run -n $ENV_NAME pip install .
 
       - name: Run tests
-        run: mamba run -n cloe-org-env-v2026.1 pytest -vv
+        run: mamba run -n $ENV_NAME pytest -vv
 
   build:
     name: Build
