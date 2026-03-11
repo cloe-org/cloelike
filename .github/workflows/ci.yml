@@ -79,7 +79,7 @@ jobs:
       - name: Install comet-emu
         run: |
           mamba run -n $ENV_NAME pip install comet-emu
-          
+
       - name: Install cloelike
         run: |
           mamba run -n $ENV_NAME pip install .
