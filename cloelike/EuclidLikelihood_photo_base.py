@@ -127,6 +127,7 @@ class PhotoLikelihoodBase:
         self.Background = Background
         self.LinPerturbations = LinPerturbations
         self.NonLinPerturbations = NonLinPerturbations
+        self.theory_prediction = {}
         self.mode = mode
         self.scale_cuts = settings["scale_cuts"]
         self.selected_modes = settings.get("selected_modes", np.arange(1, 8))
