@@ -1,8 +1,9 @@
 import numpy as np
-from cloelib.observables.photo import ShearTracer, PositionsTracer
+from cloelib.observables.photo import ShearTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 from cloelib.auxiliary.cosebi_helpers import get_W_ell
+
 
 class WLCosebi:
     """
@@ -33,14 +34,11 @@ class WLCosebi:
 
     def _compute_w_ells(self):
         nmax = int(self.selected_modes[-1])
-        print('Start computing the W_ells, this only has to be done once!')
+        print("Start computing the W_ells, this only has to be done once!")
         return get_W_ell(
-                self.thetagrid,
-                nmax,
-                self.ells_integration_COSEBI,
-                self.n_thread
+            self.thetagrid, nmax, self.ells_integration_COSEBI, self.n_thread
         )
-    
+
     @property
     def w_ells(self):
         if self._w_ells is None:
@@ -51,8 +49,10 @@ class WLCosebi:
         v = super().get_masking_vector()
         vec = np.concatenate(
             [
-                self._masking(self.data["MODE"][key], [self.selected_modes[0],
-                                                  self.selected_modes[-1]])
+                self._masking(
+                    self.data["MODE"][key],
+                    [self.selected_modes[0], self.selected_modes[-1]],
+                )
                 for key in self.WL_keys
             ]
         )
@@ -60,9 +60,7 @@ class WLCosebi:
 
     def get_data_vector_full(self):
         v = super().get_data_vector_full()
-        vec = np.array(
-            [self.data["EE"][key] for key in self.WL_keys]
-        ).flatten()
+        vec = np.array([self.data["EE"][key] for key in self.WL_keys]).flatten()
         return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
@@ -95,25 +93,22 @@ class WLCosebi:
             self.zs,
             nuisance_params={key: parameters[key] for key in self.full_she_keys},
         )
-        cosebi_all_th = AngularTwoPoint(she, she).get_cosebis(self.ells_integration_COSEBI,
-                                                            0, 
-                                                            nlp.k, 
-                                                            self.w_ells,
-                                                            self.selected_modes
-                                                            )
-        
+        cosebi_all_th = AngularTwoPoint(she, she).get_cosebis(
+            self.ells_integration_COSEBI, 0, nlp.k, self.w_ells, self.selected_modes
+        )
+
         withpadding = {}
         for key in self.WL_keys:
-            withpadding[key] = np.pad(np.asarray(cosebi_all_th[key], dtype=float),
-                                    (0, len(self.data['MODE'][key]) - len(cosebi_all_th[key])),
-                                        constant_values=np.nan
-                                        )
+            withpadding[key] = np.pad(
+                np.asarray(cosebi_all_th[key], dtype=float),
+                (0, len(self.data["MODE"][key]) - len(cosebi_all_th[key])),
+                constant_values=np.nan,
+            )
         cosebi_all_th = withpadding
         vec = np.array([cosebi_all_th[key] for key in self.WL_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cosebi_all_th
         return np.concatenate([v, vec])
-
 
 
 class EuclidLikelihood_WLCosebi(WLCosebi, PhotoLikelihoodBase):
@@ -141,4 +136,3 @@ class EuclidLikelihood_WLCosebi(WLCosebi, PhotoLikelihoodBase):
     """
 
     pass
-
