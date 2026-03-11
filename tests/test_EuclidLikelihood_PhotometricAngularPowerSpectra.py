@@ -63,7 +63,7 @@ def data_setup(tmp_path_factory):
         with open(tmpdir / filename, "wb") as f:
             f.write(r.content)
 
-    z_nz, nz_heracles = el.le3.pk_wl.redshift_distributions(tmpdir / "nz_example.fits")
+    z_nz, nz_heracles = el.phz.redshift_distributions(tmpdir / "nz_example.fits")
     myz = np.linspace(1e-4, 3.0, 100)
 
     def normalize_and_resample(nz_dict, z_grid, z_target):
