@@ -12,6 +12,7 @@ from cloelib.cosmology.ReACTEmu_cosmology import (
 )
 from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
 from cloelib.cosmology.mochi_class_cosmology import mochiCLASSNonLinearPerturbations
+from cloelib.cosmology.mochi_class_lin_emu_cosmology import mochiCLASSEmuLinearPerturbations
 
 
 @runtime_checkable
@@ -134,6 +135,11 @@ class PhotoLikelihoodBase:
             self.LinPerturbations = LinPerturbations
             self.NonLinPerturbations = NonLinPerturbations
             self.model = "mochiCLASS"
+            self.gravity_model = None
+        elif NonLinPerturbations == mochiCLASSEmuLinearPerturbations:
+            self.LinPerturbations = NonLinPerturbations
+            self.NonLinPerturbations = NonLinPerturbations #for now, nonlinear = linear
+            self.model = "mochiCLASSEmu"
             self.gravity_model = None
         else:
             raise TypeError(
@@ -299,7 +305,7 @@ class WLMixin:
             ]
         }
         # (LISA G)
-        if self.model == "mochiCLASS":
+        if "mochiCLASS" in self.model:
             background_params.update(
                 {
                     k: parameters[k]
@@ -410,7 +416,7 @@ class WLMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4, 500, 100)
+            ks = np.geomspace(1e-4,500,100)
             if background.mg_stable_basis_on:
                 nonlinear_model = "none"
             else:
@@ -421,9 +427,7 @@ class WLMixin:
                 self.zs,
                 ks,
                 nonlinear_model=nonlinear_model,
-                log10TAGN=parameters["log10TAGN"]
-                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
-                else None,
+                log10TAGN=parameters["log10TAGN"] if nonlinear_model == "hmcode" and "log10TAGN" in parameters else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -436,6 +440,13 @@ class WLMixin:
             # # if boost.check_ranges==False:
             # #    return None, False
             # nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
+        elif self.model == "mochiCLASSEmu":
+            lp = self.LinPerturbations(background,
+                                        self.zs,
+                                        cp_file=parameters["cp_file"])
+            nlp = self.NonLinPerturbations(background,
+                                        self.zs,
+                                        cp_file=parameters["cp_file"])
 
         she = ShearTracer(
             nlp,
@@ -449,8 +460,9 @@ class WLMixin:
         else:
             cell_all_th = AngularTwoPoint(she, she).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction = cell_all_th
+        if self.model != "mochiCLASSEmu":
+            self.derived["sigma8_0"] = nlp.sigma8_0()
+        self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
 
@@ -514,7 +526,7 @@ class GCphMixin:
             ]
         }
         # (LISA G)
-        if self.model == "mochiCLASS":
+        if "mochiCLASS" in self.model:
             background_params.update(
                 {
                     k: parameters[k]
@@ -625,7 +637,7 @@ class GCphMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4, 500, 100)
+            ks = np.geomspace(1e-4,500,100)
             if background.mg_stable_basis_on:
                 nonlinear_model = "none"
             else:
@@ -636,9 +648,7 @@ class GCphMixin:
                 self.zs,
                 ks,
                 nonlinear_model=nonlinear_model,
-                log10TAGN=parameters["log10TAGN"]
-                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
-                else None,
+                log10TAGN=parameters["log10TAGN"] if nonlinear_model == "hmcode" and "log10TAGN" in parameters else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -651,7 +661,13 @@ class GCphMixin:
             # # if boost.check_ranges==False:
             # #    return None, False
             # nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
-
+        elif self.model == "mochiCLASSEmu":
+            lp = self.LinPerturbations(background,
+                                        self.zs,
+                                        cp_file=parameters["cp_file"])
+            nlp = self.NonLinPerturbations(background,
+                                        self.zs,
+                                        cp_file=parameters["cp_file"])
         pos = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
@@ -665,8 +681,9 @@ class GCphMixin:
         else:
             cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction = cell_all_th
+        if self.model != "mochiCLASSEmu":
+            self.derived["sigma8_0"] = nlp.sigma8_0()
+        self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
 
@@ -737,7 +754,7 @@ class GGLMixin:
             ]
         }
         # (LISA G)
-        if self.model == "mochiCLASS":
+        if "mochiCLASS" in self.model:
             background_params.update(
                 {
                     k: parameters[k]
@@ -848,7 +865,7 @@ class GGLMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4, 500, 100)
+            ks = np.geomspace(1e-4,500,100)
             if background.mg_stable_basis_on:
                 nonlinear_model = "none"
             else:
@@ -859,9 +876,7 @@ class GGLMixin:
                 self.zs,
                 ks,
                 nonlinear_model=nonlinear_model,
-                log10TAGN=parameters["log10TAGN"]
-                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
-                else None,
+                log10TAGN=parameters["log10TAGN"] if nonlinear_model == "hmcode" and "log10TAGN" in parameters else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -874,6 +889,13 @@ class GGLMixin:
             # # if boost.check_ranges==False:
             # #    return None, False
             # nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
+        elif self.model == "mochiCLASSEmu":
+            lp = self.LinPerturbations(background,
+                                        self.zs,
+                                        cp_file=parameters["cp_file"])
+            nlp = self.NonLinPerturbations(background,
+                                        self.zs,
+                                        cp_file=parameters["cp_file"])
         pos = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
@@ -893,8 +915,9 @@ class GGLMixin:
         else:
             cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
-        self.theory_prediction = cell_all_th
+        if self.model != "mochiCLASSEmu":
+            self.derived["sigma8_0"] = nlp.sigma8_0()
+        self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
 
