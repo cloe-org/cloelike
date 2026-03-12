@@ -12,7 +12,9 @@ from cloelib.cosmology.ReACTEmu_cosmology import (
 )
 from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
 from cloelib.cosmology.mochi_class_cosmology import mochiCLASSNonLinearPerturbations
-from cloelib.cosmology.mochi_class_lin_emu_cosmology import mochiCLASSEmuLinearPerturbations
+from cloelib.cosmology.mochi_class_lin_emu_cosmology import (
+    mochiCLASSEmuLinearPerturbations,
+)
 
 
 @runtime_checkable
@@ -138,7 +140,9 @@ class PhotoLikelihoodBase:
             self.gravity_model = None
         elif NonLinPerturbations == mochiCLASSEmuLinearPerturbations:
             self.LinPerturbations = NonLinPerturbations
-            self.NonLinPerturbations = NonLinPerturbations #for now, nonlinear = linear
+            self.NonLinPerturbations = (
+                NonLinPerturbations  # for now, nonlinear = linear
+            )
             self.model = "mochiCLASSEmu"
             self.gravity_model = None
         else:
@@ -416,7 +420,7 @@ class WLMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4,500,100)
+            ks = np.geomspace(1e-4, 500, 100)
             if background.mg_stable_basis_on:
                 nonlinear_model = "none"
             else:
@@ -427,7 +431,9 @@ class WLMixin:
                 self.zs,
                 ks,
                 nonlinear_model=nonlinear_model,
-                log10TAGN=parameters["log10TAGN"] if nonlinear_model == "hmcode" and "log10TAGN" in parameters else None,
+                log10TAGN=parameters["log10TAGN"]
+                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
+                else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -441,12 +447,12 @@ class WLMixin:
             # #    return None, False
             # nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
         elif self.model == "mochiCLASSEmu":
-            lp = self.LinPerturbations(background,
-                                        self.zs,
-                                        cp_file=parameters["cp_file"])
-            nlp = self.NonLinPerturbations(background,
-                                        self.zs,
-                                        cp_file=parameters["cp_file"])
+            lp = self.LinPerturbations(
+                background, self.zs, cp_file=parameters["cp_file"]
+            )
+            nlp = self.NonLinPerturbations(
+                background, self.zs, cp_file=parameters["cp_file"]
+            )
 
         she = ShearTracer(
             nlp,
@@ -637,7 +643,7 @@ class GCphMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4,500,100)
+            ks = np.geomspace(1e-4, 500, 100)
             if background.mg_stable_basis_on:
                 nonlinear_model = "none"
             else:
@@ -648,7 +654,9 @@ class GCphMixin:
                 self.zs,
                 ks,
                 nonlinear_model=nonlinear_model,
-                log10TAGN=parameters["log10TAGN"] if nonlinear_model == "hmcode" and "log10TAGN" in parameters else None,
+                log10TAGN=parameters["log10TAGN"]
+                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
+                else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -662,12 +670,12 @@ class GCphMixin:
             # #    return None, False
             # nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
         elif self.model == "mochiCLASSEmu":
-            lp = self.LinPerturbations(background,
-                                        self.zs,
-                                        cp_file=parameters["cp_file"])
-            nlp = self.NonLinPerturbations(background,
-                                        self.zs,
-                                        cp_file=parameters["cp_file"])
+            lp = self.LinPerturbations(
+                background, self.zs, cp_file=parameters["cp_file"]
+            )
+            nlp = self.NonLinPerturbations(
+                background, self.zs, cp_file=parameters["cp_file"]
+            )
         pos = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
@@ -865,7 +873,7 @@ class GGLMixin:
             fr0 = parameters["fr0"]
             nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
         elif self.model == "mochiCLASS":
-            ks = np.geomspace(1e-4,500,100)
+            ks = np.geomspace(1e-4, 500, 100)
             if background.mg_stable_basis_on:
                 nonlinear_model = "none"
             else:
@@ -876,7 +884,9 @@ class GGLMixin:
                 self.zs,
                 ks,
                 nonlinear_model=nonlinear_model,
-                log10TAGN=parameters["log10TAGN"] if nonlinear_model == "hmcode" and "log10TAGN" in parameters else None,
+                log10TAGN=parameters["log10TAGN"]
+                if nonlinear_model == "hmcode" and "log10TAGN" in parameters
+                else None,
             )
             # (LISA G) TODO: Add nonlinear boost from React Emulator next time
             # boost = MGemuNonlinearBoost(
@@ -890,12 +900,12 @@ class GGLMixin:
             # #    return None, False
             # nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
         elif self.model == "mochiCLASSEmu":
-            lp = self.LinPerturbations(background,
-                                        self.zs,
-                                        cp_file=parameters["cp_file"])
-            nlp = self.NonLinPerturbations(background,
-                                        self.zs,
-                                        cp_file=parameters["cp_file"])
+            lp = self.LinPerturbations(
+                background, self.zs, cp_file=parameters["cp_file"]
+            )
+            nlp = self.NonLinPerturbations(
+                background, self.zs, cp_file=parameters["cp_file"]
+            )
         pos = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
