@@ -67,7 +67,7 @@ def data_setup(tmp_path_factory):
         with open(tmpdir / filename, "wb") as f:
             f.write(r.content)
 
-    z_nz, nz_heracles = el.photo.redshift_distributions(tmpdir / "nz_example.fits")
+    z_nz, nz_heracles = el.phz.redshift_distributions(tmpdir / "nz_example.fits")
     myz = np.linspace(1e-4, 3.0, 100)
 
     def normalize_and_resample(nz_dict, z_grid, z_target):
@@ -76,8 +76,8 @@ def data_setup(tmp_path_factory):
 
     my_dndz_pos_norm = normalize_and_resample(nz_heracles, z_nz, myz)
     my_dndz_she_norm = normalize_and_resample(nz_heracles, z_nz, myz)
-    cells_binned = el.photo.angular_power_spectra(tmpdir / "example-spectra.npy")
-    mixmat_binned = el.photo.mixing_matrices(tmpdir / "example-mixmats.fits")
+    cells_binned = el.le3.pk_wl.angular_power_spectra(tmpdir / "example-spectra.npy")
+    mixmat_binned = el.le3.pk_wl.mixing_matrices(tmpdir / "example-mixmats.fits")
     covmat_wl = np.load(tmpdir / "cov_WL.npz")["arr_0"]
     covmat_gc = np.load(tmpdir / "cov_GC.npz")["arr_0"]
     covmat_ggl = np.load(tmpdir / "cov_GGL.npz")["arr_0"]
