@@ -67,7 +67,7 @@ def data_setup(tmp_path_factory):
     myz = np.linspace(1e-4, 3.0, 100)
 
     def normalize_and_resample(nz_dict, z_grid, z_target):
-        nz_array = np.vstack([nz / np.trapz(nz, z_grid) for nz in nz_dict.values()])
+        nz_array = np.vstack([nz / np.trapezoid(nz, z_grid) for nz in nz_dict.values()])
         return np.array([np.interp(z_target, z_grid, nz) for nz in nz_array])
 
     my_dndz_pos_norm = normalize_and_resample(nz_heracles, z_nz, myz)

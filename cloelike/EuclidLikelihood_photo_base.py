@@ -129,7 +129,10 @@ class PhotoLikelihoodBase:
         self.scale_cuts = settings["scale_cuts"]
         self.rebin = False
         self.zs = data["z_arr"]
-        self.mixmat = deepcopy(data.get("mixmat", {}))
+        if self.mode == "coupled":
+            self.mixmat = deepcopy(data.get("mixmat", {}))
+        else:
+            self.mixmat = None
 
         if (ells_integration is None) and ("2pcf" in data):
             self.ells_integration = np.arange(2, 40000)
