@@ -1,3 +1,6 @@
+# MkDocs build output
+site/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc
@@ -16,6 +19,7 @@ poetry.lock
 build/
 dist/
 *.egg-info/
+_version.py
 
 # Jupyter notebooks
 notebooks/
