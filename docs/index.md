@@ -1,6 +1,6 @@
 # cloelike
 
-## **cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`.
+**cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`.
 
 ## ✨ Features
 
@@ -23,10 +23,6 @@
 | `EuclidLikelihood_BAO`           | Baryon Acoustic Oscillations (BAO)                                    |
 
 ---
-
-## 🙏 Contributors
-
-Contributions to this project follow the [all-contributors](https://allcontributors.org) specification. All forms of contributions are appreciated, including code, documentation, and more.
 
 --8<-- "README.md:contributors"
 
