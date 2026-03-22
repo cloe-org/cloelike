@@ -102,6 +102,8 @@ This project is licensed under the **MIT** – see the [LICENSE](LICENSE) file f
 
 👩‍💻🧑‍💻 Authored by M. Bonici, G. Cañas-Herrera, P. Carrilho, S. Casas, C. Moretti, and A. Pezzotta (listed in alphabetical order).
 
+<!-- --8<-- [start:contributors] -->
+
 ## 🤝 Contributors
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind are welcome!
@@ -133,3 +135,4 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
+<!-- --8<-- [end:contributors] -->

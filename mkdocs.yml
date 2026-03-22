@@ -1,7 +1,7 @@
 site_name: cloelike
-site_url: https://cloe-org.github.io/cloelike/
+site_url: https://cloe-org.github.io/dev/cloelike/
 site_description: Likelihood module interfacing with cloelib, euclidlib and Euclid covariance matrices
-site_author: CLOE collaboration
+site_author: cloe-maintainers
 
 repo_name: cloe-org/cloelike
 repo_url: https://github.com/cloe-org/cloelike
@@ -12,15 +12,17 @@ theme:
   name: material
   language: en
   palette:
-    - scheme: default
-      primary: indigo
-      accent: indigo
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
-      primary: indigo
-      accent: indigo
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -51,7 +53,6 @@ nav:
       - Photometric Likelihoods: api/photo_cls.md
       - Spectroscopic Likelihood: api/gcspectro.md
   - Contributing: contributing.md
-  - Changelog: changelog.md
 
 plugins:
   - search

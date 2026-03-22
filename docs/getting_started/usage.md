@@ -1,19 +1,19 @@
 # Usage
 
-Explore the **tutorials** in the [`cloe-org/playground`](https://github.com/cloe-org/playground) repository for examples on how to compute cosmological observables and use `cloelike`.
+Explore the **tutorials** in the [`cloe-org/playground/tutorials/likelihood`](https://github.com/cloe-org/playground/tutorials/likelihood) repository for examples on how to compute cosmological observables and use `cloelike`.
 
 ## Basic example: BAO likelihood
 
 ```python
 import numpy as np
-from cloelike import EuclidLikelihood_BAO
-from cloelib.cosmology.cosmology import Background  # or your preferred Background class
+from cloelike.EuclidLikelihood_BAO import EuclidLikelihood_BAO
+from cloelib.cosmology.CAMBcosmology import CAMBBackground  # or your preferred Background class
 
 # Load your data dictionary (e.g. from a .pkl or .fits file)
-data = {...}  # must contain a "BAO" key with the BAO measurements
+data = {...}  # Check out the expected format in notebooks
 
 # Instantiate the likelihood
-likelihood = EuclidLikelihood_BAO(data=data, Background=Background)
+likelihood = EuclidLikelihood_BAO(data=data, Background=CAMBBackground)
 
 # Evaluate the log-likelihood for a set of cosmological parameters
 parameters = {
@@ -32,7 +32,9 @@ log_like = likelihood.loglike(parameters)
 ## Basic example: Photometric 3×2pt likelihood
 
 ```python
-from cloelike import EuclidLikelihood_3x2pt
+from cloelib.cosmology.camb_cosmology import CAMBBackground
+from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuLinearPerturbations, HMemuNonLinearPerturbations
+from cloelike.EuclidLikelihood_photo_Cls import EuclidLikelihood_3x2pt
 
 # Load data and settings dictionaries
 data = {...}
@@ -42,9 +44,9 @@ settings = {...}
 likelihood = EuclidLikelihood_3x2pt(
     data=data,
     settings=settings,
-    Background=Background,
-    LinPerturbations=LinPerturbations,
-    NonLinPerturbations=NonLinPerturbations,
+    Background=CAMBBackground,
+    LinPerturbations=HMemuLinearPerturbations,
+    NonLinPerturbations=HMemuNonLinearPerturbations,
 )
 
 log_like = likelihood.loglike(parameters)
@@ -53,13 +55,15 @@ log_like = likelihood.loglike(parameters)
 ## Basic example: Spectroscopic GCspectro likelihood
 
 ```python
-from cloelike import EuclidLikelihood_GCspectro_Pls
+from cloelib.cosmology.camb_cosmology import CAMBBackground
+from cloelib.observables.CometEFT_spectro import CometEFT_SpectroPower
+from cloelike.EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
 
 likelihood = EuclidLikelihood_GCspectro_Pls(
     data=data,
     settings=settings,
-    Background=Background,
-    SpectroPower=SpectroPower,
+    Background=CAMBBackground,
+    SpectroPower=CometEFT_SpectroPower,
 )
 
 log_like = likelihood.loglike(parameters)

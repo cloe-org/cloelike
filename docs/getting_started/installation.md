@@ -36,14 +36,4 @@ where `<name-latest-release>` is the tag name visible under [Releases](https://g
 
 ## Optional dependencies
 
-Some likelihoods may require additional packages:
-
-- [`CAMB`](https://camb.readthedocs.io/) – for CAMB-based background and perturbation calculations
-- [`HMCode2020Emu`](https://github.com/MariaTsedrik/HMcode2020Emu) – for non-linear power spectrum emulation
-
-These can be installed via:
-
-```sh
-pip install camb
-pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
-```
+All dependencies of external codes can be installed as extras from `cloelib`. Check out `cloelib` docs.
