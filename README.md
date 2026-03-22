@@ -5,6 +5,7 @@
 We welcome feedback from the **Euclid community** and beyond to refine and improve this module!
 
 [![CI](https://github.com/cloe-org/cloelike/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cloe-org/cloelike/actions/workflows/ci.yml)
+[![Docs](https://github.com/cloe-org/cloelike/actions/workflows/docs.yml/badge.svg?branch=main)](https://cloe-org.github.io/cloelike/dev/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-blue?logo=pytest)](https://docs.pytest.org/)
 [![Linting: Ruff](https://img.shields.io/badge/linting-ruff-purple?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
@@ -101,6 +102,8 @@ This project is licensed under the **MIT** – see the [LICENSE](LICENSE) file f
 
 👩‍💻🧑‍💻 Authored by M. Bonici, G. Cañas-Herrera, P. Carrilho, S. Casas, C. Moretti, and A. Pezzotta (listed in alphabetical order).
 
+<!-- --8<-- [start:contributors] -->
+
 ## 🤝 Contributors
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind are welcome!
@@ -132,3 +135,4 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
+<!-- --8<-- [end:contributors] -->
