@@ -441,10 +441,7 @@ class EuclidLikelihood_GCspectro_Pls:
             self.inverse_masked_covariance_matrix,
             self.masked_theory_vector_AM_reduced,
         ) + np.diag(1.0 / self.AM_sigmas**2)
-        chi2 = (
-            F0
-            - np.einsum("i,ij,j->", F1i, np.linalg.inv(F2ij), F1i)
-        )
+        chi2 = F0 - np.einsum("i,ij,j->", F1i, np.linalg.inv(F2ij), F1i)
         if not use_Jeffreys:
             chi2 += np.log(np.linalg.det(F2ij))
         return -0.5 * chi2
