@@ -69,6 +69,9 @@ class WLMixin:
             }
         )
         lp = self.LinPerturbations(background, self.zs)
+        # lp is passed as the second argument for interface compatibility with
+        # emulator-based NonLinPerturbations classes; CAMB-based implementations
+        # accept but ignore it (nonlinear corrections are computed internally).
         nlp = self.NonLinPerturbations(
             background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
         )
@@ -152,6 +155,9 @@ class GCphMixin:
             }
         )
         lp = self.LinPerturbations(background, self.zs)
+        # lp is passed as the second argument for interface compatibility with
+        # emulator-based NonLinPerturbations classes; CAMB-based implementations
+        # accept but ignore it (nonlinear corrections are computed internally).
         nlp = self.NonLinPerturbations(
             background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
         )
@@ -244,6 +250,9 @@ class GGLMixin:
             }
         )
         lp = self.LinPerturbations(background, self.zs)
+        # lp is passed as the second argument for interface compatibility with
+        # emulator-based NonLinPerturbations classes; CAMB-based implementations
+        # accept but ignore it (nonlinear corrections are computed internally).
         nlp = self.NonLinPerturbations(
             background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
         )
