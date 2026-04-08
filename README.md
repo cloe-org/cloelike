@@ -1,4 +1,3 @@
-
 <p align="center">
   <img src="docs/cloelike-banner.png" alt="cloelike logo" width="650">
 </p>

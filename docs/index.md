@@ -1,4 +1,6 @@
-# cloelike
+<p align="center">
+  <img src="cloelike-banner.png" alt="cloelike logo" width="650">
+</p>
 
 **cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`.
 
@@ -28,6 +30,6 @@
 
 ---
 
-## License
+## ⚖️ License
 
 This project is licensed under the [MIT License](https://github.com/cloe-org/cloelib?tab=MIT-1-ov-file).
