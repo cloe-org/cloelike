@@ -49,6 +49,8 @@ def fiducial_params():
         **{f"magnification_bias_{i}": 0.0 for i in range(1, 7)},
         **{f"dz_pos_{i}": 0.0 for i in range(1, 7)},
         **{f"dz_shear_{i}": 0.0 for i in range(1, 7)},
+        **{f"width_pos_{i}": 1.0 for i in range(1, 7)},
+        **{f"width_shear_{i}": 1.0 for i in range(1, 7)},
         **{f"multiplicative_bias_{i}": 0.0 for i in range(1, 7)},
     }
 
