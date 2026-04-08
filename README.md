@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="docs/cloelike-banner.png" alt="cloelike logo" width="800">
+  <img src="docs/cloelike-banner.png" alt="cloelike logo" width="650">
 </p>
 
 **The likelihood module for the Cosmology Likelihood for Observables in Euclid project**. Module for _Euclid_ primary observable theoretical predictions, interfacing with `cloelib`
