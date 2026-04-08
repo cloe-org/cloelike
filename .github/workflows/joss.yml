@@ -5,10 +5,10 @@ on:
     branches:
       - main
     paths:
-      - joss/**
+      - paper/**
   pull_request:
     paths:
-      - joss/**
+      - paper/**
 
 permissions:
   contents: read
@@ -25,10 +25,10 @@ jobs:
         uses: openjournals/openjournals-draft-action@v1.0
         with:
           journal: joss
-          paper-path: joss/paper.md
+          paper-path: paper/paper.md
 
       - name: Upload PDF
         uses: actions/upload-artifact@v4
         with:
           name: paper
-          path: joss/paper.pdf
+          path: paper/paper.pdf
