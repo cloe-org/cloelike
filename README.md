@@ -1,6 +1,8 @@
-# cloelike – The likelihood module for the Cosmology Likelihood for Observables in Euclid project
+<p align="center">
+  <img src="docs/cloelike-banner.png" alt="cloelike logo" width="650">
+</p>
 
-**cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`
+**The likelihood module for the Cosmology Likelihood for Observables in Euclid project**. Module for _Euclid_ primary observable theoretical predictions, interfacing with `cloelib`
 
 We welcome feedback from the **Euclid community** and beyond to refine and improve this module!
 
