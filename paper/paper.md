@@ -43,7 +43,7 @@ bibliography: paper.bib
 
 # Summary
 
-`cloelike` is a Python package providing modular, composable Gaussian likelihood classes for the primary photometric and spectroscopic observables of the _Euclid_ space mission [@Euclid:2024]. It is part of the **CLOE** (Cosmology Likelihood for Observables in Euclid) ecosystem, interfacing with `cloelib` for theoretical predictions and `euclidlib` for reading official Euclid data products.
+`cloelike` is a Python package providing modular, composable Gaussian likelihood classes for the primary photometric and spectroscopic observables of the _Euclid_ space mission [CITE]. It is part of the **CLOE** (Cosmology Likelihood for Observables in Euclid) ecosystem, interfacing with `cloelib` for theoretical predictions and `euclidlib` for reading official Euclid data products.
 
 The package implements likelihoods for:
 
@@ -56,7 +56,7 @@ The design follows a mixin-based architecture: probe-specific building blocks (e
 
 # Statement of Need
 
-The _Euclid_ satellite [@Euclid:2024] is producing unprecedented weak-lensing and galaxy-clustering surveys that require robust, validated, and reproducible likelihood implementations for cosmological parameter inference. Existing public codes either target specific probes or lack the modular flexibility needed to swap observables and covariance matrix inputs in production analyses.
+The ESA _Euclid_ mission is producing unprecedented weak-lensing and galaxy-clustering surveys that require robust, validated, and reproducible likelihood implementations for cosmological parameter inference. Existing public codes either target specific probes or lack the modular flexibility needed to swap observables and covariance matrix inputs in production analyses.
 
 `cloelike` addresses this gap by providing a unified Python interface that:
 
