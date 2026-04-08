@@ -4,6 +4,7 @@ import requests
 import euclidlib as el
 
 from cloelib.cosmology.camb_cosmology import CAMBBackground
+from cloelib.auxiliary.bnt import BNTMatrixCalculator
 from cloelib.cosmology.HMcode2020Emu_cosmology import (
     HMemuLinearPerturbations,
     HMemuNonLinearPerturbations,
@@ -13,6 +14,9 @@ from cloelike.EuclidLikelihood_photo_Cls import (
     EuclidLikelihood_GCph,
     EuclidLikelihood_GGL,
     EuclidLikelihood_3x2pt,
+    EuclidLikelihood_WL_BNT,
+    EuclidLikelihood_GGL_BNT,
+    EuclidLikelihood_3x2pt_BNT,
 )
 
 urls = {
@@ -216,3 +220,165 @@ def test_euclid_likelihood_3x2pt(data_setup, fiducial_params):
     assert isinstance(val, float)
     assert not np.isnan(val)
     assert not np.isinf(val)
+
+
+@pytest.fixture
+def bnt_matrix(data_setup, fiducial_params):
+    """Compute the BNT matrix once per module."""
+    ds = data_setup
+
+    dndz_she = ds["my_dndz_she_norm"]
+    z_arr = ds["myz"]
+
+    fid_bg = {
+        k: fiducial_params[k]
+        for k in [
+            "H0",
+            "Omega_cdm0",
+            "Omega_b0",
+            "Omega_k0",
+            "w0",
+            "wa",
+            "ns",
+            "As",
+            "mnu",
+            "gamma_MG",
+            "N_mnu",
+        ]
+    }
+
+    background = CAMBBackground(**fid_bg)
+
+    bnt_calc = BNTMatrixCalculator(
+        dndz_list=dndz_she,
+        z=z_arr,
+        background=background,
+    )
+    return bnt_calc.get_bnt_matrix()
+
+
+def test_euclid_likelihood_wl_bnt(data_setup, fiducial_params, bnt_matrix):
+    ds = data_setup
+
+    data_wl = build_data(
+        ds,
+        ("SHE", "SHE", 1, 1),
+        ds["covmat_wl"],
+        ["my_dndz_she_norm"],
+        include_she=True,
+    )
+    settings_wl = build_settings_DR1(ds)
+
+    like = EuclidLikelihood_WL(
+        data=data_wl,
+        settings=settings_wl,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    val_base = like.loglike(fiducial_params)
+
+    data_wl_bnt = dict(data_wl)
+    data_wl_bnt["BNT_matrix"] = bnt_matrix
+
+    like_bnt = EuclidLikelihood_WL_BNT(
+        data=data_wl_bnt,
+        settings=settings_wl,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    val_bnt = like_bnt.loglike(fiducial_params)
+
+    assert isinstance(val_bnt, float)
+    assert not np.isnan(val_bnt)
+    assert not np.isinf(val_bnt)
+    assert round(val_bnt, 3) == round(val_base, 3)
+
+
+def test_euclid_likelihood_ggl_bnt(data_setup, fiducial_params, bnt_matrix):
+    ds = data_setup
+
+    # --- Base (non-BNT) GGL likelihood ---
+    data_ggl = build_data(
+        ds,
+        ("POS", "SHE", 1, 1),
+        ds["covmat_ggl"],
+        ["my_dndz_pos_norm", "my_dndz_she_norm"],
+        include_pos=True,
+        include_she=True,
+    )
+    settings_ggl = build_settings_DR1(ds)
+
+    like_ggl = EuclidLikelihood_GGL(
+        data=data_ggl,
+        settings=settings_ggl,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    val_base = like_ggl.loglike(fiducial_params)
+
+    # --- BNT GGL likelihood (same data + BNT matrix) ---
+    data_ggl_bnt = dict(data_ggl)
+    data_ggl_bnt["BNT_matrix"] = bnt_matrix
+
+    like_ggl_bnt = EuclidLikelihood_GGL_BNT(
+        data=data_ggl_bnt,
+        settings=settings_ggl,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    val_bnt = like_ggl_bnt.loglike(fiducial_params)
+
+    assert isinstance(val_bnt, float)
+    assert not np.isnan(val_bnt)
+    assert not np.isinf(val_bnt)
+    assert round(val_bnt, 3) == round(val_base, 3)
+
+
+def test_euclid_likelihood_3x2pt_bnt(data_setup, fiducial_params, bnt_matrix):
+    ds = data_setup
+
+    data_3x2 = build_data(
+        ds,
+        ("POS", "POS", 1, 1),
+        ds["covmat_3x2pt"],
+        ["my_dndz_pos_norm", "my_dndz_she_norm"],
+        include_pos=True,
+        include_she=True,
+    )
+    settings_3x2 = build_settings_DR1(ds)
+
+    like_3x2 = EuclidLikelihood_3x2pt(
+        data=data_3x2,
+        settings=settings_3x2,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    val_base = like_3x2.loglike(fiducial_params)
+
+    data_3x2_bnt = dict(data_3x2)
+    data_3x2_bnt["BNT_matrix"] = bnt_matrix
+
+    like_3x2_bnt = EuclidLikelihood_3x2pt_BNT(
+        data=data_3x2_bnt,
+        settings=settings_3x2,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    val_bnt = like_3x2_bnt.loglike(fiducial_params)
+
+    assert isinstance(val_bnt, float)
+    assert not np.isnan(val_bnt)
+    assert not np.isinf(val_bnt)
+    assert round(val_bnt, 3) == round(val_base, 3)
