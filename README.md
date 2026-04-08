@@ -1,6 +1,8 @@
-# cloelike – The likelihood module for the Cosmology Likelihood for Observables in Euclid project
+<p align="center">
+  <img src="docs/cloelike-banner.png" alt="cloelike logo" width="650">
+</p>
 
-**cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`
+**The likelihood module for the Cosmology Likelihood for Observables in Euclid project**. Module for _Euclid_ primary observable theoretical predictions, interfacing with `cloelib`
 
 We welcome feedback from the **Euclid community** and beyond to refine and improve this module!
 
@@ -127,6 +129,7 @@ This project follows the [all-contributors](https://github.com/all-contributors/
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/davidesciotti"><img src="https://avatars.githubusercontent.com/u/84071067?v=4?s=100" width="100px;" alt="Davide Sciotti"/><br /><sub><b>Davide Sciotti</b></sub></a><br /><a href="#code-davidesciotti" title="Code">💻</a> <a href="#bug-davidesciotti" title="Bug reports">🐛</a> <a href="#ideas-davidesciotti" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/zahrabaghkhani"><img src="https://avatars.githubusercontent.com/u/47903409?v=4?s=100" width="100px;" alt="Zahra Baghkhani"/><br /><sub><b>Zahra Baghkhani</b></sub></a><br /><a href="#code-zahrabaghkhani" title="Code">💻</a> <a href="#doc-zahrabaghkhani" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/jipdebuck"><img src="https://avatars.githubusercontent.com/u/236796982?v=4?s=100" width="100px;" alt="Jip de Buck"/><br /><sub><b>Jip de Buck</b></sub></a><br /><a href="#bug-jipdebuck" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/KlaraBertmann"><img src="https://avatars.githubusercontent.com/u/153739278?v=4?s=100" width="100px;" alt="KlaraBertmann"/><br /><sub><b>KlaraBertmann</b></sub></a><br /><a href="#code-KlaraBertmann" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
