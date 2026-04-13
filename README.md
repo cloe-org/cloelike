@@ -1,10 +1,13 @@
-# cloelike – The likelihood module for the Cosmology Likelihood for Observables in Euclid project
+<p align="center">
+  <img src="docs/cloelike-banner.png" alt="cloelike logo" width="650">
+</p>
 
-**cloelike** is the likelihood module for _Euclid_ primary observables, interfacing with `cloelib`
+**The likelihood module for the Cosmology Likelihood for Observables in Euclid project**. Module for _Euclid_ primary observable theoretical predictions, interfacing with `cloelib`
 
 We welcome feedback from the **Euclid community** and beyond to refine and improve this module!
 
 [![CI](https://github.com/cloe-org/cloelike/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cloe-org/cloelike/actions/workflows/ci.yml)
+[![Docs](https://github.com/cloe-org/cloelike/actions/workflows/docs.yml/badge.svg?branch=main)](https://cloe-org.github.io/cloelike/dev/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-blue?logo=pytest)](https://docs.pytest.org/)
 [![Linting: Ruff](https://img.shields.io/badge/linting-ruff-purple?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
@@ -101,6 +104,8 @@ This project is licensed under the **MIT** – see the [LICENSE](LICENSE) file f
 
 👩‍💻🧑‍💻 Authored by M. Bonici, G. Cañas-Herrera, P. Carrilho, S. Casas, C. Moretti, and A. Pezzotta (listed in alphabetical order).
 
+<!-- --8<-- [start:contributors] -->
+
 ## 🤝 Contributors
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind are welcome!
@@ -123,6 +128,9 @@ This project follows the [all-contributors](https://github.com/all-contributors/
       <td align="center" valign="top" width="14.28%"><a href="http://ntessore.page"><img src="https://avatars.githubusercontent.com/u/3993688?v=4?s=100" width="100px;" alt="Nicolas Tessore"/><br /><sub><b>Nicolas Tessore</b></sub></a><br /><a href="#review-ntessore" title="Reviewed Pull Requests">👀</a> <a href="#ideas-ntessore" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/davidesciotti"><img src="https://avatars.githubusercontent.com/u/84071067?v=4?s=100" width="100px;" alt="Davide Sciotti"/><br /><sub><b>Davide Sciotti</b></sub></a><br /><a href="#code-davidesciotti" title="Code">💻</a> <a href="#bug-davidesciotti" title="Bug reports">🐛</a> <a href="#ideas-davidesciotti" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/zahrabaghkhani"><img src="https://avatars.githubusercontent.com/u/47903409?v=4?s=100" width="100px;" alt="Zahra Baghkhani"/><br /><sub><b>Zahra Baghkhani</b></sub></a><br /><a href="#code-zahrabaghkhani" title="Code">💻</a> <a href="#doc-zahrabaghkhani" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/jipdebuck"><img src="https://avatars.githubusercontent.com/u/236796982?v=4?s=100" width="100px;" alt="Jip de Buck"/><br /><sub><b>Jip de Buck</b></sub></a><br /><a href="#bug-jipdebuck" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/KlaraBertmann"><img src="https://avatars.githubusercontent.com/u/153739278?v=4?s=100" width="100px;" alt="KlaraBertmann"/><br /><sub><b>KlaraBertmann</b></sub></a><br /><a href="#code-KlaraBertmann" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://pltaylor16.github.io/"><img src="https://avatars.githubusercontent.com/u/22646673?v=4?s=100" width="100px;" alt="Peter L. Taylor"/><br /><sub><b>Peter L. Taylor</b></sub></a><br /><a href="#code-pltaylor16" title="Code">💻</a> <a href="#ideas-pltaylor16" title="Ideas, Planning, & Feedback">🤔</a></td>
     </tr>
   </tbody>
 </table>
@@ -131,3 +139,4 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
+<!-- --8<-- [end:contributors] -->
