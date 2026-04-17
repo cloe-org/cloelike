@@ -399,6 +399,8 @@ class EuclidLikelihood_GCspectro_Pls:
         ----------
         parameters: dict
             Ensemble of cosmological and nuisance parameters
+        use_Jeffreys: bool
+            Flag to decide use of Jeffreys priors on linear parameters during AM
         """
         # Create copy of dictionary, to avoid modifying the external one
         parameters = deepcopy(parameters)
