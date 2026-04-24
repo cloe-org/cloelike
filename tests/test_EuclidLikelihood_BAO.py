@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import requests
 
-from cloelib.cosmology.camb_cosmology import CAMBBackground
+from cloelib.cosmology.camb_cosmology import CAMBBackground, CAMBLinearPerturbations
 from cloelike.EuclidLikelihood_BAO import EuclidLikelihood_BAO
 
 from euclidlib.le3.bao_gc import BAO_alphas, BAO_alphas_covariance
@@ -28,14 +28,14 @@ default_pars = {
 
 # Mock data from Zenodo
 urls = {
-    'bao_z1.00.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.0.fits',
-    'bao_z1.20.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.2.fits',
-    'bao_z1.40.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.4.fits',
-    'bao_z1.65.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.65.fits',
-    'cov_z1.00.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.0.fits',
-    'cov_z1.20.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.2.fits',
-    'cov_z1.40.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.4.fits',
-    'cov_z1.65.fits': 'https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.65.fits',
+    "bao_z1.00.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.0.fits",
+    "bao_z1.20.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.2.fits",
+    "bao_z1.40.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.4.fits",
+    "bao_z1.65.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_ALPHAS_Z1.65.fits",
+    "cov_z1.00.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.0.fits",
+    "cov_z1.20.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.2.fits",
+    "cov_z1.40.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.4.fits",
+    "cov_z1.65.fits": "https://zenodo.org/records/19729182/files/EUC_LE3_BAO_COV_Z1.65.fits",
 }
 
 
@@ -53,28 +53,33 @@ def data_setup(tmp_path_factory):
     for filename, url in urls.items():
         download_file(url, tmpdir / filename)
 
-    data = {'BAO': {}, 'fiducial_cosmology': {}}
+    data = {"BAO": {}, "fiducial_cosmology": {}}
 
     # Download data
-    filename = 'bao_z{}.fits'
+    filename = "bao_z{}.fits"
     datavec = BAO_alphas(filename, *labels)
 
-    filename = 'cov_z{}.fits'
+    filename = "cov_z{}.fits"
     covariance = BAO_alphas_covariance(filename, *labels)
-    data['fiducial_cosmology'] = datavec[("SPE", "SPE", 0, 0)].fiducial_cosmology
+    data["fiducial_cosmology"] = datavec[("SPE", "SPE", 0, 0)].fiducial_cosmology
 
     # Store the data and covariance
-    for i,z in enumerate(redshifts):
-        data['BAO'][z] = {}
-        dv  = datavec[('SPE', 'SPE', i, i)]
-        cov = covariance[('SPE', 'SPE', i, i)]
+    for i, z in enumerate(redshifts):
+        data["BAO"][z] = {}
+        dv = datavec[("SPE", "SPE", i, i)]
+        cov = covariance[("SPE", "SPE", i, i)]
 
-        data['BAO'][z]['params'] = [obs.lower() for obs in cov.observables]
-        data['BAO'][z]['data'] = {}
-        for obs in data['BAO'][z]['params']:
-            data['BAO'][z]['data'][obs]  = getattr(dv, obs)
+        data["BAO"][z]["params"] = [obs.lower() for obs in cov.observables]
+        data["BAO"][z]["data"] = {}
+        for obs in data["BAO"][z]["params"]:
+            data["BAO"][z]["data"][obs] = getattr(dv, obs)
 
-            data['BAO'][z]['covariance']=np.block([[cov.covariance[f'{i}-{j}'] for i in cov.observables] for j in cov.observables])
+            data["BAO"][z]["covariance"] = np.block(
+                [
+                    [cov.covariance[f"{i}-{j}"] for i in cov.observables]
+                    for j in cov.observables
+                ]
+            )
 
     return data
 
@@ -86,7 +91,7 @@ def test_likelihood_negative_or_zero(data_setup):
     like = EuclidLikelihood_BAO(
         data=data_setup,
         Background=CAMBBackground,
-        LinearPerturbations=CAMBLinearPerturbations
+        LinearPerturbations=CAMBLinearPerturbations,
     )
     logl = like.loglike(default_pars)
     assert np.isfinite(logl), "Likelihood should be finite"
@@ -97,7 +102,7 @@ def test_likelihood_changes_with_parameters(data_setup):
     like = EuclidLikelihood_BAO(
         data=data_setup,
         Background=CAMBBackground,
-        LinearPerturbations=CAMBLinearPerturbations
+        LinearPerturbations=CAMBLinearPerturbations,
     )
     logl_default = like.loglike(default_pars)
     test_pars = default_pars.copy()
@@ -111,7 +116,7 @@ def test_likelihood_value(data_setup):
     likelihood = EuclidLikelihood_BAO(
         data=data_setup,
         Background=CAMBBackground,
-        LinearPerturbations=CAMBLinearPerturbations
+        LinearPerturbations=CAMBLinearPerturbations,
     )
 
     # Prepare test parameters by copying the default and modifying H0
@@ -133,7 +138,7 @@ def test_likelihood_handles_bad_parameters(data_setup):
     like = EuclidLikelihood_BAO(
         data=data_setup,
         Background=CAMBBackground,
-        LinearPerturbations=CAMBLinearPerturbations
+        LinearPerturbations=CAMBLinearPerturbations,
     )
     bad_pars = default_pars.copy()
     bad_pars["H0"] = -100
