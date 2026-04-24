@@ -1,9 +1,10 @@
 import numpy as np
+from copy import deepcopy
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 
 
 class EuclidLikelihood_BAO:
-    def __init__(self, data: dict, Background: type):
+    def __init__(self, data: dict, Background: type, LinearPerturbations: type):
         r"""Class constructor
 
         Parameters
@@ -21,7 +22,21 @@ class EuclidLikelihood_BAO:
 
         # All data files have a fiducial_cosmology entry, we take the
         # first one as they are supposed to be the same
-        params_fid = data["BAO"][self.redshifts[0]]["fiducial_cosmology"]
+        params_fid = deepcopy(data["fiducial_cosmology"])
+        params_fid["gamma_MG"] = 0.545
+
+        # BAO fiducial cosmology stores Omega_m, we need Omega_cdm
+        params_fid["Omega_cdm0"] = params_fid["Omega_m0"] - params_fid["Omega_b0"]
+        del params_fid["Omega_m0"]
+
+        # BAO fiducial cosmology stores sigma_8, we need As
+        params_fid["As"] = 2.1e-9
+        sigma_8 = params_fid.pop("sigma_8")
+        tmp_background = Background(**params_fid)
+        tmp_lin_pert = LinearPerturbations(tmp_background, np.array([0.0]))
+        As_fid = params_fid["As"] * (sigma_8 / tmp_lin_pert.sigma8_0())**2
+        params_fid["As"] = As_fid
+
 
         self.background_fiducial = Background(**params_fid)
 
@@ -37,7 +52,7 @@ class EuclidLikelihood_BAO:
 
     def _flatten_data_vector(self):
         r"""Arranges the BAO data into a flattened data vector"""
-        self.data_vector = np.concatenate(
+        self.data_vector = np.squeeze(np.concatenate(
             [
                 [
                     self.data["BAO"][z]["data"][param]
@@ -45,7 +60,7 @@ class EuclidLikelihood_BAO:
                 ]
                 for z in self.redshifts
             ]
-        )
+        ))
 
     def _flatten_covariance_matrix(self):
         r"""Arranges the BAO covariance into a matrix form"""
