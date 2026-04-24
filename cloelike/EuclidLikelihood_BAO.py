@@ -13,6 +13,8 @@ class EuclidLikelihood_BAO:
             Data dictionary
         Background: type
             Protocol-consistent background class
+        LinearPerturbations: type
+            Protocol-consistent linear perturbation class
         """
         self.data = data
 
@@ -36,7 +38,6 @@ class EuclidLikelihood_BAO:
         tmp_lin_pert = LinearPerturbations(tmp_background, np.array([0.0]))
         As_fid = params_fid["As"] * (sigma_8 / tmp_lin_pert.sigma8_0())**2
         params_fid["As"] = As_fid
-
 
         self.background_fiducial = Background(**params_fid)
 
