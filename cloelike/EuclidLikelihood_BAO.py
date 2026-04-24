@@ -36,7 +36,7 @@ class EuclidLikelihood_BAO:
         sigma_8 = params_fid.pop("sigma_8")
         tmp_background = Background(**params_fid)
         tmp_lin_pert = LinearPerturbations(tmp_background, np.array([0.0]))
-        As_fid = params_fid["As"] * (sigma_8 / tmp_lin_pert.sigma8_0())**2
+        As_fid = params_fid["As"] * (sigma_8 / tmp_lin_pert.sigma8_0()) ** 2
         params_fid["As"] = As_fid
 
         self.background_fiducial = Background(**params_fid)
@@ -53,15 +53,17 @@ class EuclidLikelihood_BAO:
 
     def _flatten_data_vector(self):
         r"""Arranges the BAO data into a flattened data vector"""
-        self.data_vector = np.squeeze(np.concatenate(
-            [
+        self.data_vector = np.squeeze(
+            np.concatenate(
                 [
-                    self.data["BAO"][z]["data"][param]
-                    for param in self.data["BAO"][z]["params"]
+                    [
+                        self.data["BAO"][z]["data"][param]
+                        for param in self.data["BAO"][z]["params"]
+                    ]
+                    for z in self.redshifts
                 ]
-                for z in self.redshifts
-            ]
-        ))
+            )
+        )
 
     def _flatten_covariance_matrix(self):
         r"""Arranges the BAO covariance into a matrix form"""
