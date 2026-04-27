@@ -8,8 +8,9 @@ from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.cosmology.ReACTEmu_cosmology import (
-    MGemuNonlinearBoost,
+    MGemuNonlinearBoost, BoostedPerturbations
 )
+from cloelib.cosmology.emantis_cosmology import EmantisFofrNonLinearPerturbations
 from cloelib.cosmology.HMcode2020Emu_cosmology import HMemuNonLinearPerturbations
 from cloelib.cosmology.mochi_class_cosmology import mochiCLASSNonLinearPerturbations
 from cloelib.cosmology.mochi_class_lin_emu_cosmology import (
