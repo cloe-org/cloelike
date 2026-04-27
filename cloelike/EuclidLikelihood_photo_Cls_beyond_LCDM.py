@@ -124,15 +124,15 @@ class PhotoLikelihoodBase:
             self.model = "mgrowth"
             self.LinPerturbationsBase = LinPerturbationsBase
             self.gravity_model = gravity_model
-        # elif NonLinPerturbations == BoostedPerturbations:
-        #     self.NonLinPerturbations = NonLinPerturbations
-        #     self.model = "mgemu"
-        #     self.LinPerturbationsBase = LinPerturbationsBase
-        #     self.gravity_model = gravity_model
-        # elif NonLinPerturbations == EmantisFofrNonLinearPerturbations:
-        #     self.NonLinPerturbations = NonLinPerturbations
-        #     self.model = "emantis"
-        #     self.gravity_model = None
+        elif NonLinPerturbations == BoostedPerturbations:
+            self.NonLinPerturbations = NonLinPerturbations
+            self.model = "mgemu"
+            self.LinPerturbationsBase = LinPerturbationsBase
+            self.gravity_model = gravity_model
+        elif NonLinPerturbations == EmantisFofrNonLinearPerturbations:
+            self.NonLinPerturbations = NonLinPerturbations
+            self.model = "emantis"
+            self.gravity_model = None
         elif NonLinPerturbations == mochiCLASSNonLinearPerturbations:
             self.LinPerturbations = LinPerturbations
             self.NonLinPerturbations = NonLinPerturbations
