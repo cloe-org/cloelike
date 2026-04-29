@@ -268,7 +268,8 @@ class WLMixin:
             f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
         ]
         dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys
+        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
+        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
         self.WL_keys = [
             ("SHE", "SHE", i, j)
             for i in range(1, self.n_she_bins + 1)
@@ -493,7 +494,8 @@ class GCphMixin:
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]
         dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys
+        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
+        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
         self.GG_keys = [
             ("POS", "POS", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -717,13 +719,15 @@ class GGLMixin:
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]
         dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
+        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
         IA_keys = ["AIA", "EtaIA", "CIA"]
         mul_bias_keys = [
             f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
         ]
         dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys
+        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
+        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
+        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
         self.GGL_keys = [
             ("POS", "SHE", i, j)
             for i in range(1, self.n_pos_bins + 1)
