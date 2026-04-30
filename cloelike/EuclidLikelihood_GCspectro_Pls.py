@@ -31,22 +31,23 @@ class EuclidLikelihood_GCspectro_Pls:
             Mean and standard deviation of gaussian priors for analytical
             marginalisation
         """
-        self.data = data
-        self.settings = settings
+        self.data = data["GCspectro"]
+        self.settings = settings["GCspectro"]
+
+        self.redshifts = list(self.data.keys())
 
         # Assuming that GCspectro data will be arranged with hierarchy
         # redshift -> multipole -> wavemodes
         self.ells = [0, 2, 4]
-        self.redshifts = list(data["GCspectro"].keys())
-        self.nbar = [data["GCspectro"][z]["nbar"] for z in self.redshifts]
-
-        self.scale_cuts = settings["scale_cuts"]
+        self.nbar = [self.data[z]["nbar"] for z in self.redshifts]
 
         self.mixmat = (
-            {z: data["GCspectro"][z]["mixing_matrix"] for z in self.redshifts}
-            if all("mixing_matrix" in data["GCspectro"][z] for z in self.redshifts)
+            {z: self.data[z]["mixing_matrix"] for z in self.redshifts}
+            if all("mixing_matrix" in self.data[z] for z in self.redshifts)
             else None
         )
+
+        self.scale_cuts = self.settings["scale_cuts"]
 
         self.Background = Background
         self.SpectroPower = SpectroPower
@@ -119,7 +120,7 @@ class EuclidLikelihood_GCspectro_Pls:
         r"""Arranges the GCspectro data into a flattened data vector"""
         self.data_vector = np.concatenate(
             [
-                self.data["GCspectro"][z][f"pk{ell}"]
+                self.data[z][f"pk{ell}"]
                 for z in self.redshifts
                 for ell in self.ells
             ]
@@ -127,7 +128,7 @@ class EuclidLikelihood_GCspectro_Pls:
 
     def _flatten_covariance_matrix(self):
         r"""Arranges the GCspectro covariance into a matrix form"""
-        cov_blocks = [self.data["GCspectro"][z]["cov"] for z in self.redshifts]
+        cov_blocks = [self.data[z]["cov"] for z in self.redshifts]
         self.flattened_covariance_matrix = np.block(
             [
                 [
@@ -158,8 +159,8 @@ class EuclidLikelihood_GCspectro_Pls:
         self.masking_vector = np.concatenate(
             [
                 self._masking(
-                    self.data["GCspectro"][z]["k"],
-                    np.array(self.scale_cuts["GCspectro"][f"bin{i + 1}"][f"ell{ell}"]),
+                    self.data[z]["k"],
+                    np.array(self.scale_cuts[z][f"ell{ell}"]),
                 )
                 for i, z in enumerate(self.redshifts)
                 for ell in self.ells
@@ -224,7 +225,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 nbar=self.nbar[i],
             )
 
-            k = self.data["GCspectro"][z]["k"]
+            k = self.data[z]["k"]
             if self.mixmat:
                 mps = obs.convolved_power_multipoles(
                     self.mixmat[z], ells=self.ells, use_AP=True
@@ -299,7 +300,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 parameters=nois_syst_parameters,
                 nbar=self.nbar[i],
             )
-            k = self.data["GCspectro"][z]["k"]
+            k = self.data[z]["k"]
             if self.mixmat:
                 mps_dict = obs.convolved_power_multipoles(
                     self.mixmat[z], ells=self.ells, use_AP=True
@@ -329,7 +330,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 theory_vec_AM[z] = np.hstack(mps_AM_list)
             else:
                 Nk = sum(
-                    len(self.data["GCspectro"][z][f"pk{ell}"]) for ell in self.ells
+                    len(self.data[z][f"pk{ell}"]) for ell in self.ells
                 )
                 theory_vec_AM[z] = np.zeros((0, Nk))
         return theory_vec, theory_vec_AM
