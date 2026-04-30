@@ -135,9 +135,10 @@ def data_setup(tmp_path_factory):
 
         resc_kout = mixing.kout * k_fac
         resc_kin = {ell: val * k_fac for ell, val in mixing.kin.items()}
+        squeezed_mixing = {key: val.squeeze() for key, val in mixing.mixing.items()}
 
         data["GCspectro"][z]["mixing_matrix"] = replace(
-            mixing, kout=resc_kout, kin=resc_kin
+            mixing, kout=resc_kout, kin=resc_kin, mixing=squeezed_mixing
         )
 
     return data
