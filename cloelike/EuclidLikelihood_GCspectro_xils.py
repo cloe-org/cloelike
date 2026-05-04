@@ -35,18 +35,12 @@ class EuclidLikelihood_GCspectro_xils:
         self.settings = settings
 
         # Assuming that GCspectro data will be arranged with hierarchy
-        # redshift -> multipole -> wavemodes
+        # redshift -> multipole -> scales
         self.ells = [0, 2, 4]
         self.redshifts = list(data["GCspectro"].keys())
         self.nbar = [data["GCspectro"][z]["nbar"] for z in self.redshifts]
 
         self.scale_cuts = settings["scale_cuts"]
-
-        #self.mixmat = (
-        #    {z: data["GCspectro"][z]["mixing_matrix"] for z in self.redshifts}
-        #    if all("mixing_matrix" in data["GCspectro"][z] for z in self.redshifts)
-        #    else None
-        #)
 
         self.Background = Background
         self.SpectroPower = SpectroPower
@@ -225,11 +219,6 @@ class EuclidLikelihood_GCspectro_xils:
             )
 
             s = self.data["GCspectro"][z]["s"]
-            #if self.mixmat:
-            #    mps = obs.convolved_power_multipoles(
-            #        self.mixmat[z], ells=self.ells, use_AP=True
-            #    )
-            #else:
             mps = obs.two_point_correlation_multipoles(s=s, ells=self.ells, use_AP=True)
             theory_vec.extend(np.concatenate([mps[f"ell{ell}"] for ell in self.ells]))
 
@@ -249,12 +238,9 @@ class EuclidLikelihood_GCspectro_xils:
         self.theory_vector = self.get_theory_vector(parameters)
         self._mask_theory_vector()
         diff = self.masked_theory_vector - self.masked_data_vector
-        #print(self.masked_theory_vector / self.masked_data_vector)
         chi2 = np.dot(np.dot(diff, self.inverse_masked_covariance_matrix), diff)
         return -0.5 * chi2
 
-
-    
     def get_theory_vector_AM(self, parameters: dict, term_list: dict):
         r"""Generate theory vectors based on specified parameters for
         analytical marginalization
@@ -303,25 +289,15 @@ class EuclidLikelihood_GCspectro_xils:
                 nbar=self.nbar[i],
             )
             s = self.data["GCspectro"][z]["s"]
-            #if self.mixmat:
-            #    mps_dict = obs.convolved_power_multipoles(
-            #        self.mixmat[z], ells=self.ells, use_AP=True
-            #    )
-            #else:
-            mps_dict = obs.two_point_correlation_multipoles(s=s, ells=self.ells, use_AP=True)
+            mps_dict = obs.two_point_correlation_multipoles(
+                s=s, ells=self.ells, use_AP=True
+            )
             mps_list = [mps_dict[f"ell{ell}"] for ell in self.ells]
             theory_vec = np.concatenate((theory_vec, np.concatenate(mps_list)))
             if z in self.AM_params.keys():
-                #if self.mixmat:
-                #    mps_AM_dict = obs.convolved_power_term_multipoles(
-                #        self.mixmat[z],
-                #        term_list=term_list[z],
-                #        ells=self.ells,
-                #        use_AP=True,
-                #    )
-                #else:
-                mps_AM_dict = obs.two_point_correlation_term_multipoles(s=s, term_list=term_list[z], ells=self.ells, use_AP=True)
-                    #)
+                mps_AM_dict = obs.two_point_correlation_term_multipoles(
+                    s=s, term_list=term_list[z], ells=self.ells, use_AP=True
+                )
                 terms_to_scale = [term for term in term_list[z] if term in coeff]
                 indices_to_scale = [term_list[z].index(term) for term in terms_to_scale]
                 for ell in self.ells:
