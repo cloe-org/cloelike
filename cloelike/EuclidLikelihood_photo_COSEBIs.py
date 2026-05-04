@@ -101,11 +101,11 @@ class WLCosebi:
         for key in self.WL_keys:
             withpadding[key] = np.pad(
                 np.asarray(cosebi_all_th[key], dtype=float),
-                (0, len(self.data["MODE"][key]) - len(cosebi_all_th[key])),
+                (0, len(self.data["MODE"][key]) - len(cosebi_all_th[key][0][0])),
                 constant_values=np.nan,
             )
         cosebi_all_th = withpadding
-        vec = np.array([cosebi_all_th[key] for key in self.WL_keys]).flatten()
+        vec = np.array([cosebi_all_th[key][0][0] for key in self.WL_keys]).flatten()
         self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cosebi_all_th
         return np.concatenate([v, vec])

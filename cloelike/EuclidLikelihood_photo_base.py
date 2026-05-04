@@ -131,11 +131,12 @@ class PhotoLikelihoodBase:
         self.mode = mode
         self.scale_cuts = settings["scale_cuts"]
         self.selected_modes = settings.get("selected_modes", np.arange(1, 8))
-        self.thetagrid = (
-            np.geomspace(self.scale_cuts[0], self.scale_cuts[1], int(1e5))
-            * np.pi
-            / 10800
-        )
+        if ("EE" in data):
+            self.thetagrid = (
+                np.geomspace(self.scale_cuts[0], self.scale_cuts[1], int(1e5))
+                * np.pi
+                / 10800
+            )
         self.n_thread = settings.get("levin_threads", 1)
         self.rebin = False
         self.zs = data["z_arr"]
