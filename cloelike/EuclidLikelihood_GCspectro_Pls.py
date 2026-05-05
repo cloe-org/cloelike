@@ -90,7 +90,7 @@ class EuclidLikelihood_GCspectro_Pls:
                     "c0": ["c0"],
                     "c2": ["c2"],
                     "c4": ["c4"],
-                    "cnlo": ["ck4"],
+                    "ck4": ["ck4"],
                     "NP0": ["noise_k0"],
                     "NP20": ["noise_k2"],
                     "NP22": ["noise_k2mu2"],
