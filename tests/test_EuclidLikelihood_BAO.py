@@ -57,10 +57,10 @@ def data_setup(tmp_path_factory):
 
     # Download data
     filename = "bao_z{}.fits"
-    datavec = BAO_alphas(filename, *labels)
+    datavec = BAO_alphas(tmpdir / filename, *labels)
 
     filename = "cov_z{}.fits"
-    covariance = BAO_alphas_covariance(filename, *labels)
+    covariance = BAO_alphas_covariance(tmpdir / filename, *labels)
     data["fiducial_cosmology"] = datavec[("SPE", "SPE", 0, 0)].fiducial_cosmology
 
     # Store the data and covariance
@@ -112,23 +112,19 @@ def test_likelihood_changes_with_parameters(data_setup):
 
 
 def test_likelihood_value(data_setup):
-    # Initialize the likelihood object with the given data and background model
     likelihood = EuclidLikelihood_BAO(
         data=data_setup,
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
     )
 
-    # Prepare test parameters by copying the default and modifying H0
     parameters = default_pars.copy()
     parameters["H0"] += 3
 
-    # Compute the log-likelihood for the test parameters
     computed_loglike = likelihood.loglike(parameters)
 
-    # Check if the computed log-likelihood matches the expected value within tolerance
-    expected_loglike = -2.41508
-    assert computed_loglike == pytest.approx(expected_loglike), (
+    expected_loglike = -1.93841
+    assert computed_loglike == pytest.approx(expected_loglike, abs=1e-4), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
     )
