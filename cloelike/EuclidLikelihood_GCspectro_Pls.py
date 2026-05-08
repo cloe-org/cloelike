@@ -35,7 +35,8 @@ class EuclidLikelihood_GCspectro_Pls:
         self.data = data
         self.settings = settings
         self.NLcode = SpectroPower.NLcode
-        if self.NLcode == "COMET": self.RSDmodel = SpectroPower.RSDmodel
+        if self.NLcode == "COMET":
+            self.RSDmodel = SpectroPower.RSDmodel
 
         # Assuming that GCspectro data will be arranged with hierarchy
         # redshift -> multipole -> wavemodes
