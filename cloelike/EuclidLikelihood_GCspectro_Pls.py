@@ -35,6 +35,7 @@ class EuclidLikelihood_GCspectro_Pls:
         self.data = data
         self.settings = settings
         self.NLcode = SpectroPower.NLcode
+        if self.NLcode == "COMET": self.RSDmodel = SpectroPower.RSDmodel
 
         # Assuming that GCspectro data will be arranged with hierarchy
         # redshift -> multipole -> wavemodes
@@ -59,12 +60,15 @@ class EuclidLikelihood_GCspectro_Pls:
 
         self._prepare()
 
-        # We need to change this for e.g. VDG, since cnlo is not a parameter
-        # of that model
         self.RSD_parameter_names = {
-            "COMET": ["b1", "b2", "bG2", "bGam3", "c0", "c2", "c4", "cnlo"],
+            "COMET": ["b1", "b2", "bG2", "bGam3", "c0", "c2", "c4"],
             "PBJ": ["b1", "b2", "bG2", "bG3", "c0", "c2", "c4", "ck4"],
         }
+        if self.NLcode == "COMET":
+            if self.RSDmodel == "EFTofLSS":
+                self.RSD_parameter_names["COMET"].append("cnlo")
+            elif self.RSDmodel == "VDG_infty":
+                self.RSD_parameter_names["COMET"].append("avir")
 
         self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
 
@@ -478,5 +482,5 @@ class EuclidLikelihood_GCspectro_Pls:
             chi2 += np.log(np.linalg.det(F2ij))
 
         self.marg_pars_means = np.dot(F1i, np.linalg.inv(F2ij))
-        
+
         return -0.5 * chi2
