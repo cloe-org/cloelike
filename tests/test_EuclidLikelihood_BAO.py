@@ -18,6 +18,7 @@ default_pars = {
     "Omega_b0": 0.049,
     "ns": 0.96,
     "As": 2.1e-9,
+    "alpha_s": 0.0,
     "w0": -1,
     "wa": 0,
     "Omega_k0": 0,
