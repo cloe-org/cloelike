@@ -135,6 +135,34 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "jipdebuck",
+      "name": "Jip de Buck",
+      "avatar_url": "https://avatars.githubusercontent.com/u/236796982?v=4",
+      "profile": "https://github.com/jipdebuck",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "KlaraBertmann",
+      "name": "KlaraBertmann",
+      "avatar_url": "https://avatars.githubusercontent.com/u/153739278?v=4",
+      "profile": "https://github.com/KlaraBertmann",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "pltaylor16",
+      "name": "Peter L. Taylor",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22646673?v=4",
+      "profile": "https://pltaylor16.github.io/",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
     }
   ]
 }

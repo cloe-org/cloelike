@@ -2,7 +2,6 @@ import numpy as np
 from cloelib.observables.photo import ShearTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
-from cloelib.auxiliary.cosebi_helpers import get_W_ell
 
 
 class WLCosebi:
@@ -25,25 +24,13 @@ class WLCosebi:
             f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
         ]
         dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys
+        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
+        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
         self.WL_keys = [
-            (i, j)
+            ("SHE", "SHE", i, j)
             for i in range(1, self.n_she_bins + 1)
             for j in range(i, self.n_she_bins + 1)
         ]
-
-    def _compute_w_ells(self):
-        nmax = int(self.selected_modes[-1])
-        print("Start computing the W_ells, this only has to be done once!")
-        return get_W_ell(
-            self.thetagrid, nmax, self.ells_integration_COSEBI, self.n_thread
-        )
-
-    @property
-    def w_ells(self):
-        if self._w_ells is None:
-            self._w_ells = self._compute_w_ells()
-        return self._w_ells
 
     def get_masking_vector(self):
         v = super().get_masking_vector()

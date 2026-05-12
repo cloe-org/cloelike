@@ -129,30 +129,36 @@ class PhotoLikelihoodBase:
         self.NonLinPerturbations = NonLinPerturbations
         self.theory_prediction = {}
         self.mode = mode
-        self.scale_cuts = settings["scale_cuts"]
+        if "EE" in data:
+            self.w_ells = settings["w_ells"]
+            if settings.get("scale_cuts", None) is not None:
+                print(
+                    "For COSEBIs the scale cuts need to be applied via the W_ells, the passed scale cuts are ignored now"
+                )
+            self.scale_cuts = None
+
+        else:
+            self.scale_cuts = settings["scale_cuts"]
         self.selected_modes = settings.get("selected_modes", np.arange(1, 8))
-        if ("EE" in data):
-            self.thetagrid = (
-                np.geomspace(self.scale_cuts[0], self.scale_cuts[1], int(1e5))
-                * np.pi
-                / 10800
+        self.ells_integration_COSEBI = settings.get("ells_integration_COSEBI", None)
+
+        if (ells_integration_COSEBI is None) and ("EE" in data):
+            ValueError(
+                "an ells array corresponding to the W_ells is needed for the COSEBIs"
             )
-        self.n_thread = settings.get("levin_threads", 1)
+
         self.rebin = False
         self.zs = data["z_arr"]
-        self.mixmat = deepcopy(data.get("mixmat", {}))
+        if self.mode == "coupled":
+            self.mixmat = deepcopy(data.get("mixmat", {}))
+        else:
+            self.mixmat = None
 
         if (ells_integration is None) and ("2pcf" in data):
             self.ells_integration = np.arange(2, 40000)
 
         else:
             self.ells_integration = ells_integration
-
-        if (ells_integration_COSEBI is None) and ("EE" in data):
-            self.ells_integration_COSEBI = np.arange(2, int(1e5) + 1)
-
-        else:
-            self.ells_integration_COSEBI = ells_integration_COSEBI
 
         if ("cells" in data) and ("n_ell_bins" in settings):
             self._prepare()
