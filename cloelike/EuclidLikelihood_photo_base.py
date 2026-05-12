@@ -88,7 +88,8 @@ class PhotoLikelihoodBase:
         NonLinPerturbations: Non-linear perturbations object.
         scale_cuts: Scale cuts from settings.
         selected_modes: COSEBIs, selected modes from settings, defaults to the first seven
-        levin_threads: COSEBIs, numbers of threads used to get the W_ells, defaults to one
+        w_ells: COSEBI, kernel functions for the COSEBIs, contains the scale cut
+        ells_integration_COSEBI: COSEBI, ells for the integration, need to match the w_ells
         zs: Redshift array from data.
         mixmat: Mixing matrix, possibly rebinned.
         weight_mat: Weight matrix used for binning.
@@ -156,7 +157,6 @@ class PhotoLikelihoodBase:
 
         if (ells_integration is None) and ("2pcf" in data):
             self.ells_integration = np.arange(2, 40000)
-
         else:
             self.ells_integration = ells_integration
 
