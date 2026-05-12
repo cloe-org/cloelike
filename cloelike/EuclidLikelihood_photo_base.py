@@ -144,7 +144,7 @@ class PhotoLikelihoodBase:
         self.ells_integration_COSEBI = settings.get("ells_integration_COSEBI", None)
 
         if (ells_integration_COSEBI is None) and ("EE" in data):
-            ValueError(
+            raise ValueError(
                 "an ells array corresponding to the W_ells is needed for the COSEBIs"
             )
 
