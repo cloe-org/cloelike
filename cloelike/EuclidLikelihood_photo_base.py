@@ -129,6 +129,7 @@ class PhotoLikelihoodBase:
         self.scale_cuts = settings["scale_cuts"]
         self.rebin = False
         self.zs = data["z_arr"]
+        self.settings.setdefault("galaxy_bias_model", "poly")
         if self.mode == "coupled":
             self.mixmat = deepcopy(data.get("mixmat", {}))
         else:
