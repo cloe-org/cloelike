@@ -163,6 +163,7 @@ class GCphMixin:
             self.zs,
             nuisance_params={key: parameters[key] for key in self.full_pos_keys},
             galaxy_bias_model="poly",
+            include_rsd=self.settings.get("include_rsd", False),
         )
         cf_all_th = AngularCorrelationFunctionWigner(
             AngularTwoPoint(pos, pos), self.ells_integration, nlp.k
@@ -247,6 +248,7 @@ class GGLMixin:
             self.zs,
             nuisance_params={key: parameters[key] for key in self.full_pos_keys},
             galaxy_bias_model="poly",
+            include_rsd=self.settings.get("include_rsd", False),
         )
         she = ShearTracer(
             nlp,
