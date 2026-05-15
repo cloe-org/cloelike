@@ -108,7 +108,7 @@ class GCphMixin:
         if self.settings["galaxy_bias_model"] == "per_bin":
             bias_keys = [f"b1_photo_bin{i}" for i in range(self.n_pos_bins)]
         elif self.settings["galaxy_bias_model"] == "poly":
-            bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
+            bias_keys = [f"b1_photo_poly{i}" for i in range(self.n_pos_bins)]
         mag_bias_keys = [
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]
@@ -188,7 +188,7 @@ class GGLMixin:
         if self.settings["galaxy_bias_model"] == "per_bin":
             bias_keys = [f"b1_photo_bin{i}" for i in range(self.n_pos_bins)]
         elif self.settings["galaxy_bias_model"] == "poly":
-            bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
+            bias_keys = [f"b1_photo_poly{i}" for i in range(self.n_pos_bins)]
         mag_bias_keys = [
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]
