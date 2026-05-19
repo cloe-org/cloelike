@@ -502,8 +502,7 @@ class EuclidLikelihood_GCspectro_Pls:
         vals = iter(self.marg_pars_means_raw)
 
         self.marg_pars_means_dict = {
-            z: {par: next(vals) for par in self.AM_params[z]}
-            for z in self.redshifts
+            z: {par: next(vals) for par in self.AM_params[z]} for z in self.redshifts
         }
 
         return -0.5 * chi2
