@@ -64,6 +64,7 @@ class EuclidLikelihood_GCspectro_Pls:
         self.RSD_parameter_names = {
             "COMET": ["b1", "b2", "bG2", "bGam3", "c0", "c2", "c4", "cnlo"],
             "PBJ": ["b1", "b2", "bG2", "bG3", "c0", "c2", "c4", "ck4"],
+            "PyBird": ["b1", "b2", "bG2", "bG3", "c0", "c2", "c4", "ck4"],
         }
 
         self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
@@ -86,6 +87,16 @@ class EuclidLikelihood_GCspectro_Pls:
                     "NP22": ["noise_k2mu2"],
                 },
                 "PBJ": {
+                    "bG3": ["bG3"],
+                    "c0": ["c0"],
+                    "c2": ["c2"],
+                    "c4": ["c4"],
+                    "ck4": ["ck4"],
+                    "NP0": ["noise_k0"],
+                    "NP20": ["noise_k2"],
+                    "NP22": ["noise_k2mu2"],
+                },
+                "PyBird": {
                     "bG3": ["bG3"],
                     "c0": ["c0"],
                     "c2": ["c2"],
@@ -390,6 +401,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 "b1-cnlo": parameters["b1"],
             },
             "PBJ": {},
+            "PyBird": {},
         }
         return coeff[self.NLcode]
 
