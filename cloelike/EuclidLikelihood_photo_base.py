@@ -119,7 +119,6 @@ class PhotoLikelihoodBase:
         LinPerturbations,
         NonLinPerturbations,
         ells_integration=None,
-        ells_integration_COSEBI=None,
         mode="coupled",
     ):
         self.data = data
@@ -143,7 +142,7 @@ class PhotoLikelihoodBase:
         self.selected_modes = settings.get("selected_modes", np.arange(1, 8))
         self.ells_integration_COSEBI = settings.get("ells_integration_COSEBI", None)
 
-        if (ells_integration_COSEBI is None) and ("EE" in data):
+        if (self.ells_integration_COSEBI is None) and ("EE" in data):
             raise ValueError(
                 "an ells array corresponding to the W_ells is needed for the COSEBIs"
             )
