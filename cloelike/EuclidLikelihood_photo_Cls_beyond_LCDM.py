@@ -134,6 +134,7 @@ class PhotoLikelihoodBase:
         elif NonLinPerturbations == EmantisFofrNonLinearPerturbations:
             self.NonLinPerturbations = NonLinPerturbations
             self.model = "emantis"
+            self.LinPerturbationsBase = LinPerturbationsBase
             self.gravity_model = None
         elif NonLinPerturbations == mochiCLASSNonLinearPerturbations:
             self.LinPerturbations = LinPerturbations
@@ -412,16 +413,23 @@ class WLMixin:
             nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
 
         elif self.model == "emantis":
-            lp = self.LinPerturbations(background, self.zs)
+            lp_base = self.LinPerturbationsBase(background, self.zs)
+            lp = self.LinPerturbations(
+                background,
+                lp_base,
+                gravity_model="fr",
+                mgpars=parameters,
+            )
             nlp_base = HMemuNonLinearPerturbations(
-                background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
             )
             if "fr0" not in parameters:
                 raise KeyError(
                     "Parameter 'fr0' is required for model='emantis' but was not provided."
                 )
             fr0 = parameters["fr0"]
-            nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
+            nlp = self.NonLinPerturbations(background, lp, nlp_base, fr0, self.zs)
+
         elif self.model == "mochiCLASS":
             ks = np.geomspace(1e-4, 500, 100)
             if background.mg_stable_basis_on:
@@ -636,16 +644,23 @@ class GCphMixin:
             nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
 
         elif self.model == "emantis":
-            lp = self.LinPerturbations(background, self.zs)
+            lp_base = self.LinPerturbationsBase(background, self.zs)
+            lp = self.LinPerturbations(
+                background,
+                lp_base,
+                gravity_model="fr",
+                mgpars=parameters,
+            )
             nlp_base = HMemuNonLinearPerturbations(
-                background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
             )
             if "fr0" not in parameters:
                 raise KeyError(
                     "Parameter 'fr0' is required for model='emantis' but was not provided."
                 )
             fr0 = parameters["fr0"]
-            nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
+            nlp = self.NonLinPerturbations(background, lp, nlp_base, fr0, self.zs)
+
         elif self.model == "mochiCLASS":
             ks = np.geomspace(1e-4, 500, 100)
             if background.mg_stable_basis_on:
@@ -868,16 +883,23 @@ class GGLMixin:
             nlp = self.NonLinPerturbations(lp, nlp_base, boost.MGboost_interp)
 
         elif self.model == "emantis":
-            lp = self.LinPerturbations(background, self.zs)
+            lp_base = self.LinPerturbationsBase(background, self.zs)
+            lp = self.LinPerturbations(
+                background,
+                lp_base,
+                gravity_model="fr",
+                mgpars=parameters,
+            )
             nlp_base = HMemuNonLinearPerturbations(
-                background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
             )
             if "fr0" not in parameters:
                 raise KeyError(
                     "Parameter 'fr0' is required for model='emantis' but was not provided."
                 )
             fr0 = parameters["fr0"]
-            nlp = self.NonLinPerturbations(background, nlp_base, fr0, self.zs)
+            nlp = self.NonLinPerturbations(background, lp, nlp_base, fr0, self.zs)
+
         elif self.model == "mochiCLASS":
             ks = np.geomspace(1e-4, 500, 100)
             if background.mg_stable_basis_on:
