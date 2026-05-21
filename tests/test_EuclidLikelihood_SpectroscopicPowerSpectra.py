@@ -128,7 +128,7 @@ def data_setup(tmp_path_factory):
         full_matrix = np.block(
             [[covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]] for i in [0, 2, 4]]
         )
-        data["GCspectro"][z]["cov"] = full_matrix * cov_fac
+        data["GCspectro"][z]["covariance"] = full_matrix * cov_fac
 
         resc_kout = mixing.kout * k_fac
         resc_kin = {ell: val * k_fac for ell, val in mixing.kin.items()}
