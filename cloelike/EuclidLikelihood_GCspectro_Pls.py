@@ -14,6 +14,7 @@ class EuclidLikelihood_GCspectro_Pls:
         settings: dict,
         Background: type,
         SpectroPower: type,
+        Perturbations: Optional[type] = None,
         AM_priors: Optional[dict] = None,
     ):
         r"""Class constructor
@@ -27,14 +28,20 @@ class EuclidLikelihood_GCspectro_Pls:
             Protocol-consistent Background class
         SpectroPower: type
             Protocol-consistent SpectroPower class
+        Perturbations: type
+            Protocol-consistent Perturbations class (optional, only for
+            cases that require linear P(k) input, such as PBJ)
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
             marginalisation
         """
         self.data = data["GCspectro"]
         self.settings = settings["GCspectro"]
-
         self.redshifts = list(self.data.keys())
+
+        self.NLcode = SpectroPower.NLcode
+        if self.NLcode == "COMET":
+            self.RSDmodel = SpectroPower.RSDmodel
 
         # Assuming that GCspectro data will be arranged with hierarchy
         # redshift -> multipole -> wavemodes
@@ -50,6 +57,7 @@ class EuclidLikelihood_GCspectro_Pls:
         self.scale_cuts = self.settings["scale_cuts"]
 
         self.Background = Background
+        self.Perturbations = Perturbations
         self.SpectroPower = SpectroPower
 
         params_fid = data["fiducial_cosmology"]
@@ -57,18 +65,34 @@ class EuclidLikelihood_GCspectro_Pls:
 
         self._prepare()
 
-        # We need to change this for e.g. VDG, since cnlo is not a parameter
-        # of that model
-        self.RSD_parameter_names = [
-            "b1",
-            "b2",
-            "bG2",
-            "bGam3",
-            "c0",
-            "c2",
-            "c4",
-            "cnlo",
-        ]
+        if self.NLcode == "COMET":
+            self.RSD_parameter_names = [
+                "b1",
+                "b2",
+                "bG2",
+                "bGam3",
+                "c0",
+                "c2",
+                "c4",
+            ]
+            if self.RSDmodel == "EFTofLSS":
+                self.RSD_parameter_names.append("cnlo")
+            elif self.RSDmodel == "VDG_infty":
+                self.RSD_parameter_names.append("avir")
+        elif self.NLcode == "PBJ":
+            self.RSD_parameter_names = [
+                "b1",
+                "b2",
+                "bG2",
+                "bG3",
+                "c0",
+                "c2",
+                "c4",
+                "ck4",
+            ]
+        else:
+            raise ValueError(f"Unsupported NL code: {self.NLcode}")
+
         self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
 
         self.AM_priors = AM_priors
@@ -77,16 +101,30 @@ class EuclidLikelihood_GCspectro_Pls:
             if unmatched_z:
                 raise ValueError(f"Redshifts {unmatched_z} not found in data.")
 
-            self.AM_par_to_diag = {
-                "bGam3": ["b1-bGam3", "bGam3"],
-                "c0": ["c0"],
-                "c2": ["c2"],
-                "c4": ["c4"],
-                "cnlo": ["b1-b1-cnlo", "b1-cnlo", "cnlo"],
-                "NP0": ["noise_k0"],
-                "NP20": ["noise_k2"],
-                "NP22": ["noise_k2mu2"],
-            }
+            if self.NLcode == "COMET":
+                self.AM_par_to_diag = {
+                    "bGam3": ["b1-bGam3", "bGam3"],
+                    "c0": ["c0"],
+                    "c2": ["c2"],
+                    "c4": ["c4"],
+                    "NP0": ["noise_k0"],
+                    "NP20": ["noise_k2"],
+                    "NP22": ["noise_k2mu2"],
+                }
+                if self.RSDmodel == "EFTofLSS":
+                    self.AM_par_to_diag["cnlo"] = ["b1-b1-cnlo", "b1-cnlo", "cnlo"]
+            elif self.NLcode == "PBJ":
+                self.AM_par_to_diag = {
+                    "bG3": ["bG3"],
+                    "c0": ["c0"],
+                    "c2": ["c2"],
+                    "c4": ["c4"],
+                    "ck4": ["ck4"],
+                    "NP0": ["noise_k0"],
+                    "NP20": ["noise_k2"],
+                    "NP22": ["noise_k2mu2"],
+                }
+
             self.AM_diagrams = [
                 term for values in self.AM_par_to_diag.values() for term in values
             ]
@@ -207,6 +245,15 @@ class EuclidLikelihood_GCspectro_Pls:
             mnu=parameters["mnu"],
             N_mnu=parameters["N_mnu"],
         )
+
+        if self.Perturbations is not None and self.NLcode in ["PBJ"]:
+            zs = np.float64(self.redshifts)
+            cosmo_input = self.Perturbations(background, zs)
+        elif self.NLcode in ["COMET"]:
+            cosmo_input = background
+        else:
+            raise ValueError("Perturbations are required for PBJ, but not for COMET.")
+
         theory_vec = []
 
         for i, z in enumerate(self.redshifts):
@@ -215,9 +262,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 key: parameters[key][i] for key in self.noise_syst_parameter_names
             }
 
-            power = self.SpectroPower(
-                background=background, RSD_parameters=RSD_params, redshift=float(z)
-            )
+            power = self.SpectroPower(cosmo_input, RSD_params, redshift=float(z))
             obs = LegendreMultipoles(
                 spectro_power=power,
                 background_fiducial=self.background_fiducial,
@@ -281,6 +326,14 @@ class EuclidLikelihood_GCspectro_Pls:
             N_mnu=parameters["N_mnu"],
         )
 
+        if self.Perturbations is not None and self.NLcode in ["PBJ"]:
+            zs = np.float64(self.redshifts)
+            cosmo_input = self.Perturbations(background, zs)
+        elif self.NLcode in ["COMET"]:
+            cosmo_input = background
+        else:
+            raise ValueError("Perturbations are required for PBJ, but not for COMET.")
+
         theory_vec = []
         theory_vec_AM = {}
         coeff = self._coeff_AM(parameters)
@@ -288,9 +341,7 @@ class EuclidLikelihood_GCspectro_Pls:
             RSD_parameters = {
                 key: parameters[key][i] for key in self.RSD_parameter_names
             }
-            power = self.SpectroPower(
-                background=background, RSD_parameters=RSD_parameters, redshift=float(z)
-            )
+            power = self.SpectroPower(cosmo_input, RSD_parameters, redshift=float(z))
             nois_syst_parameters = {
                 key: parameters[key][i] for key in self.noise_syst_parameter_names
             }
@@ -355,19 +406,24 @@ class EuclidLikelihood_GCspectro_Pls:
             Coefficients of individual terms to be analytically marginalised
         """
         coeff = {
-            "b1-bGam3": -4.0 / 7.0 * parameters["b1"],
-            "bGam3": -4.0 / 7.0 * np.ones_like(parameters["b1"]),
-            "b1-b1-cnlo": parameters["b1"] ** 2,
-            "b1-cnlo": parameters["b1"],
+            "COMET": {
+                "b1-bGam3": -4.0 / 7.0 * parameters["b1"],
+                "bGam3": -4.0 / 7.0 * np.ones_like(parameters["b1"]),
+                "b1-b1-cnlo": parameters["b1"] ** 2,
+                "b1-cnlo": parameters["b1"],
+            },
+            "PBJ": {},
         }
-        return coeff
+        return coeff[self.NLcode]
 
-    def loglike_AM(self, parameters: dict):
+    def loglike_AM(self, parameters: dict, use_Jeffreys: Optional[bool] = False):
         r"""Log-likelihood of GCspectro probe with analytical marginalisation
         Parameters
         ----------
         parameters: dict
             Ensemble of cosmological and nuisance parameters
+        use_Jeffreys: bool
+            Flag to decide use of Jeffreys priors on linear parameters during AM
         """
         # Create copy of dictionary, to avoid modifying the external one
         parameters = deepcopy(parameters)
@@ -440,9 +496,18 @@ class EuclidLikelihood_GCspectro_Pls:
             self.inverse_masked_covariance_matrix,
             self.masked_theory_vector_AM_reduced,
         ) + np.diag(1.0 / self.AM_sigmas**2)
-        chi2 = (
-            F0
-            + np.log(np.linalg.det(F2ij))
-            - np.einsum("i,ij,j->", F1i, np.linalg.inv(F2ij), F1i)
-        )
+        chi2 = F0 - np.einsum("i,ij,j->", F1i, np.linalg.inv(F2ij), F1i)
+        if not use_Jeffreys:
+            chi2 += np.log(np.linalg.det(F2ij))
+
+        # Access to means of marginalised params
+        self.marg_pars_means_raw = np.dot(F1i, np.linalg.inv(F2ij))
+
+        # Also as a dictionary for easy interpretation
+        vals = iter(self.marg_pars_means_raw)
+
+        self.marg_pars_means_dict = {
+            z: {par: next(vals) for par in self.AM_params[z]} for z in self.redshifts
+        }
+
         return -0.5 * chi2
