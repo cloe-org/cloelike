@@ -126,10 +126,7 @@ def data_setup(tmp_path_factory):
         data["GCspectro"][z]["pk4"] = datavec.multipoles[4] * pk_fac
 
         full_matrix = np.block(
-            [
-                [covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]]
-                for i in [0, 2, 4]
-            ]
+            [[covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]] for i in [0, 2, 4]]
         )
         data["GCspectro"][z]["cov"] = full_matrix * cov_fac
 
