@@ -146,24 +146,24 @@ def settings_setup(data_setup):
     fid_h = data_setup["fiducial_cosmology"]["H0"] / 100.0
 
     settings = {
-        "scale_cuts": {
-            "GCspectro": {
-                "bin1": {
+        "GCspectro": {
+            "scale_cuts": {
+                labels[0]: {
                     "ell0": [0.0, 0.20 * fid_h],
                     "ell2": [0.0, 0.15 * fid_h],
                     "ell4": [0.0, 0.15 * fid_h],
                 },
-                "bin2": {
+                labels[1]: {
                     "ell0": [0.0, 0.25 * fid_h],
                     "ell2": [0.0, 0.20 * fid_h],
                     "ell4": [0.0, 0.20 * fid_h],
                 },
-                "bin3": {
+                labels[2]: {
                     "ell0": [0.0, 0.25 * fid_h],
                     "ell2": [0.0, 0.20 * fid_h],
                     "ell4": [0.0, 0.20 * fid_h],
                 },
-                "bin4": {
+                labels[3]: {
                     "ell0": [0.0, 0.30 * fid_h],
                     "ell2": [0.0, 0.25 * fid_h],
                     "ell4": [0.0, 0.25 * fid_h],
