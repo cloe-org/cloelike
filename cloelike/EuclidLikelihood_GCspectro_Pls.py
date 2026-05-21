@@ -166,7 +166,7 @@ class EuclidLikelihood_GCspectro_Pls:
 
     def _flatten_covariance_matrix(self):
         r"""Arranges the GCspectro covariance into a matrix form"""
-        cov_blocks = [self.data[z]["cov"] for z in self.redshifts]
+        cov_blocks = [self.data[z]["covariance"] for z in self.redshifts]
         self.flattened_covariance_matrix = np.block(
             [
                 [
