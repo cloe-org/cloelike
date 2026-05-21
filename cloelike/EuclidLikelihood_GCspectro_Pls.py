@@ -64,7 +64,6 @@ class EuclidLikelihood_GCspectro_Pls:
 
         self._prepare()
 
-
         if self.NLcode == "COMET":
             self.RSD_parameter_names = [
                 "b1",
@@ -126,9 +125,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 }
 
             self.AM_diagrams = [
-                term
-                for values in self.AM_par_to_diag.values()
-                for term in values
+                term for values in self.AM_par_to_diag.values() for term in values
             ]
 
             self.AM_params = {}
@@ -259,9 +256,7 @@ class EuclidLikelihood_GCspectro_Pls:
         theory_vec = []
 
         for i, z in enumerate(self.redshifts):
-            RSD_params = {
-                key: parameters[key][i] for key in self.RSD_parameter_names
-            }
+            RSD_params = {key: parameters[key][i] for key in self.RSD_parameter_names}
             syst_params = {
                 key: parameters[key][i] for key in self.noise_syst_parameter_names
             }
