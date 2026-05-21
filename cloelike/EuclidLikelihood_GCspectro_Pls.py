@@ -28,6 +28,9 @@ class EuclidLikelihood_GCspectro_Pls:
             Protocol-consistent Background class
         SpectroPower: type
             Protocol-consistent SpectroPower class
+        Perturbations: type
+            Protocol-consistent Perturbations class (optional, only for
+            cases that require linear P(k) input, such as PBJ)
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
             marginalisation
@@ -61,15 +64,34 @@ class EuclidLikelihood_GCspectro_Pls:
 
         self._prepare()
 
-        self.RSD_parameter_names = {
-            "COMET": ["b1", "b2", "bG2", "bGam3", "c0", "c2", "c4"],
-            "PBJ": ["b1", "b2", "bG2", "bG3", "c0", "c2", "c4", "ck4"],
-        }
+
         if self.NLcode == "COMET":
+            self.RSD_parameter_names = [
+                "b1",
+                "b2",
+                "bG2",
+                "bGam3",
+                "c0",
+                "c2",
+                "c4",
+            ]
             if self.RSDmodel == "EFTofLSS":
-                self.RSD_parameter_names["COMET"].append("cnlo")
+                self.RSD_parameter_names.append("cnlo")
             elif self.RSDmodel == "VDG_infty":
-                self.RSD_parameter_names["COMET"].append("avir")
+                self.RSD_parameter_names.append("avir")
+        elif self.NLcode == "PBJ":
+            self.RSD_parameter_names = [
+                "b1",
+                "b2",
+                "bG2",
+                "bG3",
+                "c0",
+                "c2",
+                "c4",
+                "ck4",
+            ]
+        else:
+            raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
         self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
 
@@ -79,18 +101,20 @@ class EuclidLikelihood_GCspectro_Pls:
             if unmatched_z:
                 raise ValueError(f"Redshifts {unmatched_z} not found in data.")
 
-            self.AM_par_to_diag = {
-                "COMET": {
+            if self.NLcode == "COMET":
+                self.AM_par_to_diag = {
                     "bGam3": ["b1-bGam3", "bGam3"],
                     "c0": ["c0"],
                     "c2": ["c2"],
                     "c4": ["c4"],
-                    "cnlo": ["b1-b1-cnlo", "b1-cnlo", "cnlo"],
                     "NP0": ["noise_k0"],
                     "NP20": ["noise_k2"],
                     "NP22": ["noise_k2mu2"],
-                },
-                "PBJ": {
+                }
+                if self.RSDmodel == "EFTofLSS":
+                    self.AM_par_to_diag["cnlo"] = ["b1-b1-cnlo", "b1-cnlo", "cnlo"]
+            elif self.NLcode == "PBJ":
+                self.AM_par_to_diag = {
                     "bG3": ["bG3"],
                     "c0": ["c0"],
                     "c2": ["c2"],
@@ -99,11 +123,11 @@ class EuclidLikelihood_GCspectro_Pls:
                     "NP0": ["noise_k0"],
                     "NP20": ["noise_k2"],
                     "NP22": ["noise_k2mu2"],
-                },
-            }
+                }
+
             self.AM_diagrams = [
                 term
-                for values in self.AM_par_to_diag[self.NLcode].values()
+                for values in self.AM_par_to_diag.values()
                 for term in values
             ]
 
@@ -224,20 +248,19 @@ class EuclidLikelihood_GCspectro_Pls:
             N_mnu=parameters["N_mnu"],
         )
 
-        if self.Perturbations is not None:
+        if self.Perturbations is not None and self.NLcode in ["PBJ"]:
             zs = np.float64(self.redshifts)
-            lp = self.Perturbations(background, zs)
-            cosmo_input = lp
-        else:
-            zs = None
-            lp = None
+            cosmo_input = self.Perturbations(background, zs)
+        elif self.NLcode in ["COMET"]:
             cosmo_input = background
+        else:
+            raise ValueError("Perturbations are required for PBJ, but not for COMET.")
 
         theory_vec = []
 
         for i, z in enumerate(self.redshifts):
             RSD_params = {
-                key: parameters[key][i] for key in self.RSD_parameter_names[self.NLcode]
+                key: parameters[key][i] for key in self.RSD_parameter_names
             }
             syst_params = {
                 key: parameters[key][i] for key in self.noise_syst_parameter_names
@@ -307,21 +330,20 @@ class EuclidLikelihood_GCspectro_Pls:
             N_mnu=parameters["N_mnu"],
         )
 
-        if self.Perturbations is not None:
+        if self.Perturbations is not None and self.NLcode in ["PBJ"]:
             zs = np.float64(self.redshifts)
-            lp = self.Perturbations(background, zs)
-            cosmo_input = lp
-        else:
-            zs = None
-            lp = None
+            cosmo_input = self.Perturbations(background, zs)
+        elif self.NLcode in ["COMET"]:
             cosmo_input = background
+        else:
+            raise ValueError("Perturbations are required for PBJ, but not for COMET.")
 
         theory_vec = []
         theory_vec_AM = {}
         coeff = self._coeff_AM(parameters)
         for i, z in enumerate(self.redshifts):
             RSD_parameters = {
-                key: parameters[key][i] for key in self.RSD_parameter_names[self.NLcode]
+                key: parameters[key][i] for key in self.RSD_parameter_names
             }
             power = self.SpectroPower(cosmo_input, RSD_parameters, redshift=float(z))
             nois_syst_parameters = {
@@ -418,8 +440,8 @@ class EuclidLikelihood_GCspectro_Pls:
             z: [
                 value
                 for key in self.AM_params[z]
-                if key in self.AM_par_to_diag[self.NLcode]
-                for value in self.AM_par_to_diag[self.NLcode][key]
+                if key in self.AM_par_to_diag
+                for value in self.AM_par_to_diag[key]
             ]
             for z in self.AM_params.keys()
         }
@@ -442,7 +464,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 indices_groups = [
                     [
                         term_list[z].index(term)
-                        for term in self.AM_par_to_diag[self.NLcode].get(key, [])
+                        for term in self.AM_par_to_diag.get(key, [])
                     ]
                     for key in self.AM_params[z]
                 ]
@@ -482,6 +504,14 @@ class EuclidLikelihood_GCspectro_Pls:
         if not use_Jeffreys:
             chi2 += np.log(np.linalg.det(F2ij))
 
-        self.marg_pars_means = np.dot(F1i, np.linalg.inv(F2ij))
+        # Access to means of marginalised params
+        self.marg_pars_means_raw = np.dot(F1i, np.linalg.inv(F2ij))
+
+        # Also as a dictionary for easy interpretation
+        vals = iter(self.marg_pars_means_raw)
+
+        self.marg_pars_means_dict = {
+            z: {par: next(vals) for par in self.AM_params[z]} for z in self.redshifts
+        }
 
         return -0.5 * chi2
