@@ -38,6 +38,8 @@ class EuclidLikelihood_GCspectro_Pls:
         self.data = data
         self.settings = settings
         self.NLcode = SpectroPower.NLcode
+        if self.NLcode == "COMET":
+            self.RSDmodel = SpectroPower.RSDmodel
 
         # Assuming that GCspectro data will be arranged with hierarchy
         # redshift -> multipole -> wavemodes
@@ -62,8 +64,6 @@ class EuclidLikelihood_GCspectro_Pls:
 
         self._prepare()
 
-        # We need to change this for e.g. VDG, since cnlo is not a parameter
-        # of that model
         if self.NLcode == "COMET":
             self.RSD_parameter_names = [
                 "b1",
@@ -73,8 +73,11 @@ class EuclidLikelihood_GCspectro_Pls:
                 "c0",
                 "c2",
                 "c4",
-                "cnlo",
             ]
+            if self.RSDmodel == "EFTofLSS":
+                self.RSD_parameter_names.append("cnlo")
+            elif self.RSDmodel == "VDG_infty":
+                self.RSD_parameter_names.append("avir")
         elif self.NLcode == "PBJ":
             self.RSD_parameter_names = [
                 "b1",
@@ -103,11 +106,12 @@ class EuclidLikelihood_GCspectro_Pls:
                     "c0": ["c0"],
                     "c2": ["c2"],
                     "c4": ["c4"],
-                    "cnlo": ["b1-b1-cnlo", "b1-cnlo", "cnlo"],
                     "NP0": ["noise_k0"],
                     "NP20": ["noise_k2"],
                     "NP22": ["noise_k2mu2"],
                 }
+                if self.RSDmodel == "EFTofLSS":
+                    self.AM_par_to_diag["cnlo"] = ["b1-b1-cnlo", "b1-cnlo", "cnlo"]
             elif self.NLcode == "PBJ":
                 self.AM_par_to_diag = {
                     "bG3": ["bG3"],
