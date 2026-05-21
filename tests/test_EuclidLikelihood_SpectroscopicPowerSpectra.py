@@ -127,7 +127,7 @@ def data_setup(tmp_path_factory):
 
         full_matrix = np.block(
             [
-                [covariance.covariance[f"ELL_{i}-{j}"] for j in [0, 2, 4]]
+                [covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]]
                 for i in [0, 2, 4]
             ]
         )
