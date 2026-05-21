@@ -8,7 +8,7 @@ __all__ = [
     "EuclidLikelihood_2x2pt",
     "EuclidLikelihood_GCspectro_Pls",
     "EuclidLikelihood_BAO",
-    "EuclidLikelihood_GCspectro_Pls_BAO"
+    "EuclidLikelihood_GCspectro_Pls_BAO",
 ]
 
 from .EuclidLikelihood_photo_Cls import (

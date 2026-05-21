@@ -44,8 +44,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         if self.NLcode == "COMET":
             self.RSDmodel = SpectroPower.RSDmodel
 
-        self.BAO_params = {z: self.data[z]["alphas"].keys()
-                           for z in self.redshifts}
+        self.BAO_params = {z: self.data[z]["alphas"].keys() for z in self.redshifts}
 
         self.ells = [0, 2, 4]
         self.nbar = [self.data[z]["nbar"] for z in self.redshifts]
@@ -158,11 +157,15 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
 
     def _flatten_data_vector(self):
         r"""Arranges full shape and BAO data into a flattened data vector"""
-        self.data_vector = np.concatenate([
-            np.concatenate(
-                [self.data[z][f"pk{ell}"] for ell in self.ells] +
-                [list(self.data[z]["alphas"].values())]
-            ) for z in self.redshifts])
+        self.data_vector = np.concatenate(
+            [
+                np.concatenate(
+                    [self.data[z][f"pk{ell}"] for ell in self.ells]
+                    + [list(self.data[z]["alphas"].values())]
+                )
+                for z in self.redshifts
+            ]
+        )
 
     def _flatten_covariance_matrix(self):
         r"""Arranges the full shape and BAO covariances into a matrix form"""
@@ -195,12 +198,19 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
     def _create_masking_vector(self):
         r"""Computes the masking vector for the combination of full shape and BAO"""
         self.masking_vector = np.concatenate(
-            [np.concatenate(
-                [self._masking(self.data[z]["k"],
-                 np.array(self.scale_cuts[z][f"ell{ell}"]))
-                 for ell in self.ells] +
-                [np.array([True]) for _ in self.BAO_params[z]]
-            ) for z in self.redshifts])
+            [
+                np.concatenate(
+                    [
+                        self._masking(
+                            self.data[z]["k"], np.array(self.scale_cuts[z][f"ell{ell}"])
+                        )
+                        for ell in self.ells
+                    ]
+                    + [np.array([True]) for _ in self.BAO_params[z]]
+                )
+                for z in self.redshifts
+            ]
+        )
 
     def _mask_data_vector(self):
         r"""Mask GCspectro data vector"""
@@ -266,7 +276,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             }
 
             power = self.SpectroPower(
-                background=background, RSD_parameters=RSD_params, redshift=float(z)
+                cosmo_input, RSD_parameters=RSD_params, redshift=float(z)
             )
             obs = LegendreMultipoles(
                 spectro_power=power,
@@ -284,8 +294,8 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 mps = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
 
             vector = np.concatenate(
-                [mps[f"ell{ell}"] for ell in self.ells] +
-                [np.atleast_1d(alphas_dict[z][param]) for param in self.BAO_params[z]]
+                [mps[f"ell{ell}"] for ell in self.ells]
+                + [np.atleast_1d(alphas_dict[z][param]) for param in self.BAO_params[z]]
             )
             theory_vec.extend(vector)
 
@@ -358,7 +368,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 key: parameters[key][i] for key in self.RSD_parameter_names
             }
             power = self.SpectroPower(
-                background=background, RSD_parameters=RSD_parameters, redshift=float(z)
+                cosmo_input, RSD_parameters=RSD_parameters, redshift=float(z)
             )
             nois_syst_parameters = {
                 key: parameters[key][i] for key in self.noise_syst_parameter_names
@@ -378,8 +388,8 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 mps_dict = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
 
             vector = np.concatenate(
-                [mps_dict[f"ell{ell}"] for ell in self.ells] +
-                [np.atleast_1d(alphas_dict[z][param]) for param in self.BAO_params[z]]
+                [mps_dict[f"ell{ell}"] for ell in self.ells]
+                + [np.atleast_1d(alphas_dict[z][param]) for param in self.BAO_params[z]]
             )
             theory_vec = np.concatenate((theory_vec, vector))
 
@@ -403,18 +413,20 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 mps_AM_list = [mps_AM_dict[f"ell{ell}"] for ell in self.ells]
                 theory_vec_AM[z] = np.hstack(mps_AM_list)
                 theory_vec_AM[z] = np.hstack(
-                    (theory_vec_AM[z],
-                     np.zeros((theory_vec_AM[z].shape[0], len(self.BAO_params[z])))
-                ))
-            else:
-                Nk = sum(
-                    len(self.data[z][f"pk{ell}"]) for ell in self.ells
+                    (
+                        theory_vec_AM[z],
+                        np.zeros((theory_vec_AM[z].shape[0], len(self.BAO_params[z]))),
+                    )
                 )
+            else:
+                Nk = sum(len(self.data[z][f"pk{ell}"]) for ell in self.ells)
                 theory_vec_AM[z] = np.zeros((0, Nk))
                 theory_vec_AM[z] = np.hstack(
-                    (theory_vec_AM[z],
-                     np.zeros((theory_vec_AM[z].shape[0], len(self.BAO_params[z])))
-                ))
+                    (
+                        theory_vec_AM[z],
+                        np.zeros((theory_vec_AM[z].shape[0], len(self.BAO_params[z]))),
+                    )
+                )
 
         return theory_vec, theory_vec_AM
 

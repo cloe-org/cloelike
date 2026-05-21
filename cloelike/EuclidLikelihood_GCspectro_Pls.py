@@ -157,11 +157,7 @@ class EuclidLikelihood_GCspectro_Pls:
     def _flatten_data_vector(self):
         r"""Arranges the GCspectro data into a flattened data vector"""
         self.data_vector = np.concatenate(
-            [
-                self.data[z][f"pk{ell}"]
-                for z in self.redshifts
-                for ell in self.ells
-            ]
+            [self.data[z][f"pk{ell}"] for z in self.redshifts for ell in self.ells]
         )
 
     def _flatten_covariance_matrix(self):
@@ -380,9 +376,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 mps_AM_list = [mps_AM_dict[f"ell{ell}"] for ell in self.ells]
                 theory_vec_AM[z] = np.hstack(mps_AM_list)
             else:
-                Nk = sum(
-                    len(self.data[z][f"pk{ell}"]) for ell in self.ells
-                )
+                Nk = sum(len(self.data[z][f"pk{ell}"]) for ell in self.ells)
                 theory_vec_AM[z] = np.zeros((0, Nk))
         return theory_vec, theory_vec_AM
 
