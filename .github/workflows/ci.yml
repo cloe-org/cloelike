@@ -80,6 +80,16 @@ jobs:
         run: |
           mamba run -n $ENV_NAME pip install comet-emu
 
+      - name: Cache COMET emulator files
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/miniconda3/envs/${{ env.ENV_NAME }}/lib/python${{ matrix.python-version }}/site-packages/comet/data_dir
+          key: comet-data-v2.0
+
+      - name: Pre-download COMET emulator data
+        run: |
+          mamba run -n $ENV_NAME python -c "import comet"
+
       - name: Install cloelike
         run: |
           mamba run -n $ENV_NAME pip install .
