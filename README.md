@@ -6,12 +6,14 @@
 
 We welcome feedback from the **Euclid community** and beyond to refine and improve this module!
 
+[![arXiv](https://img.shields.io/badge/arXiv-2605.23841-b31b1b.svg)](https://arxiv.org/abs/2605.23841)
 [![CI](https://github.com/cloe-org/cloelike/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/cloe-org/cloelike/actions/workflows/ci.yml)
 [![Docs](https://github.com/cloe-org/cloelike/actions/workflows/docs.yml/badge.svg?branch=main)](https://cloe-org.github.io/cloelike/dev/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-blue?logo=pytest)](https://docs.pytest.org/)
 [![Linting: Ruff](https://img.shields.io/badge/linting-ruff-purple?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![Code Style: Prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4.svg?logo=prettier&logoColor=white)](https://prettier.io/)
+[![All Contributors](https://img.shields.io/github/all-contributors/cloe-org/cloelike?color=ee8449)](#contributors-)
 
 ---
 
