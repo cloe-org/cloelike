@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 import requests
-from astropy.io import fits
 
 # --- cloe-org imports ---
 from cloelib.cosmology.camb_cosmology import CAMBBackground
@@ -9,7 +8,7 @@ from cloelib.observables.CometEFT_spectro import CometEFT_SpectroPower
 from cloelike.EuclidLikelihood_GCspectro_xils import EuclidLikelihood_GCspectro_xils
 
 
-# --- euclidlib imports ---                                 
+# --- euclidlib imports ---
 from euclidlib.le3.twopcf_gc import (
     twopoint_correlation_multipoles,
     twopoint_correlation_multipole_covariance,
@@ -118,9 +117,9 @@ def data_setup(tmp_path_factory):
         data["GCspectro"][z]["nbar"] = nbar[ii] * fid_h**3
 
         data["GCspectro"][z]["s"] = datavec.s * s_fac
-        data["GCspectro"][z][f"xis0"] = datavec.multipoles[0] * tpcf_fac
-        data["GCspectro"][z][f"xis2"] = datavec.multipoles[2] * tpcf_fac
-        data["GCspectro"][z][f"xis4"] = datavec.multipoles[4] * tpcf_fac
+        data["GCspectro"][z]["xis0"] = datavec.multipoles[0] * tpcf_fac
+        data["GCspectro"][z]["xis2"] = datavec.multipoles[2] * tpcf_fac
+        data["GCspectro"][z]["xis4"] = datavec.multipoles[4] * tpcf_fac
 
         full_matrix = np.block(
             [[covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]] for i in [0, 2, 4]]
