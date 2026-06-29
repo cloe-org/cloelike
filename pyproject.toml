@@ -16,7 +16,7 @@ authors = [
     { name = "A. Pezzotta", email = "andrea.pezzotta@inaf.it" }
 ]
 
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.11,<3.13"
 
 dynamic = ["version"]
 
