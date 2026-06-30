@@ -46,7 +46,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
 
         self.BAO_params = {z: self.data[z]["alphas"].keys() for z in self.redshifts}
 
-        self.ells = [0, 2, 4]
+        self.ells = [0, 2,  4]
         self.nbar = [self.data[z]["nbar"] for z in self.redshifts]
 
         self.mixmat = (
