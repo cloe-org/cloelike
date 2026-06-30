@@ -57,9 +57,6 @@ jobs:
           environment-file: ${{ env.ENV_FILE }}
           use-mamba: true
 
-      - name: Pin scipy via mamba
-        run: mamba install -n $ENV_NAME -y scipy=1.17.1
-
       - name: Configure Git for private repo access
         run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
