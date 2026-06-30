@@ -57,6 +57,10 @@ jobs:
           environment-file: ${{ env.ENV_FILE }}
           use-mamba: true
 
+      - name: Pin numpy version
+        run: |
+          mamba run -n $ENV_NAME pip install numpy==2.4.6
+
       - name: Configure Git for private repo access
         run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
