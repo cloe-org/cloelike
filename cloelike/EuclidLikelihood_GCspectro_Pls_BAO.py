@@ -1,6 +1,7 @@
 import numpy as np
 
 from copy import deepcopy
+from dataclasses import replace
 from scipy.linalg import block_diag
 from typing import Optional
 
@@ -9,6 +10,23 @@ from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 
 
 class EuclidLikelihood_GCspectro_Pls_BAO:
+    # Single source of truth for BAO alpha ordering: this order drives both
+    # the alphas data vector and the covariance block assembly in
+    # _build_observable, so the two are always kept consistent, per redshift bin.
+    _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_ap"]
+    _BAO_FITS_KEY = {
+        "alpha_perp": "ALPHA_PERP",
+        "alpha_par": "ALPHA_PAR",
+        "alpha_iso": "ALPHA_ISO",
+        "alpha_ap": "ALPHA_AP",
+    }
+    # Background requires As and gamma_MG to be instantiated, but
+    # background_fiducial is only ever used for rdrag/H(z)/D_A(z) (see
+    # BaryonAcousticOscillations, LegendreMultipoles), which do not depend
+    # on either -- these are placeholders, not fiducial choices.
+    _BACKGROUND_As = 2.1e-9
+    _BACKGROUND_GAMMA_MG = 0.545
+
     def __init__(
         self,
         data: dict,
@@ -16,15 +34,32 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Background: type,
         SpectroPower: type,
         Perturbations: Optional[type] = None,
-        AM_priors: Optional[dict] = None,
+        AM_priors: Optional[dict] = None
     ):
         r"""Class constructor
+
         Parameters
         ----------
         data: dict
-            Data dictionary
+            Data dictionary, whose structure is as follows. The first layer
+            contains a single key, ``"GCspectro"``, for future homogenisation
+            with photometric probes. In the second layer
+            ``data["GCspectro"][z]`` is expected to hold the raw euclidlib
+            objects for that redshift bin, under the keys ``"datavec_FS"``
+            (``PowerSpectrumMultipoles``), ``"datavec_BAO"``
+            (``BaryonAcousticOscillations``, from
+            ``euclidlib.le3.bao_gc.BAO_alphas``), and ``"covariance"`` (the
+            joint FS+BAO ``PowerSpectrumMultipolesCovariance``) -- all three
+            required; optionally ``"mixing"``
+            (``PowerSpectrumMultipolesMixingMatrix``).
         settings: dict
-            Settings dictionary
+            Settings dictionary, whose structure is as follows. The first layer
+            contains a single key, "GCspectro", for future homogenisation with
+            photometric probes. The second layer also contains a single keyword,
+            ``"scale_cuts"``. in the third layer ``settings["GCspectro"][z]``
+            is expected to be a dictionary containing pairs ``"ell<i>: [a,b]"``,
+            where ``"i"`` runs over 0,2,4 and ``"a,b"`` represent the range of
+            modes included in the fit.
         Background: type
             Protocol-consistent Background class
         SpectroPower: type
@@ -36,35 +71,21 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             Mean and standard deviation of gaussian priors for analytical
             marginalisation
         """
-        self.data = data["GCspectro"]
+        data = data["GCspectro"]
         self.settings = settings["GCspectro"]
-        self.redshifts = list(self.data.keys())
+        self.scale_cuts = self.settings["scale_cuts"]
+        self.redshifts = list(data.keys())
 
         self.NLcode = SpectroPower.NLcode
         if self.NLcode == "COMET":
             self.RSDmodel = SpectroPower.RSDmodel
 
-        self.BAO_params = {z: self.data[z]["alphas"].keys() for z in self.redshifts}
-
         self.ells = [0, 2, 4]
-        self.nbar = [self.data[z]["nbar"] for z in self.redshifts]
-
-        self.mixmat = (
-            {z: self.data[z]["mixing_matrix"] for z in self.redshifts}
-            if all("mixing_matrix" in self.data[z] for z in self.redshifts)
-            else None
-        )
-
-        self.scale_cuts = self.settings["scale_cuts"]
-
         self.Background = Background
         self.Perturbations = Perturbations
         self.SpectroPower = SpectroPower
 
-        params_fid = data["fiducial_cosmology"]
-        self.background_fiducial = Background(**params_fid)
-
-        self._prepare()
+        self._prepare(data)
 
         if self.NLcode == "COMET":
             self.RSD_parameter_names = [
@@ -144,18 +165,140 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             self.AM_means = np.array(AM_means)
             self.AM_sigmas = np.array(AM_sigmas)
 
-    def _prepare(self):
-        r"""Arrange data vectors and covariance matrices in format required
-        for :math:`\chi^2` calculation
+    def _prepare(self, data: dict):
+        r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
+        each redshift bin, and arranges data vectors and covariance matrices
+        in the format required for :math:`\chi^2` calculation
+
+        Parameters
+        ----------
+        data: dict
+            ``data[z]``, for each redshift bin ``z``, holds the raw
+            euclidlib objects as documented in the class constructor.
         """
-        self._flatten_data_vector()
-        self._flatten_covariance_matrix()
-        self._create_masking_vector()
+        params_fid = self._build_fiducial_cosmology_dictionary(
+            data[self.redshifts[0]]["datavec_FS"].fiducial_cosmology
+        )
+        self.background_fiducial = self.Background(**params_fid)
+        fid_h = params_fid["H0"] / 100.0
+
+        self.data = {z: self._build_observable(data[z], fid_h) for z in self.redshifts}
+        self.BAO_params = {z: self.data[z]["alphas"].keys() for z in self.redshifts}
+        self.nbar = [self.data[z]["nbar"] for z in self.redshifts]
+
+        self.mixmat = (
+            {z: self.data[z]["mixing_matrix"] for z in self.redshifts}
+            if all("mixing_matrix" in self.data[z] for z in self.redshifts)
+            else None
+        )
+
+        self._build_data_vector()
+        self._build_covariance_matrix()
+        self._build_masking_vector()
         self._mask_data_vector()
         self._mask_covariance_matrix()
         self._invert_covariance_matrix()
 
-    def _flatten_data_vector(self):
+    def _build_fiducial_cosmology_dictionary(
+        self, fiducial_cosmology: dict
+    ) -> dict:
+        r"""Builds the fiducial cosmology dictionary expected by ``Background``
+        from the euclidlib fiducial cosmology of one redshift bin.
+
+        Parameters
+        ----------
+        fiducial_cosmology: dict
+            Fiducial cosmology as read by euclidlib from a FITS header
+
+        Returns
+        -------
+        params_fid: dict
+            Fiducial cosmology dictionary, ready to be passed to ``Background``
+        """
+        Omega_cdm0 = (
+            fiducial_cosmology["Omega_m0"] - fiducial_cosmology["Omega_b0"]
+            if "Omega_m0" in fiducial_cosmology
+            else fiducial_cosmology["Omega_cdm0"]
+        )
+        return {
+            "H0": fiducial_cosmology["H0"],
+            "Omega_cdm0": Omega_cdm0,
+            "Omega_b0": fiducial_cosmology["Omega_b0"],
+            "Omega_k0": fiducial_cosmology.get("Omega_k0", 0.0),
+            "mnu": fiducial_cosmology.get("mnu", 0.0),
+            "N_mnu": fiducial_cosmology.get("N_mnu", 0),
+            "w0": fiducial_cosmology.get("w0", -1.0),
+            "wa": fiducial_cosmology.get("wa", 0.0),
+            "ns": fiducial_cosmology["ns"],
+            "As": self._BACKGROUND_As,
+            "gamma_MG": self._BACKGROUND_GAMMA_MG,
+        }
+
+    def _build_observable(self, data_z: dict, fid_h: float) -> dict:
+        r"""Rescales units (Mpc/h to Mpc) and assembles the BAO alphas and
+        covariance for one redshift bin, from raw euclidlib objects.
+
+        The order in which BAO alphas appear in the data vector for this
+        redshift bin is determined here, once, from ``_BAO_ORDER`` and the
+        alphas actually available (i.e. not all-NaN) in
+        ``data_z["datavec_BAO"]``. The same order is reused immediately below
+        to assemble the matching covariance block, so the two can never
+        drift out of sync -- and different redshift bins are free to carry
+        different sets of alphas.
+
+        Parameters
+        ----------
+        data_z: dict
+            Raw euclidlib objects for one redshift bin: ``"datavec_FS"``,
+            ``"datavec_BAO"``, and ``"covariance"`` (the joint FS+BAO
+            covariance) are required; ``"mixing"`` is optional.
+        fid_h: float
+            Fiducial value of :math:`H_0/100`, used for unit rescaling.
+
+        Returns
+        -------
+        entry: dict
+            Data dictionary for this redshift bin, in the internal format
+            used by the rest of the class.
+        """
+        dv, cv = data_z["datavec_FS"], data_z["covariance"]
+        k_fac, pk_fac, cov_fac = fid_h, 1.0 / fid_h**3, 1.0 / fid_h**6
+
+        entry = {"nbar": dv.nbar * fid_h**3, "k": dv.keff * k_fac}
+        entry.update({f"pk{ell}": dv.multipoles[ell] * pk_fac for ell in self.ells})
+
+        bao = data_z["datavec_BAO"]
+        bao_keys = [
+            key for key in self._BAO_ORDER if not np.isnan(getattr(bao, key)).all()
+        ]
+        entry["alphas"] = {key: float(getattr(bao, key)) for key in bao_keys}
+
+        ells = [str(ell) for ell in self.ells]
+        observables = ells + [self._BAO_FITS_KEY[key] for key in bao_keys]
+        entry["covariance"] = np.block([
+            [
+                cv.covariance[f"{oi}-{oj}"] * (
+                    cov_fac if oi in ells and oj in ells
+                    else np.sqrt(cov_fac) if oi in ells or oj in ells
+                    else 1.0
+                )
+                for oj in observables
+            ]
+            for oi in observables
+        ])
+
+        if "mixing" in data_z:
+            mm = data_z["mixing"]
+            entry["mixing_matrix"] = replace(
+                mm,
+                kout=mm.kout * k_fac,
+                kin={ell: val * k_fac for ell, val in mm.kin.items()},
+                mixing={key: val.squeeze() for key, val in mm.mixing.items()},
+            )
+
+        return entry
+
+    def _build_data_vector(self):
         r"""Arranges full shape and BAO data into a flattened data vector"""
         self.data_vector = np.concatenate(
             [
@@ -167,7 +310,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             ]
         )
 
-    def _flatten_covariance_matrix(self):
+    def _build_covariance_matrix(self):
         r"""Arranges the full shape and BAO covariances into a matrix form"""
         cov_blocks = [self.data[z]["covariance"] for z in self.redshifts]
         self.flattened_covariance_matrix = np.block(
@@ -195,7 +338,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         """
         return (arr >= interval[0]) & (arr <= interval[1])
 
-    def _create_masking_vector(self):
+    def _build_masking_vector(self):
         r"""Computes the masking vector for the combination of full shape and BAO"""
         self.masking_vector = np.concatenate(
             [
@@ -230,10 +373,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
 
     def get_theory_vector(self, parameters: dict) -> np.ndarray:
         r"""Generate theory vectors based on specified parameters
+
         Parameters
         ----------
         parameters: dict
             Input parameters
+
         Return
         ------
         theory_vec: np.ndarray
@@ -285,12 +430,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 nbar=self.nbar[i],
             )
 
-            k = self.data[z]["k"]
             if self.mixmat:
                 mps = obs.convolved_power_multipoles(
                     self.mixmat[z], ells=self.ells, use_AP=True
                 )
             else:
+                k = self.data[z]["k"]
                 mps = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
 
             vector = np.concatenate(
@@ -307,10 +452,16 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
 
     def loglike(self, parameters: dict):
         r"""Log-likelihood of GCspectro probe
+
         Parameters
         ----------
         parameters: dict
             Ensemble of cosmological and nuisance parameters
+
+        Returns
+        -------
+            loglike: float
+                Value of the log-likelihood
         """
         self.theory_vector = self.get_theory_vector(parameters)
         self._mask_theory_vector()
@@ -321,10 +472,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
     def get_theory_vector_AM(self, parameters: dict, term_list: dict):
         r"""Generate theory vectors based on specified parameters for
         analytical marginalization
+
         Parameters
         ----------
         parameters: dict
             Input parameters
+
         Return
         ------
         theory_vec: np.ndarray
@@ -440,10 +593,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
     # This should be different for non-linear codes different from COMET
     def _coeff_AM(self, parameters: dict):
         r"""Coefficients of individual terms for analytical marginalisation
+
         Parameters
         ----------
         parameters: dict
             Input parameters
+
         Returns
         -------
         coeff: dict
@@ -462,12 +617,18 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
 
     def loglike_AM(self, parameters: dict, use_Jeffreys: Optional[bool] = False):
         r"""Log-likelihood of GCspectro probe with analytical marginalisation
+
         Parameters
         ----------
         parameters: dict
             Ensemble of cosmological and nuisance parameters
         use_Jeffreys: bool
             Flag to decide use of Jeffreys priors on linear parameters during AM
+
+        Returns
+        -------
+        loglike_AM: float
+            Value of analytically-marginalised log-likelihood
         """
         # Create copy of dictionary, to avoid modifying the external one
         parameters = deepcopy(parameters)
