@@ -34,7 +34,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Background: type,
         SpectroPower: type,
         Perturbations: Optional[type] = None,
-        AM_priors: Optional[dict] = None
+        AM_priors: Optional[dict] = None,
     ):
         r"""Class constructor
 
@@ -199,9 +199,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         self._mask_covariance_matrix()
         self._invert_covariance_matrix()
 
-    def _build_fiducial_cosmology_dictionary(
-        self, fiducial_cosmology: dict
-    ) -> dict:
+    def _build_fiducial_cosmology_dictionary(self, fiducial_cosmology: dict) -> dict:
         r"""Builds the fiducial cosmology dictionary expected by ``Background``
         from the euclidlib fiducial cosmology of one redshift bin.
 
@@ -275,17 +273,22 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
 
         ells = [str(ell) for ell in self.ells]
         observables = ells + [self._BAO_FITS_KEY[key] for key in bao_keys]
-        entry["covariance"] = np.block([
+        entry["covariance"] = np.block(
             [
-                cv.covariance[f"{oi}-{oj}"] * (
-                    cov_fac if oi in ells and oj in ells
-                    else np.sqrt(cov_fac) if oi in ells or oj in ells
-                    else 1.0
-                )
-                for oj in observables
+                [
+                    cv.covariance[f"{oi}-{oj}"]
+                    * (
+                        cov_fac
+                        if oi in ells and oj in ells
+                        else np.sqrt(cov_fac)
+                        if oi in ells or oj in ells
+                        else 1.0
+                    )
+                    for oj in observables
+                ]
+                for oi in observables
             ]
-            for oi in observables
-        ])
+        )
 
         if "mixing" in data_z:
             mm = data_z["mixing"]

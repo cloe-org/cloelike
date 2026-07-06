@@ -5,7 +5,9 @@ import requests
 # --- cloe-org imports ---
 from cloelib.cosmology.camb_cosmology import CAMBBackground
 from cloelib.observables.CometEFT_spectro import CometEFT_SpectroPower
-from cloelike.EuclidLikelihood_GCspectro_Pls_BAO import EuclidLikelihood_GCspectro_Pls_BAO
+from cloelike.EuclidLikelihood_GCspectro_Pls_BAO import (
+    EuclidLikelihood_GCspectro_Pls_BAO,
+)
 
 # --- euclidlib imports ---
 from euclidlib.le3.pk_gc import (
@@ -86,18 +88,18 @@ def data_setup(tmp_path_factory):
         )
 
     for ii, z in enumerate(labels_FS):
-        datavec_FS = power_spectrum_multipoles(
-            tmpdir / file_datavec_FS.format(z)
-        )[("SPE", "SPE", 0, 0)]
+        datavec_FS = power_spectrum_multipoles(tmpdir / file_datavec_FS.format(z))[
+            ("SPE", "SPE", 0, 0)
+        ]
         covariance = power_spectrum_multipole_covariance(
             tmpdir / file_cov.format(z), include_BAO=True
         )[("SPE", "SPE", 0, 0)]
-        mixing = power_spectrum_multipole_mixing_matrix(
-            tmpdir / file_mixing.format(z)
-        )[("SPE", "SPE", 0, 0)]
-        datavec_BAO = BAO_alphas(
-            tmpdir / file_datavec_BAO.format(labels_BAO[ii])
-        )[("SPE", "SPE", 0, 0)]
+        mixing = power_spectrum_multipole_mixing_matrix(tmpdir / file_mixing.format(z))[
+            ("SPE", "SPE", 0, 0)
+        ]
+        datavec_BAO = BAO_alphas(tmpdir / file_datavec_BAO.format(labels_BAO[ii]))[
+            ("SPE", "SPE", 0, 0)
+        ]
 
         data["GCspectro"][z] = {
             "datavec_FS": datavec_FS,
