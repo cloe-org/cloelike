@@ -269,7 +269,9 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         bao_keys = [
             key for key in self._BAO_ORDER if not np.isnan(getattr(bao, key)).all()
         ]
-        entry["alphas"] = {key: float(getattr(bao, key)) for key in bao_keys}
+        entry["alphas"] = {
+            key: np.asarray(getattr(bao, key)).item() for key in bao_keys
+        }
 
         ells = [str(ell) for ell in self.ells]
         observables = ells + [self._BAO_FITS_KEY[key] for key in bao_keys]
