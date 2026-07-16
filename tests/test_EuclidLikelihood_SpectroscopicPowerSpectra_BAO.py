@@ -102,7 +102,7 @@ def data_setup(tmp_path_factory):
         ]
 
         data["GCspectro"][z] = {
-            "datavec_FS": datavec_FS,
+            "datavec_Pls": datavec_FS,
             "datavec_BAO": datavec_BAO,
             "covariance": covariance,
             "mixing": mixing,
@@ -114,7 +114,7 @@ def data_setup(tmp_path_factory):
 @pytest.fixture(scope="module")
 def settings_setup(data_setup):
     fid_h = (
-        data_setup["GCspectro"][labels_FS[0]]["datavec_FS"].fiducial_cosmology["H0"]
+        data_setup["GCspectro"][labels_FS[0]]["datavec_Pls"].fiducial_cosmology["H0"]
         / 100.0
     )
 

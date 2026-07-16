@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from copy import deepcopy
 from scipy.linalg import block_diag
@@ -53,6 +54,11 @@ class EuclidLikelihood_GCspectro_Pls:
             if all("mixing_matrix" in self.data[z] for z in self.redshifts)
             else None
         )
+        if self.mixmat is None:
+            warnings.warn(
+                "No mixing matrix found for one or more redshift bins in "
+                "GCspectro data; proceeding without mixing matrix correction."
+            )
 
         self.scale_cuts = self.settings["scale_cuts"]
 

@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from copy import deepcopy
 from dataclasses import replace
@@ -45,7 +46,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             contains a single key, ``"GCspectro"``, for future homogenisation
             with photometric probes. In the second layer
             ``data["GCspectro"][z]`` is expected to hold the raw euclidlib
-            objects for that redshift bin, under the keys ``"datavec_FS"``
+            objects for that redshift bin, under the keys ``"datavec_Pls"``
             (``PowerSpectrumMultipoles``), ``"datavec_BAO"``
             (``BaryonAcousticOscillations``, from
             ``euclidlib.le3.bao_gc.BAO_alphas``), and ``"covariance"`` (the
@@ -69,7 +70,9 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             cases that require linear P(k) input, such as PBJ)
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
-            marginalisation
+            marginalisation. The first layer must have the same keys as
+            ``data["GCspectro"]``; the second layer has keys corresponding to
+            the model parameters and values of the form ``[mean, std]``
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -177,7 +180,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             euclidlib objects as documented in the class constructor.
         """
         params_fid = self._build_fiducial_cosmology_dictionary(
-            data[self.redshifts[0]]["datavec_FS"].fiducial_cosmology
+            data[self.redshifts[0]]["datavec_Pls"].fiducial_cosmology
         )
         self.background_fiducial = self.Background(**params_fid)
         fid_h = params_fid["H0"] / 100.0
@@ -191,6 +194,11 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             if all("mixing_matrix" in self.data[z] for z in self.redshifts)
             else None
         )
+        if self.mixmat is None:
+            warnings.warn(
+                "No mixing matrix found for one or more redshift bins in "
+                "GCspectro data; proceeding without mixing matrix correction."
+            )
 
         self._build_data_vector()
         self._build_covariance_matrix()
@@ -247,7 +255,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Parameters
         ----------
         data_z: dict
-            Raw euclidlib objects for one redshift bin: ``"datavec_FS"``,
+            Raw euclidlib objects for one redshift bin: ``"datavec_Pls"``,
             ``"datavec_BAO"``, and ``"covariance"`` (the joint FS+BAO
             covariance) are required; ``"mixing"`` is optional.
         fid_h: float
@@ -259,7 +267,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             Data dictionary for this redshift bin, in the internal format
             used by the rest of the class.
         """
-        dv, cv = data_z["datavec_FS"], data_z["covariance"]
+        dv, cv = data_z["datavec_Pls"], data_z["covariance"]
         k_fac, pk_fac, cov_fac = fid_h, 1.0 / fid_h**3, 1.0 / fid_h**6
 
         entry = {"nbar": dv.nbar * fid_h**3, "k": dv.keff * k_fac}
@@ -376,18 +384,27 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             self.masked_covariance_matrix
         )
 
-    def get_theory_vector(self, parameters: dict) -> np.ndarray:
-        r"""Generate theory vectors based on specified parameters
+    def get_theory_vector(self, parameters: dict, term_list: Optional[dict] = None):
+        r"""Generate theory vectors based on specified parameters, optionally
+        also computing the individual terms required for analytical
+        marginalisation
 
         Parameters
         ----------
         parameters: dict
             Input parameters
+        term_list: dict
+            Per-redshift list of diagram terms to isolate for analytical
+            marginalisation. If ``None``, only the standard theory vector is
+            computed.
 
         Return
         ------
         theory_vec: np.ndarray
             Stacked theory vector
+        theory_vec_AM: dict or None
+            Stacked terms for analytical marginalisation, per redshift bin,
+            or ``None`` if ``term_list`` is ``None``
         """
         background = self.Background(
             H0=parameters["H0"],
@@ -418,6 +435,9 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         ).alphas_dict
 
         theory_vec = []
+        theory_vec_AM = {} if term_list is not None else None
+        if term_list is not None:
+            coeff = self._coeff_AM(parameters)
 
         for i, z in enumerate(self.redshifts):
             RSD_params = {key: parameters[key][i] for key in self.RSD_parameter_names}
@@ -435,12 +455,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 nbar=self.nbar[i],
             )
 
+            k = self.data[z]["k"]
             if self.mixmat:
                 mps = obs.convolved_power_multipoles(
                     self.mixmat[z], ells=self.ells, use_AP=True
                 )
             else:
-                k = self.data[z]["k"]
                 mps = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
 
             vector = np.concatenate(
@@ -449,107 +469,8 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             )
             theory_vec.extend(vector)
 
-        return np.array(theory_vec)
-
-    def _mask_theory_vector(self):
-        r"""Mask theory vector"""
-        self.masked_theory_vector = self.theory_vector[self.masking_vector]
-
-    def loglike(self, parameters: dict):
-        r"""Log-likelihood of GCspectro probe
-
-        Parameters
-        ----------
-        parameters: dict
-            Ensemble of cosmological and nuisance parameters
-
-        Returns
-        -------
-            loglike: float
-                Value of the log-likelihood
-        """
-        self.theory_vector = self.get_theory_vector(parameters)
-        self._mask_theory_vector()
-        diff = self.masked_theory_vector - self.masked_data_vector
-        chi2 = np.dot(np.dot(diff, self.inverse_masked_covariance_matrix), diff)
-        return -0.5 * chi2
-
-    def get_theory_vector_AM(self, parameters: dict, term_list: dict):
-        r"""Generate theory vectors based on specified parameters for
-        analytical marginalization
-
-        Parameters
-        ----------
-        parameters: dict
-            Input parameters
-
-        Return
-        ------
-        theory_vec: np.ndarray
-            Stacked theory vector
-        theory_vec_AM: np.ndarray
-            Stacked terms for analytical marginalization
-        """
-        background = self.Background(
-            H0=parameters["H0"],
-            Omega_cdm0=parameters["Omega_cdm0"],
-            Omega_b0=parameters["Omega_b0"],
-            Omega_k0=parameters["Omega_k0"],
-            w0=parameters["w0"],
-            wa=parameters["wa"],
-            ns=parameters["ns"],
-            As=parameters["As"],
-            gamma_MG=parameters["gamma_MG"],
-            mnu=parameters["mnu"],
-            N_mnu=parameters["N_mnu"],
-        )
-
-        if self.Perturbations is not None and self.NLcode in ["PBJ"]:
-            zs = np.float64(self.redshifts)
-            cosmo_input = self.Perturbations(background, zs)
-        elif self.NLcode in ["COMET"]:
-            cosmo_input = background
-        else:
-            raise ValueError("Perturbations are required for PBJ, but not for COMET.")
-
-        alphas_dict = BaryonAcousticOscillations(
-            background=background,
-            background_fiducial=self.background_fiducial,
-            redshifts=self.redshifts,
-        ).alphas_dict
-
-        theory_vec = []
-        theory_vec_AM = {}
-        coeff = self._coeff_AM(parameters)
-        for i, z in enumerate(self.redshifts):
-            RSD_parameters = {
-                key: parameters[key][i] for key in self.RSD_parameter_names
-            }
-            power = self.SpectroPower(
-                cosmo_input, RSD_parameters=RSD_parameters, redshift=float(z)
-            )
-            nois_syst_parameters = {
-                key: parameters[key][i] for key in self.noise_syst_parameter_names
-            }
-            obs = LegendreMultipoles(
-                spectro_power=power,
-                background_fiducial=self.background_fiducial,
-                parameters=nois_syst_parameters,
-                nbar=self.nbar[i],
-            )
-            k = self.data[z]["k"]
-            if self.mixmat:
-                mps_dict = obs.convolved_power_multipoles(
-                    self.mixmat[z], ells=self.ells, use_AP=True
-                )
-            else:
-                mps_dict = obs.power_multipoles(k=k, ells=self.ells, use_AP=True)
-
-            vector = np.concatenate(
-                [mps_dict[f"ell{ell}"] for ell in self.ells]
-                + [np.atleast_1d(alphas_dict[z][param]) for param in self.BAO_params[z]]
-            )
-            theory_vec = np.concatenate((theory_vec, vector))
+            if term_list is None:
+                continue
 
             if z in self.AM_params.keys():
                 if self.mixmat:
@@ -586,14 +507,41 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                     )
                 )
 
-        return theory_vec, theory_vec_AM
+        return np.array(theory_vec), theory_vec_AM
 
-    def _mask_theory_vector_AM(self):
-        r"""Mask theory vector"""
+    def _mask_theory_vector(self, mask_AM: bool = False):
+        r"""Mask theory vector, optionally also masking the terms for
+        analytical marginalisation
+
+        Parameters
+        ----------
+        mask_AM: bool
+            If ``True``, also mask ``theory_vector_AM_reduced``
+        """
         self.masked_theory_vector = self.theory_vector[self.masking_vector]
-        self.masked_theory_vector_AM_reduced = self.theory_vector_AM_reduced[
-            :, self.masking_vector
-        ]
+        if mask_AM:
+            self.masked_theory_vector_AM_reduced = self.theory_vector_AM_reduced[
+                :, self.masking_vector
+            ]
+
+    def loglike(self, parameters: dict):
+        r"""Log-likelihood of GCspectro probe
+
+        Parameters
+        ----------
+        parameters: dict
+            Ensemble of cosmological and nuisance parameters
+
+        Returns
+        -------
+            loglike: float
+                Value of the log-likelihood
+        """
+        self.theory_vector, _ = self.get_theory_vector(parameters)
+        self._mask_theory_vector()
+        diff = self.masked_theory_vector - self.masked_data_vector
+        chi2 = np.dot(np.dot(diff, self.inverse_masked_covariance_matrix), diff)
+        return -0.5 * chi2
 
     # This should be different for non-linear codes different from COMET
     def _coeff_AM(self, parameters: dict):
@@ -653,7 +601,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         }
         # Creating theory vectors (both the part non-marginalisable
         # and the individual marginalisable terms)
-        self.theory_vector, self.theory_vector_AM = self.get_theory_vector_AM(
+        self.theory_vector, self.theory_vector_AM = self.get_theory_vector(
             parameters, term_list
         )
         # Recombining the marginalisable terms corresponding to the same
@@ -685,7 +633,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         # Constructing the block diagonal matrix for analytical marginalisation
         self.theory_vector_AM_reduced = block_diag(*theory_vector_AM_reduced)
         # Masking it (This works since the size of the matrix is consistent)
-        self._mask_theory_vector_AM()
+        self._mask_theory_vector(mask_AM=True)
         # Calculating chi2 including analytical marginalisation
         diff = self.masked_theory_vector - self.masked_data_vector
         F0 = np.einsum(
