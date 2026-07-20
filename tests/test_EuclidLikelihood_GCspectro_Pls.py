@@ -102,8 +102,7 @@ def data_setup(tmp_path_factory):
 @pytest.fixture(scope="module")
 def settings_setup(data_setup):
     fid_h = (
-        data_setup["GCspectro"][labels[0]]["datavec"].fiducial_cosmology["H0"]
-        / 100.0
+        data_setup["GCspectro"][labels[0]]["datavec"].fiducial_cosmology["H0"] / 100.0
     )
 
     settings = {
