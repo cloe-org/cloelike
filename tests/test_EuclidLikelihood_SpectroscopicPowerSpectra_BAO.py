@@ -1,12 +1,13 @@
 import numpy as np
 import pytest
 import requests
-from dataclasses import replace
 
 # --- cloe-org imports ---
 from cloelib.cosmology.camb_cosmology import CAMBBackground
 from cloelib.observables.CometEFT_spectro import CometEFT_SpectroPower
-from cloelike.EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
+from cloelike.EuclidLikelihood_GCspectro_Pls_BAO import (
+    EuclidLikelihood_GCspectro_Pls_BAO,
+)
 
 # --- euclidlib imports ---
 from euclidlib.le3.pk_gc import (
@@ -14,13 +15,12 @@ from euclidlib.le3.pk_gc import (
     power_spectrum_multipole_covariance,
     power_spectrum_multipole_mixing_matrix,
 )
+from euclidlib.le3.bao_gc import BAO_alphas
 
 # --- Default redshifts ---
 redshifts = np.array([1.0, 1.2, 1.4, 1.65])
-labels = [str(z).strip("0") for z in redshifts]
-
-# --- Default Legendre multipoles ---
-multipoles = np.array([0, 2, 4])
+labels_FS = [str(z).strip("0") for z in redshifts]
+labels_BAO = [str(z) for z in redshifts]
 
 # --- Default Parameters ---
 default_pars = {
@@ -50,16 +50,17 @@ default_pars = {
     "sigmaz": np.array([0.0, 0.0, 0.0, 0.0]),
 }
 
-# --- Default number densities ---
-nbar = np.array([2.042611e-03, 1.02876011e-03, 0.58531983e-03, 0.313402e-03])
-
-# --- Zenodo path and filenames ---
-path = "https://zenodo.org/records/18711304/files/"
-files = [
-    "mps_pk_GCspectro_comet_EFT_z{}.fits",
-    "cov_pk_Gauss_GCspectro_comet_EFT_z{}_2500deg2.fits",
-    "mixmat_pk_GCspectro_identity_z{}.fits",
-]
+# --- Zenodo paths and filenames ---
+# FS data vector and mixing matrix
+path_FS = "https://zenodo.org/records/18711304/files/"
+file_datavec_FS = "mps_pk_GCspectro_comet_EFT_z{}.fits"
+file_mixing = "mixmat_pk_GCspectro_identity_z{}.fits"
+# Joint FS+BAO covariance
+path_cov = "https://zenodo.org/records/21219969/files/"
+file_cov = "cov_pk_Gauss_GCspectro_FS+BAO_comet_EFT_z{}_2500deg2.fits"
+# BAO alphas
+path_BAO = "https://zenodo.org/records/19729182/files/"
+file_datavec_BAO = "EUC_LE3_BAO_ALPHAS_Z{}.fits"
 
 
 @pytest.fixture(scope="module")
@@ -72,98 +73,70 @@ def data_setup(tmp_path_factory):
         with open(dest_path, "wb") as f:
             f.write(r.content)
 
-    data = {"GCspectro": {}, "fiducial_cosmology": {}}
+    data = {"GCspectro": {}}
 
-    for ii, z in enumerate(labels):
-        data["GCspectro"][z] = {}
+    for z in labels_FS:
+        download_file(
+            path_FS + file_datavec_FS.format(z), tmpdir / file_datavec_FS.format(z)
+        )
+        download_file(path_FS + file_mixing.format(z), tmpdir / file_mixing.format(z))
+        download_file(path_cov + file_cov.format(z), tmpdir / file_cov.format(z))
 
-        for file in files:
-            download_file(
-                path + file.format(str(z).strip("0")),
-                tmpdir / file.format(str(z).strip("0")),
-            )
+    for z in labels_BAO:
+        download_file(
+            path_BAO + file_datavec_BAO.format(z), tmpdir / file_datavec_BAO.format(z)
+        )
 
-        datavec = power_spectrum_multipoles(
-            tmpdir / files[0].format(str(z).strip("0"))
-        )[("SPE", "SPE", 0, 0)]
+    for ii, z in enumerate(labels_FS):
+        datavec_FS = power_spectrum_multipoles(tmpdir / file_datavec_FS.format(z))[
+            ("SPE", "SPE", 0, 0)
+        ]
         covariance = power_spectrum_multipole_covariance(
-            tmpdir / files[1].format(str(z).strip("0"))
+            tmpdir / file_cov.format(z), include_BAO=True
         )[("SPE", "SPE", 0, 0)]
-        mixing = power_spectrum_multipole_mixing_matrix(
-            tmpdir / files[2].format(str(z).strip("0"))
-        )[("SPE", "SPE", 0, 0)]
+        mixing = power_spectrum_multipole_mixing_matrix(tmpdir / file_mixing.format(z))[
+            ("SPE", "SPE", 0, 0)
+        ]
+        datavec_BAO = BAO_alphas(tmpdir / file_datavec_BAO.format(labels_BAO[ii]))[
+            ("SPE", "SPE", 0, 0)
+        ]
 
-        if ii == 0:
-            data["fiducial_cosmology"]["H0"] = datavec.fiducial_cosmology["H0"]
-            data["fiducial_cosmology"]["Omega_cdm0"] = (
-                datavec.fiducial_cosmology["Omega_m0"]
-                - datavec.fiducial_cosmology["Omega_b0"]
-            )
-            data["fiducial_cosmology"]["Omega_b0"] = datavec.fiducial_cosmology[
-                "Omega_b0"
-            ]
-            data["fiducial_cosmology"]["Omega_k0"] = datavec.fiducial_cosmology[
-                "Omega_k0"
-            ]
-            data["fiducial_cosmology"]["mnu"] = 0.0
-            data["fiducial_cosmology"]["N_mnu"] = 0
-            data["fiducial_cosmology"]["w0"] = datavec.fiducial_cosmology["w0"]
-            data["fiducial_cosmology"]["wa"] = 0.0
-            data["fiducial_cosmology"]["ns"] = datavec.fiducial_cosmology["ns"]
-            data["fiducial_cosmology"]["As"] = 2.1e-9
-            data["fiducial_cosmology"]["gamma_MG"] = 0.545
-
-            fid_h = data["fiducial_cosmology"]["H0"] / 100.0
-            k_fac = fid_h
-            pk_fac = 1.0 / fid_h**3
-            cov_fac = 1.0 / fid_h**6
-
-        data["GCspectro"][z]["nbar"] = datavec.nbar * fid_h**3
-
-        data["GCspectro"][z]["k"] = datavec.keff * k_fac
-        data["GCspectro"][z]["pk0"] = datavec.multipoles[0] * pk_fac
-        data["GCspectro"][z]["pk2"] = datavec.multipoles[2] * pk_fac
-        data["GCspectro"][z]["pk4"] = datavec.multipoles[4] * pk_fac
-
-        full_matrix = np.block(
-            [[covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]] for i in [0, 2, 4]]
-        )
-        data["GCspectro"][z]["covariance"] = full_matrix * cov_fac
-
-        resc_kout = mixing.kout * k_fac
-        resc_kin = {ell: val * k_fac for ell, val in mixing.kin.items()}
-        squeezed_mixing = {key: val.squeeze() for key, val in mixing.mixing.items()}
-
-        data["GCspectro"][z]["mixing_matrix"] = replace(
-            mixing, kout=resc_kout, kin=resc_kin, mixing=squeezed_mixing
-        )
+        data["GCspectro"][z] = {
+            "datavec_Pls": datavec_FS,
+            "datavec_BAO": datavec_BAO,
+            "covariance": covariance,
+            "mixing": mixing,
+        }
 
     return data
 
 
 @pytest.fixture(scope="module")
 def settings_setup(data_setup):
-    fid_h = data_setup["fiducial_cosmology"]["H0"] / 100.0
+    fid_h = (
+        data_setup["GCspectro"][labels_FS[0]]["datavec_Pls"].fiducial_cosmology["H0"]
+        / 100.0
+    )
 
     settings = {
         "GCspectro": {
             "scale_cuts": {
-                labels[0]: {
+                labels_FS[0]: {
                     "ell0": [0.0, 0.20 * fid_h],
                     "ell2": [0.0, 0.15 * fid_h],
                     "ell4": [0.0, 0.15 * fid_h],
                 },
-                labels[1]: {
+                labels_FS[1]: {
                     "ell0": [0.0, 0.25 * fid_h],
                     "ell2": [0.0, 0.20 * fid_h],
                     "ell4": [0.0, 0.20 * fid_h],
                 },
-                labels[2]: {
+                labels_FS[2]: {
                     "ell0": [0.0, 0.25 * fid_h],
                     "ell2": [0.0, 0.20 * fid_h],
                     "ell4": [0.0, 0.20 * fid_h],
                 },
-                labels[3]: {
+                labels_FS[3]: {
                     "ell0": [0.0, 0.30 * fid_h],
                     "ell2": [0.0, 0.25 * fid_h],
                     "ell4": [0.0, 0.25 * fid_h],
@@ -194,7 +167,7 @@ def AM_priors_setup():
 
 
 def test_likelihood_negative_or_zero(data_setup, settings_setup):
-    like = EuclidLikelihood_GCspectro_Pls(
+    like = EuclidLikelihood_GCspectro_Pls_BAO(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -206,7 +179,7 @@ def test_likelihood_negative_or_zero(data_setup, settings_setup):
 
 
 def test_likelihood_changes_with_parameters(data_setup, settings_setup):
-    like = EuclidLikelihood_GCspectro_Pls(
+    like = EuclidLikelihood_GCspectro_Pls_BAO(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -220,7 +193,7 @@ def test_likelihood_changes_with_parameters(data_setup, settings_setup):
 
 
 def test_likelihood_value(data_setup, settings_setup):
-    likelihood = EuclidLikelihood_GCspectro_Pls(
+    likelihood = EuclidLikelihood_GCspectro_Pls_BAO(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -232,7 +205,7 @@ def test_likelihood_value(data_setup, settings_setup):
 
     computed_loglike = likelihood.loglike(parameters)
 
-    expected_loglike = -8463.924
+    expected_loglike = -8465.862889
     assert computed_loglike == pytest.approx(expected_loglike, rel=1e-5), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
@@ -240,7 +213,7 @@ def test_likelihood_value(data_setup, settings_setup):
 
 
 def test_likelihood_handles_bad_parameters(data_setup, settings_setup):
-    like = EuclidLikelihood_GCspectro_Pls(
+    like = EuclidLikelihood_GCspectro_Pls_BAO(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -253,7 +226,7 @@ def test_likelihood_handles_bad_parameters(data_setup, settings_setup):
 
 
 def test_likelihood_value_with_AM(data_setup, settings_setup, AM_priors_setup):
-    likelihood = EuclidLikelihood_GCspectro_Pls(
+    likelihood = EuclidLikelihood_GCspectro_Pls_BAO(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -266,7 +239,7 @@ def test_likelihood_value_with_AM(data_setup, settings_setup, AM_priors_setup):
 
     computed_loglike = likelihood.loglike_AM(parameters)
 
-    expected_loglike = -113.5673
+    expected_loglike = -115.505736
     assert computed_loglike == pytest.approx(expected_loglike, rel=1e-5), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"

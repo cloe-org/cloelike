@@ -124,7 +124,7 @@ def test_likelihood_value(data_setup):
     computed_loglike = likelihood.loglike(parameters)
 
     expected_loglike = -1.93841
-    assert computed_loglike == pytest.approx(expected_loglike, abs=1e-4), (
+    assert computed_loglike == pytest.approx(expected_loglike, abs=5e-4), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
     )

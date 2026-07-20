@@ -9,6 +9,7 @@ __all__ = [
     "EuclidLikelihood_GCspectro_Pls",
     "EuclidLikelihood_GCspectro_xils",
     "EuclidLikelihood_BAO",
+    "EuclidLikelihood_GCspectro_Pls_BAO",
 ]
 
 from .EuclidLikelihood_photo_Cls import (
@@ -21,3 +22,4 @@ from .EuclidLikelihood_photo_Cls import (
 from .EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
 from .EuclidLikelihood_GCspectro_xils import EuclidLikelihood_GCspectro_xils
 from .EuclidLikelihood_BAO import EuclidLikelihood_BAO
+from .EuclidLikelihood_GCspectro_Pls_BAO import EuclidLikelihood_GCspectro_Pls_BAO
