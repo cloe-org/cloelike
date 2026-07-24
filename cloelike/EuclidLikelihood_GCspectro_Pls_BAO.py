@@ -15,12 +15,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
     # the alphas data vector and the covariance block assembly in
     # _build_observable, so the two are always kept consistent, per redshift bin.
     _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_ap"]
-    _BAO_FITS_KEY = {
-        "alpha_perp": "ALPHA_PERP",
-        "alpha_par": "ALPHA_PAR",
-        "alpha_iso": "ALPHA_ISO",
-        "alpha_ap": "ALPHA_AP",
-    }
+    _BAO_FITS_KEY = {key: key.upper() for key in _BAO_ORDER}
     # Background requires As and gamma_MG to be instantiated, but
     # background_fiducial is only ever used for rdrag/H(z)/D_A(z) (see
     # BaryonAcousticOscillations, LegendreMultipoles), which do not depend

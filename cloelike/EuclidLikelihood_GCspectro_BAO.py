@@ -8,12 +8,7 @@ class EuclidLikelihood_GCspectro_BAO:
     # _build_observable, so the two are always kept consistent, per redshift
     # bin.
     _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_ap"]
-    _BAO_FITS_KEY = {
-        "alpha_perp": "ALPHA_PERP",
-        "alpha_par": "ALPHA_PAR",
-        "alpha_iso": "ALPHA_ISO",
-        "alpha_ap": "ALPHA_AP",
-    }
+    _BAO_FITS_KEY = {key: key.upper() for key in _BAO_ORDER}
     _BACKGROUND_GAMMA_MG = 0.545
     # As is not directly constrained by BAO data (which store sigma_8
     # instead); this placeholder is rescaled in
@@ -38,7 +33,7 @@ class EuclidLikelihood_GCspectro_BAO:
             Protocol-consistent linear perturbation class
         """
         data = data["GCspectro"]
-        self.redshifts = np.array(list(data.keys()))
+        self.redshifts = list(data.keys())
         self.Background = Background
 
         self._prepare(data, LinearPerturbations)
@@ -202,16 +197,17 @@ class EuclidLikelihood_GCspectro_BAO:
             N_mnu=parameters["N_mnu"],
         )
 
+        zs = np.float64(self.redshifts)
         alphas_dict = BaryonAcousticOscillations(
             background=background,
             background_fiducial=self.background_fiducial,
-            redshifts=self.redshifts,
+            redshifts=zs,
         ).alphas_dict
 
         theory_vec = np.concatenate(
             [
-                [alphas_dict[z][params] for params in self.data[z]["params"]]
-                for z in self.redshifts
+                [alphas_dict[zf][params] for params in self.data[z]["params"]]
+                for z, zf in zip(self.redshifts, zs)
             ]
         )
         return theory_vec

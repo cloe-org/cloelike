@@ -10,6 +10,7 @@ from euclidlib.le3.bao_gc import BAO_alphas, BAO_alphas_covariance
 # Default redshifts
 redshifts = np.array([1.00, 1.20, 1.40, 1.65])
 labels = [f"{z:.2f}" for z in redshifts]
+dict_labels = [str(z).strip("0") for z in redshifts]
 
 # Default Parameters
 default_pars = {
@@ -63,7 +64,7 @@ def data_setup(tmp_path_factory):
     covariance = BAO_alphas_covariance(tmpdir / filename, *labels)
 
     # Store the raw euclidlib objects
-    for i, z in enumerate(redshifts):
+    for i, z in enumerate(dict_labels):
         data["GCspectro"][z] = {
             "datavec": datavec[("SPE", "SPE", i, i)],
             "covariance": covariance[("SPE", "SPE", i, i)],
