@@ -42,6 +42,7 @@ def fiducial_params():
         "Omega_k0": 0,
         "ns": 0.96,
         "As": 2e-9,
+        "alpha_s": 0.0,
         "mnu": 0.06,
         "gamma_MG": 0.545,
         "AIA": 0,

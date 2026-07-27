@@ -246,6 +246,7 @@ class EuclidLikelihood_GCspectro_Pls:
             gamma_MG=parameters["gamma_MG"],
             mnu=parameters["mnu"],
             N_mnu=parameters["N_mnu"],
+            alpha_s=parameters["alpha_s"],
         )
 
         if self.Perturbations is not None and self.NLcode in ["PBJ"]:
@@ -326,6 +327,7 @@ class EuclidLikelihood_GCspectro_Pls:
             gamma_MG=parameters["gamma_MG"],
             mnu=parameters["mnu"],
             N_mnu=parameters["N_mnu"],
+            alpha_s=parameters["alpha_s"],
         )
 
         if self.Perturbations is not None and self.NLcode in ["PBJ"]:
