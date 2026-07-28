@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 import requests
-from dataclasses import replace
 
 # --- cloe-org imports ---
 from cloelib.cosmology.camb_cosmology import CAMBBackground
@@ -72,11 +71,9 @@ def data_setup(tmp_path_factory):
         with open(dest_path, "wb") as f:
             f.write(r.content)
 
-    data = {"GCspectro": {}, "fiducial_cosmology": {}}
+    data = {"GCspectro": {}}
 
-    for ii, z in enumerate(labels):
-        data["GCspectro"][z] = {}
-
+    for z in labels:
         for file in files:
             download_file(
                 path + file.format(str(z).strip("0")),
@@ -93,57 +90,20 @@ def data_setup(tmp_path_factory):
             tmpdir / files[2].format(str(z).strip("0"))
         )[("SPE", "SPE", 0, 0)]
 
-        if ii == 0:
-            data["fiducial_cosmology"]["H0"] = datavec.fiducial_cosmology["H0"]
-            data["fiducial_cosmology"]["Omega_cdm0"] = (
-                datavec.fiducial_cosmology["Omega_m0"]
-                - datavec.fiducial_cosmology["Omega_b0"]
-            )
-            data["fiducial_cosmology"]["Omega_b0"] = datavec.fiducial_cosmology[
-                "Omega_b0"
-            ]
-            data["fiducial_cosmology"]["Omega_k0"] = datavec.fiducial_cosmology[
-                "Omega_k0"
-            ]
-            data["fiducial_cosmology"]["mnu"] = 0.0
-            data["fiducial_cosmology"]["N_mnu"] = 0
-            data["fiducial_cosmology"]["w0"] = datavec.fiducial_cosmology["w0"]
-            data["fiducial_cosmology"]["wa"] = 0.0
-            data["fiducial_cosmology"]["ns"] = datavec.fiducial_cosmology["ns"]
-            data["fiducial_cosmology"]["As"] = 2.1e-9
-            data["fiducial_cosmology"]["gamma_MG"] = 0.545
-
-            fid_h = data["fiducial_cosmology"]["H0"] / 100.0
-            k_fac = fid_h
-            pk_fac = 1.0 / fid_h**3
-            cov_fac = 1.0 / fid_h**6
-
-        data["GCspectro"][z]["nbar"] = datavec.nbar * fid_h**3
-
-        data["GCspectro"][z]["k"] = datavec.keff * k_fac
-        data["GCspectro"][z]["pk0"] = datavec.multipoles[0] * pk_fac
-        data["GCspectro"][z]["pk2"] = datavec.multipoles[2] * pk_fac
-        data["GCspectro"][z]["pk4"] = datavec.multipoles[4] * pk_fac
-
-        full_matrix = np.block(
-            [[covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]] for i in [0, 2, 4]]
-        )
-        data["GCspectro"][z]["covariance"] = full_matrix * cov_fac
-
-        resc_kout = mixing.kout * k_fac
-        resc_kin = {ell: val * k_fac for ell, val in mixing.kin.items()}
-        squeezed_mixing = {key: val.squeeze() for key, val in mixing.mixing.items()}
-
-        data["GCspectro"][z]["mixing_matrix"] = replace(
-            mixing, kout=resc_kout, kin=resc_kin, mixing=squeezed_mixing
-        )
+        data["GCspectro"][z] = {
+            "datavec": datavec,
+            "covariance": covariance,
+            "mixing": mixing,
+        }
 
     return data
 
 
 @pytest.fixture(scope="module")
 def settings_setup(data_setup):
-    fid_h = data_setup["fiducial_cosmology"]["H0"] / 100.0
+    fid_h = (
+        data_setup["GCspectro"][labels[0]]["datavec"].fiducial_cosmology["H0"] / 100.0
+    )
 
     settings = {
         "GCspectro": {

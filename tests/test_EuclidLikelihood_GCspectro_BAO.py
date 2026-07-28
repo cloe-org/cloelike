@@ -3,13 +3,14 @@ import pytest
 import requests
 
 from cloelib.cosmology.camb_cosmology import CAMBBackground, CAMBLinearPerturbations
-from cloelike.EuclidLikelihood_BAO import EuclidLikelihood_BAO
+from cloelike.EuclidLikelihood_GCspectro_BAO import EuclidLikelihood_GCspectro_BAO
 
 from euclidlib.le3.bao_gc import BAO_alphas, BAO_alphas_covariance
 
 # Default redshifts
 redshifts = np.array([1.00, 1.20, 1.40, 1.65])
 labels = [f"{z:.2f}" for z in redshifts]
+dict_labels = [str(z).strip("0") for z in redshifts]
 
 # Default Parameters
 default_pars = {
@@ -53,7 +54,7 @@ def data_setup(tmp_path_factory):
     for filename, url in urls.items():
         download_file(url, tmpdir / filename)
 
-    data = {"BAO": {}, "fiducial_cosmology": {}}
+    data = {"GCspectro": {}}
 
     # Download data
     filename = "bao_z{}.fits"
@@ -61,25 +62,13 @@ def data_setup(tmp_path_factory):
 
     filename = "cov_z{}.fits"
     covariance = BAO_alphas_covariance(tmpdir / filename, *labels)
-    data["fiducial_cosmology"] = datavec[("SPE", "SPE", 0, 0)].fiducial_cosmology
 
-    # Store the data and covariance
-    for i, z in enumerate(redshifts):
-        data["BAO"][z] = {}
-        dv = datavec[("SPE", "SPE", i, i)]
-        cov = covariance[("SPE", "SPE", i, i)]
-
-        data["BAO"][z]["params"] = [obs.lower() for obs in cov.observables]
-        data["BAO"][z]["data"] = {}
-        for obs in data["BAO"][z]["params"]:
-            data["BAO"][z]["data"][obs] = getattr(dv, obs)
-
-            data["BAO"][z]["covariance"] = np.block(
-                [
-                    [cov.covariance[f"{i}-{j}"] for i in cov.observables]
-                    for j in cov.observables
-                ]
-            )
+    # Store the raw euclidlib objects
+    for i, z in enumerate(dict_labels):
+        data["GCspectro"][z] = {
+            "datavec": datavec[("SPE", "SPE", i, i)],
+            "covariance": covariance[("SPE", "SPE", i, i)],
+        }
 
     return data
 
@@ -88,7 +77,7 @@ def data_setup(tmp_path_factory):
 
 
 def test_likelihood_negative_or_zero(data_setup):
-    like = EuclidLikelihood_BAO(
+    like = EuclidLikelihood_GCspectro_BAO(
         data=data_setup,
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
@@ -99,7 +88,7 @@ def test_likelihood_negative_or_zero(data_setup):
 
 
 def test_likelihood_changes_with_parameters(data_setup):
-    like = EuclidLikelihood_BAO(
+    like = EuclidLikelihood_GCspectro_BAO(
         data=data_setup,
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
@@ -112,7 +101,7 @@ def test_likelihood_changes_with_parameters(data_setup):
 
 
 def test_likelihood_value(data_setup):
-    likelihood = EuclidLikelihood_BAO(
+    likelihood = EuclidLikelihood_GCspectro_BAO(
         data=data_setup,
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
@@ -131,7 +120,7 @@ def test_likelihood_value(data_setup):
 
 
 def test_likelihood_handles_bad_parameters(data_setup):
-    like = EuclidLikelihood_BAO(
+    like = EuclidLikelihood_GCspectro_BAO(
         data=data_setup,
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
