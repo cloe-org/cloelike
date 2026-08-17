@@ -1,12 +1,18 @@
 import numpy as np
 import pytest
 import requests
-from astropy.io import fits
 
 # --- cloe-org imports ---
 from cloelib.cosmology.camb_cosmology import CAMBBackground
 from cloelib.observables.CometEFT_spectro import CometEFT_SpectroPower
-from cloelike.EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
+from cloelike.EuclidLikelihood_GCspectro_xils import EuclidLikelihood_GCspectro_xils
+
+
+# --- euclidlib imports ---
+from euclidlib.le3.twopcf_gc import (
+    twopoint_correlation_multipoles,
+    twopoint_correlation_multipole_covariance,
+)
 
 # --- Default redshifts ---
 redshifts = np.array([1.0, 1.2, 1.4, 1.65])
@@ -36,7 +42,7 @@ default_pars = {
     "c2": np.array([46.233, 53.071, 48.626, 60.962]),
     "c4": np.array([10.057, 10.385, 8.643, 8.711]),
     "cnlo": np.array([0.0, 0.0, 0.0, 0.0]),
-    "NP0": np.array([1.056, 1.152, 1.144, 1.309]),
+    "NP0": np.array([0.0, 0.0, 0.0, 0.0]),
     "NP20": np.array([0.0, 0.0, 0.0, 0.0]),
     "NP22": np.array([0.0, 0.0, 0.0, 0.0]),
     "fout": np.array([0.0, 0.0, 0.0, 0.0]),
@@ -47,18 +53,17 @@ default_pars = {
 nbar = np.array([2.042611e-03, 1.02876011e-03, 0.58531983e-03, 0.313402e-03])
 
 # --- Zenodo path and filenames ---
-path = "https://zenodo.org/records/15543831/files/"
-files = ["cov_Gauss_GCspectro_comet_EFT_z{}_2500deg2.fits", "mixmat_identity_z{}.fits"]
-
-
-def get_index(multipole, scale, scale_dict):
-    offset = sum(len(scale_dict[ell]) for ell in multipoles if ell < multipole)
-    return offset + np.where(scale_dict[multipole] == scale)[0][0]
+path = "https://zenodo.org/records/21026624/files/"
+files = [
+    "mps_xi_GCspectro_z{}.fits",
+    "cov_xi_Gauss_GCspectro_z{}.fits",
+]
 
 
 @pytest.fixture(scope="module")
 def data_setup(tmp_path_factory):
     tmpdir = tmp_path_factory.mktemp("data")
+    print(tmpdir)
 
     def download_file(url, dest_path):
         r = requests.get(url)
@@ -66,93 +71,60 @@ def data_setup(tmp_path_factory):
         with open(dest_path, "wb") as f:
             f.write(r.content)
 
-    data = {"GCspectro": {}}
+    data = {"GCspectro": {}, "fiducial_cosmology": {}}
+
     for ii, z in enumerate(labels):
         data["GCspectro"][z] = {}
 
-        download_file(
-            path + files[0].format(str(z).strip("0")),
-            tmpdir / files[0].format(str(z).strip("0")),
-        )
-
-        with fits.open(tmpdir / files[0].format(str(z).strip("0"))) as hdul:
-            hdr = hdul[1].header
-
-            fiducial_cosmo = {
-                key_cloe: hdr[key]
-                for key_cloe, key in zip(
-                    ["H0", "Omega_m0", "Omega_b0"], ["HUBBLE", "OMEGA_M", "OMEGA_B"]
-                )
-            }
-
-            fiducial_cosmo["Omega_cdm0"] = (
-                fiducial_cosmo.pop("Omega_m0") - fiducial_cosmo["Omega_b0"]
+        for file in files:
+            download_file(
+                path + file.format(str(z).strip("0")),
+                tmpdir / file.format(str(z).strip("0")),
             )
 
-            for key, val in zip(
-                ["Omega_k0", "As", "ns", "mnu", "w0", "wa", "gamma_MG", "N_mnu"],
-                [0.0, 2.1e-9, 0.96, 0.0, -1.0, 0.0, 0.545, 0],
-            ):
-                fiducial_cosmo.setdefault(key, val)
+        datavec = twopoint_correlation_multipoles(
+            tmpdir / files[0].format(str(z).strip("0"))
+        )[("SPE", "SPE", 0, 0)]
+        covariance = twopoint_correlation_multipole_covariance(
+            tmpdir / files[1].format(str(z).strip("0"))
+        )[("SPE", "SPE", 0, 0)]
 
-            fid_h = fiducial_cosmo["H0"] / 100.0
-            k_fac = fid_h
-            pk_fac = 1.0 / fid_h**3
-            cov_fac = 1.0 / fid_h**6
+        if ii == 0:
+            data["fiducial_cosmology"]["H0"] = datavec.fiducial_cosmology["H0"]
+            data["fiducial_cosmology"]["Omega_cdm0"] = (
+                datavec.fiducial_cosmology["Omega_m0"]
+                - datavec.fiducial_cosmology["Omega_b0"]
+            )
+            data["fiducial_cosmology"]["Omega_b0"] = datavec.fiducial_cosmology[
+                "Omega_b0"
+            ]
+            data["fiducial_cosmology"]["Omega_k0"] = datavec.fiducial_cosmology[
+                "Omega_k0"
+            ]
+            data["fiducial_cosmology"]["mnu"] = 0.0
+            data["fiducial_cosmology"]["N_mnu"] = 0
+            data["fiducial_cosmology"]["w0"] = datavec.fiducial_cosmology["w0"]
+            data["fiducial_cosmology"]["wa"] = 0.0
+            data["fiducial_cosmology"]["ns"] = datavec.fiducial_cosmology["ns"]
+            data["fiducial_cosmology"]["As"] = 2.1e-9
+            data["fiducial_cosmology"]["gamma_MG"] = 0.545
 
-            table = hdul["AVERAGE"].data
-            data["GCspectro"][z]["k"] = table["SCALE_1DIM"] * k_fac
-            for ell in multipoles:
-                data["GCspectro"][z][f"pk{ell}"] = table[f"AVERAGE{ell}"] * pk_fac
-
-            table = hdul["COVARIANCE"].data
-            scale_i = table["SCALE_1DIM-I"]
-            multipole_i = table["MULTIPOLE-I"]
-            scale_j = table["SCALE_1DIM-J"]
-            multipole_j = table["MULTIPOLE-J"]
-            covariance = table["COVARIANCE"]
-
-            scale_dict = {
-                ell: np.unique(scale_i[multipole_i == ell]) for ell in multipoles
-            }
-            matrix_size = sum(len(scale_dict[ell]) for ell in multipoles)
-            cov_matrix = np.zeros((matrix_size, matrix_size))
-            for s_i, m_i, s_j, m_j, cov in zip(
-                scale_i, multipole_i, scale_j, multipole_j, covariance
-            ):
-                i = get_index(m_i, s_i, scale_dict)
-                j = get_index(m_j, s_j, scale_dict)
-                cov_matrix[i, j] = cov
-            data["GCspectro"][z]["cov"] = cov_matrix * cov_fac
+            fid_h = data["fiducial_cosmology"]["H0"] / 100.0
+            s_fac = 1.0 / fid_h
+            tpcf_fac = 1.0
+            cov_fac = 1.0
 
         data["GCspectro"][z]["nbar"] = nbar[ii] * fid_h**3
 
-        download_file(
-            path + files[1].format(str(z).strip("0")),
-            tmpdir / files[1].format(str(z).strip("0")),
+        data["GCspectro"][z]["s"] = datavec.s * s_fac
+        data["GCspectro"][z]["xis0"] = datavec.multipoles[0] * tpcf_fac
+        data["GCspectro"][z]["xis2"] = datavec.multipoles[2] * tpcf_fac
+        data["GCspectro"][z]["xis4"] = datavec.multipoles[4] * tpcf_fac
+
+        full_matrix = np.block(
+            [[covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]] for i in [0, 2, 4]]
         )
-
-        with fits.open(tmpdir / files[1].format(str(z).strip("0"))) as hdul:
-            kin0 = hdul["BINS_INPUT"].data["kp0"] * k_fac
-            kin2 = hdul["BINS_INPUT"].data["kp2"] * k_fac
-            kin4 = hdul["BINS_INPUT"].data["kp4"] * k_fac
-            kout = hdul["BINS_OUTPUT"].data["k"] * k_fac
-            mixing_matrix = hdul["MIXING_MATRIX"].data
-
-            mixing_matrix_dict = {}
-
-            mixing_matrix_dict["kout"] = kout
-            mixing_matrix_dict["kin0"] = kin0
-            mixing_matrix_dict["kin2"] = kin2
-            mixing_matrix_dict["kin4"] = kin4
-            for i in multipoles:
-                for j in multipoles:
-                    mm = f"W{i}{j}"
-                    mixing_matrix_dict[mm] = mixing_matrix[mm]
-
-            data["GCspectro"][z]["mixing_matrix"] = mixing_matrix_dict
-
-    data["fiducial_cosmology"] = fiducial_cosmo
+        data["GCspectro"][z]["cov"] = full_matrix * cov_fac
 
     return data
 
@@ -165,24 +137,24 @@ def settings_setup(data_setup):
         "scale_cuts": {
             "GCspectro": {
                 "bin1": {
-                    "ell0": [0.0, 0.20 * fid_h],
-                    "ell2": [0.0, 0.15 * fid_h],
-                    "ell4": [0.0, 0.15 * fid_h],
+                    "ell0": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell2": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell4": [20.0 / fid_h, 200.0 / fid_h],
                 },
                 "bin2": {
-                    "ell0": [0.0, 0.25 * fid_h],
-                    "ell2": [0.0, 0.20 * fid_h],
-                    "ell4": [0.0, 0.20 * fid_h],
+                    "ell0": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell2": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell4": [20.0 / fid_h, 200.0 / fid_h],
                 },
                 "bin3": {
-                    "ell0": [0.0, 0.25 * fid_h],
-                    "ell2": [0.0, 0.20 * fid_h],
-                    "ell4": [0.0, 0.20 * fid_h],
+                    "ell0": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell2": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell4": [20.0 / fid_h, 200.0 / fid_h],
                 },
                 "bin4": {
-                    "ell0": [0.0, 0.30 * fid_h],
-                    "ell2": [0.0, 0.25 * fid_h],
-                    "ell4": [0.0, 0.25 * fid_h],
+                    "ell0": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell2": [20.0 / fid_h, 200.0 / fid_h],
+                    "ell4": [20.0 / fid_h, 200.0 / fid_h],
                 },
             }
         }
@@ -210,7 +182,7 @@ def AM_priors_setup():
 
 
 def test_likelihood_negative_or_zero(data_setup, settings_setup):
-    like = EuclidLikelihood_GCspectro_Pls(
+    like = EuclidLikelihood_GCspectro_xils(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -222,7 +194,7 @@ def test_likelihood_negative_or_zero(data_setup, settings_setup):
 
 
 def test_likelihood_changes_with_parameters(data_setup, settings_setup):
-    like = EuclidLikelihood_GCspectro_Pls(
+    like = EuclidLikelihood_GCspectro_xils(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -236,7 +208,7 @@ def test_likelihood_changes_with_parameters(data_setup, settings_setup):
 
 
 def test_likelihood_value(data_setup, settings_setup):
-    likelihood = EuclidLikelihood_GCspectro_Pls(
+    likelihood = EuclidLikelihood_GCspectro_xils(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -248,7 +220,7 @@ def test_likelihood_value(data_setup, settings_setup):
 
     computed_loglike = likelihood.loglike(parameters)
 
-    expected_loglike = -8466.508
+    expected_loglike = -1202.94683925
     assert computed_loglike == pytest.approx(expected_loglike, rel=1e-5), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
@@ -256,7 +228,7 @@ def test_likelihood_value(data_setup, settings_setup):
 
 
 def test_likelihood_handles_bad_parameters(data_setup, settings_setup):
-    like = EuclidLikelihood_GCspectro_Pls(
+    like = EuclidLikelihood_GCspectro_xils(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -269,7 +241,7 @@ def test_likelihood_handles_bad_parameters(data_setup, settings_setup):
 
 
 def test_likelihood_value_with_AM(data_setup, settings_setup, AM_priors_setup):
-    likelihood = EuclidLikelihood_GCspectro_Pls(
+    likelihood = EuclidLikelihood_GCspectro_xils(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
@@ -282,7 +254,7 @@ def test_likelihood_value_with_AM(data_setup, settings_setup, AM_priors_setup):
 
     computed_loglike = likelihood.loglike_AM(parameters)
 
-    expected_loglike = -113.5379
+    expected_loglike = -539.03080617
     assert computed_loglike == pytest.approx(expected_loglike, rel=1e-5), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"

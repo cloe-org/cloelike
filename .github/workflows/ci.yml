@@ -5,6 +5,11 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+
+env:
+  ENV_NAME: cloe-org-env
+  ENV_FILE: cloe-org-environments/environments/cloe-org-env-linux-v2026.2.yaml
 
 jobs:
   style:
@@ -33,26 +38,66 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.12"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Checkout cloe-org-environments
+        uses: actions/checkout@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          repository: cloe-org/cloe-org-environments
+          ref: 2026.2
+          path: cloe-org-environments
+
+      - name: Setup Mambaforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          miniforge-version: latest
+          activate-environment: ${{ env.ENV_NAME }}
+          environment-file: ${{ env.ENV_FILE }}
+          use-mamba: true
 
       - name: Configure Git for private repo access
         run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
+      - name: Install cloelib
+        run: |
+          mamba run -n $ENV_NAME pip install git+https://github.com/cloe-org/cloelib.git
+
+      - name: Install HMCode2020emu
+        run: |
+          mamba run -n $ENV_NAME pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
+
+      - name: Install CAMB
+        run: |
+          mamba run -n $ENV_NAME pip install camb
+
+      - name: Install astropy
+        run: |
+          mamba run -n $ENV_NAME pip install astropy
+
+      - name: Install comet-emu
+        run: |
+          mamba run -n $ENV_NAME pip install comet-emu
+
+      - name: Cache COMET emulator files
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/miniconda3/envs/${{ env.ENV_NAME }}/lib/python${{ matrix.python-version }}/site-packages/comet/data_dir
+          key: comet-data-v2.0
+
+      - name: Pre-download COMET emulator data
+        run: |
+          mamba run -n $ENV_NAME python -c "import comet"
+
       - name: Install cloelike
-        run: pip install .
+        run: |
+          mamba run -n $ENV_NAME pip install .
 
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Run tests with coverage
-        run: pytest -vv --cov=cloelike --cov-report=term-missing
+      - name: Run tests
+        run: mamba run -n $ENV_NAME pytest -vv
 
   build:
     name: Build

@@ -125,6 +125,64 @@
         "bug",
         "ideas"
       ]
+    },
+    {
+      "login": "zahrabaghkhani",
+      "name": "Zahra Baghkhani",
+      "avatar_url": "https://avatars.githubusercontent.com/u/47903409?v=4",
+      "profile": "https://github.com/zahrabaghkhani",
+      "contributions": [
+        "code",
+        "doc"
+      ]
+    },
+    {
+      "login": "jipdebuck",
+      "name": "Jip de Buck",
+      "avatar_url": "https://avatars.githubusercontent.com/u/236796982?v=4",
+      "profile": "https://github.com/jipdebuck",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "KlaraBertmann",
+      "name": "KlaraBertmann",
+      "avatar_url": "https://avatars.githubusercontent.com/u/153739278?v=4",
+      "profile": "https://github.com/KlaraBertmann",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "pltaylor16",
+      "name": "Peter L. Taylor",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22646673?v=4",
+      "profile": "https://pltaylor16.github.io/",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
+    },
+    {
+      "login": "FelicitasKeil",
+      "name": "Felicitas Keil",
+      "avatar_url": "https://avatars.githubusercontent.com/u/70713596?v=4",
+      "profile": "https://github.com/FelicitasKeil",
+      "contributions": [
+        "bug",
+        "code"
+      ]
+    },
+    {
+      "login": "MartinKaercher",
+      "name": "Martin Kärcher",
+      "avatar_url": "https://avatars.githubusercontent.com/u/64490739?v=4",
+      "profile": "https://github.com/MartinKaercher",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
     }
   ]
 }
