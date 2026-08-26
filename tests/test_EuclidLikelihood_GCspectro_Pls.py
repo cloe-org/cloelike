@@ -231,3 +231,46 @@ def test_likelihood_value_with_AM(data_setup, settings_setup, AM_priors_setup):
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
     )
+
+
+def test_hartlap_factor(data_setup, settings_setup):
+    like_no_hartlap = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+    )
+    N_d = like_no_hartlap.masked_covariance_matrix.shape[0]
+    N_s = N_d + 200
+
+    like_hartlap = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        N_s=N_s,
+    )
+
+    expected_factor = (N_s - N_d - 2) / (N_s - 1)
+    np.testing.assert_allclose(
+        like_hartlap.inverse_masked_covariance_matrix,
+        expected_factor * like_no_hartlap.inverse_masked_covariance_matrix,
+    )
+
+
+def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
+    N_d = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+    ).masked_covariance_matrix.shape[0]
+
+    with pytest.raises(ValueError):
+        EuclidLikelihood_GCspectro_Pls(
+            data=data_setup,
+            settings=settings_setup,
+            Background=CAMBBackground,
+            SpectroPower=CometEFT_SpectroPower,
+            N_s=N_d,
+        )

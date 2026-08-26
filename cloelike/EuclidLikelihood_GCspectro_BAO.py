@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 
@@ -15,7 +17,13 @@ class EuclidLikelihood_GCspectro_BAO:
     # _build_fiducial_cosmology_dictionary to match the fiducial sigma_8.
     _BACKGROUND_As = 2.1e-9
 
-    def __init__(self, data: dict, Background: type, LinearPerturbations: type):
+    def __init__(
+        self,
+        data: dict,
+        Background: type,
+        LinearPerturbations: type,
+        N_s: Optional[int] = None,
+    ):
         r"""Class constructor
 
         Parameters
@@ -31,10 +39,17 @@ class EuclidLikelihood_GCspectro_BAO:
             Protocol-consistent background class
         LinearPerturbations: type
             Protocol-consistent linear perturbation class
+        N_s: int
+            Number of mock realisations used to estimate the covariance
+            matrix, if it is a numerical (sample) covariance -- triggers the
+            Hartlap (2007) debiasing correction on the inverse covariance
+            matrix. ``None`` (default) means the covariance is analytic/
+            theoretical, so no correction is applied.
         """
         data = data["GCspectro"]
         self.redshifts = list(data.keys())
         self.Background = Background
+        self.N_s = N_s
 
         self._prepare(data, LinearPerturbations)
 
@@ -168,9 +183,34 @@ class EuclidLikelihood_GCspectro_BAO:
             ]
         )
 
+    def hartlap_factor(self) -> float:
+        r"""Hartlap factor to correct the biased estimator for the inverse covariance
+        matrix as obtained from a finite number of mock realisations.
+
+        Returns
+        -------
+        factor: float
+            Hartlap factor.
+
+        Raises
+        ------
+        ValueError
+            If ``N_s <= N_d + 2``, since the debiasing factor would then be
+            non-positive.
+        """
+        N_d = self.flattened_covariance_matrix.shape[0]
+        if self.N_s <= N_d + 2:
+            raise ValueError(
+                f"Hartlap correction requires N_s > N_d + 2 (got N_s={self.N_s}, "
+                f"N_d={N_d}): the debiasing factor would be non-positive."
+            )
+        return (self.N_s - N_d - 2) / (self.N_s - 1)
+
     def _invert_covariance_matrix(self):
-        r"""Invert BAO covariance matrix"""
+        r"""Invert GCspectro covariance matrix, and apply Hartlap factor if needed."""
         self.inverse_covariance_matrix = np.linalg.inv(self.flattened_covariance_matrix)
+        if self.N_s is not None:
+            self.inverse_covariance_matrix *= self.hartlap_factor()
 
     def get_theory_vector(self, parameters: dict) -> np.ndarray:
         r"""Generate theory vectors based on specified parameters
