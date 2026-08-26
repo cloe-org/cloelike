@@ -1,6 +1,6 @@
 # Spectroscopic Galaxy Clustering Likelihoods
 
-These classes implement Gaussian likelihoods for Euclid spectroscopic galaxy clustering probes, covering power spectrum multipoles ($P_\ell$), correlation function multipoles ($\xi_\ell$), Baryon Acoustic Oscillations (BAO), and their joint combination.
+These classes implement Gaussian likelihoods for Euclid spectroscopic galaxy clustering probes, covering power spectrum multipoles ($P_\ell$), correlation function multipoles ($\xi_\ell$), Baryon Acoustic Oscillations (BAO), and their joint combination. For all available modules, if a numerical covariance is employed in the fit, we correct the inverse covariance with the Hartlap factor, based on the provided number of independent realisations.
 
 ---
 
