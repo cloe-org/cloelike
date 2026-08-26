@@ -129,3 +129,42 @@ def test_likelihood_handles_bad_parameters(data_setup):
     bad_pars["H0"] = -100
     with pytest.raises(Exception):
         like.loglike(bad_pars)
+
+
+def test_hartlap_factor(data_setup):
+    like_no_hartlap = EuclidLikelihood_GCspectro_BAO(
+        data=data_setup,
+        Background=CAMBBackground,
+        LinearPerturbations=CAMBLinearPerturbations,
+    )
+    N_d = like_no_hartlap.flattened_covariance_matrix.shape[0]
+    N_s = N_d + 200
+
+    like_hartlap = EuclidLikelihood_GCspectro_BAO(
+        data=data_setup,
+        Background=CAMBBackground,
+        LinearPerturbations=CAMBLinearPerturbations,
+        N_s=N_s,
+    )
+
+    expected_factor = (N_s - N_d - 2) / (N_s - 1)
+    np.testing.assert_allclose(
+        like_hartlap.inverse_covariance_matrix,
+        expected_factor * like_no_hartlap.inverse_covariance_matrix,
+    )
+
+
+def test_hartlap_factor_with_few_realisations(data_setup):
+    N_d = EuclidLikelihood_GCspectro_BAO(
+        data=data_setup,
+        Background=CAMBBackground,
+        LinearPerturbations=CAMBLinearPerturbations,
+    ).flattened_covariance_matrix.shape[0]
+
+    with pytest.raises(ValueError):
+        EuclidLikelihood_GCspectro_BAO(
+            data=data_setup,
+            Background=CAMBBackground,
+            LinearPerturbations=CAMBLinearPerturbations,
+            N_s=N_d,
+        )
