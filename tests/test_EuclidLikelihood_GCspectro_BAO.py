@@ -137,17 +137,17 @@ def test_hartlap_factor(data_setup):
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
     )
-    N_d = like_no_hartlap.flattened_covariance_matrix.shape[0]
-    N_s = N_d + 200
+    num_data_points = like_no_hartlap.flattened_covariance_matrix.shape[0]
+    num_mocks = num_data_points + 200
 
     like_hartlap = EuclidLikelihood_GCspectro_BAO(
         data=data_setup,
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
-        N_s=N_s,
+        num_mocks=num_mocks,
     )
 
-    expected_factor = (N_s - N_d - 2) / (N_s - 1)
+    expected_factor = (num_mocks - num_data_points - 2) / (num_mocks - 1)
     np.testing.assert_allclose(
         like_hartlap.inverse_covariance_matrix,
         expected_factor * like_no_hartlap.inverse_covariance_matrix,
@@ -155,7 +155,7 @@ def test_hartlap_factor(data_setup):
 
 
 def test_hartlap_factor_with_few_realisations(data_setup):
-    N_d = EuclidLikelihood_GCspectro_BAO(
+    num_data_points = EuclidLikelihood_GCspectro_BAO(
         data=data_setup,
         Background=CAMBBackground,
         LinearPerturbations=CAMBLinearPerturbations,
@@ -166,5 +166,5 @@ def test_hartlap_factor_with_few_realisations(data_setup):
             data=data_setup,
             Background=CAMBBackground,
             LinearPerturbations=CAMBLinearPerturbations,
-            N_s=N_d,
+            num_mocks=num_data_points,
         )
