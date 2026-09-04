@@ -87,6 +87,9 @@ class PhotoLikelihoodBase:
         LinPerturbations: Linear perturbations object.
         NonLinPerturbations: Non-linear perturbations object.
         scale_cuts: Scale cuts from settings.
+        selected_modes: COSEBIs, selected modes from settings, defaults to the first seven
+        w_ells: COSEBI, kernel functions for the COSEBIs, contains the scale cut
+        ells_integration_COSEBI: COSEBI, ells for the integration, need to match the w_ells
         zs: Redshift array from data.
         mixmat: Mixing matrix, possibly rebinned.
         weight_mat: Weight matrix used for binning.
@@ -126,7 +129,24 @@ class PhotoLikelihoodBase:
         self.NonLinPerturbations = NonLinPerturbations
         self.theory_prediction = {}
         self.mode = mode
-        self.scale_cuts = settings["scale_cuts"]
+        if "EE" in data:
+            self.w_ells = settings["w_ells"]
+            if settings.get("scale_cuts", None) is not None:
+                print(
+                    "For COSEBIs the scale cuts need to be applied via the W_ells, the passed scale cuts are ignored now"
+                )
+            self.scale_cuts = None
+
+        else:
+            self.scale_cuts = settings["scale_cuts"]
+        self.selected_modes = settings.get("selected_modes", np.arange(1, 8))
+        self.ells_integration_COSEBI = settings.get("ells_integration_COSEBI", None)
+
+        if (self.ells_integration_COSEBI is None) and ("EE" in data):
+            raise ValueError(
+                "an ells array corresponding to the W_ells is needed for the COSEBIs"
+            )
+
         self.rebin = False
         self.zs = data["z_arr"]
         if self.mode == "coupled":
@@ -136,7 +156,6 @@ class PhotoLikelihoodBase:
 
         if (ells_integration is None) and ("2pcf" in data):
             self.ells_integration = np.arange(2, 40000)
-
         else:
             self.ells_integration = ells_integration
 
