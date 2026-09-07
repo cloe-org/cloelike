@@ -180,8 +180,17 @@ class PhotoLikelihoodBase:
 
     # Cosmology parameters that determine Background/LinPerturbations/NonLinPerturbations.
     _COSMO_PARAM_KEYS = (
-        "H0", "Omega_cdm0", "Omega_b0", "Omega_k0",
-        "w0", "wa", "ns", "As", "mnu", "gamma_MG", "N_mnu",
+        "H0",
+        "Omega_cdm0",
+        "Omega_b0",
+        "Omega_k0",
+        "w0",
+        "wa",
+        "ns",
+        "As",
+        "mnu",
+        "gamma_MG",
+        "N_mnu",
     )
 
     def _get_perturbations(self, parameters):
