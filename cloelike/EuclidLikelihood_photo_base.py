@@ -178,8 +178,9 @@ class PhotoLikelihoodBase:
     def _masking(self, arr, interval):
         return (arr >= interval[0]) & (arr <= interval[1])
 
-    # Cosmology parameters that determine Background/LinPerturbations/NonLinPerturbations.
-    _COSMO_PARAM_KEYS = (
+    # Parameters passed to Background(...) -- log10TAGN is not one of them (only
+    # NonLinPerturbations consumes it), so it can't be folded into this list.
+    _BACKGROUND_PARAM_KEYS = (
         "H0",
         "Omega_cdm0",
         "Omega_b0",
@@ -193,6 +194,10 @@ class PhotoLikelihoodBase:
         "N_mnu",
         "alpha_s",
     )
+
+    # Full set of parameters that determine Background/LinPerturbations/NonLinPerturbations
+    # -- i.e. everything the perturbations/tracer caches below key on.
+    _COSMO_PARAM_KEYS = _BACKGROUND_PARAM_KEYS + ("log10TAGN",)
 
     def _get_perturbations(self, parameters):
         """Build (and cache) Background/LinPerturbations/NonLinPerturbations for
@@ -211,7 +216,7 @@ class PhotoLikelihoodBase:
         if cached is not None and cached[0] == key:
             return cached[1]
         background = self.Background(
-            **{k: parameters[k] for k in self._COSMO_PARAM_KEYS}
+            **{k: parameters[k] for k in self._BACKGROUND_PARAM_KEYS}
         )
         lp = self.LinPerturbations(background, self.zs)
         nlp = self.NonLinPerturbations(
@@ -230,9 +235,7 @@ class PhotoLikelihoodBase:
         """The same cache key used by `_get_perturbations`, exposed so tracer
         caching below can be keyed on values rather than on `nlp`'s object
         identity (which could in principle be reused after garbage collection)."""
-        return tuple(parameters[k] for k in self._COSMO_PARAM_KEYS) + (
-            parameters["log10TAGN"],
-        )
+        return tuple(parameters[k] for k in self._COSMO_PARAM_KEYS)
 
     def _get_pos_tracer(self, parameters, nlp):
         """Build (and cache) the PositionsTracer for the given parameters/nlp,
