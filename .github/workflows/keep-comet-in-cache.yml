@@ -1,0 +1,15 @@
+name: keep-comet-in-cache
+
+on:
+  schedule:
+    - cron: "0 6 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  touch-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache@v4
+        with:
+          path: /home/runner/miniconda3/envs/cloe-org-env/lib/python3.12/site-packages/comet/data_dir
+          key: comet-data-v2.0

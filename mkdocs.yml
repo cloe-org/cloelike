@@ -49,9 +49,8 @@ nav:
       - Usage: getting_started/usage.md
   - API Reference:
       - api/index.md
-      - BAO Likelihood: api/bao.md
       - Photometric Likelihoods: api/photo_cls.md
-      - Spectroscopic Likelihood: api/gcspectro.md
+      - Spectroscopic Likelihoods: api/gcspectro.md
   - Contributing: contributing.md
 
 plugins:

@@ -59,7 +59,8 @@
         "content",
         "data",
         "doc",
-        "talk"
+        "talk",
+        "review"
       ]
     },
     {
@@ -87,7 +88,8 @@
       "profile": "http://www.cosmostat.org/people/santiago-casas",
       "contributions": [
         "ideas",
-        "review"
+        "review",
+        "maintenance"
       ]
     },
     {
@@ -172,6 +174,26 @@
       "contributions": [
         "bug",
         "code"
+      ]
+    },
+    {
+      "login": "MartinKaercher",
+      "name": "Martin Kärcher",
+      "avatar_url": "https://avatars.githubusercontent.com/u/64490739?v=4",
+      "profile": "https://github.com/MartinKaercher",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
+    },
+    {
+      "login": "raphkou",
+      "name": "Raphaël Kou",
+      "avatar_url": "https://avatars.githubusercontent.com/u/61792335?v=4",
+      "profile": "https://github.com/raphkou",
+      "contributions": [
+        "review",
+        "maintenance"
       ]
     }
   ]

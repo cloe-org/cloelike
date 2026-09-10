@@ -1,5 +1,4 @@
 import numpy as np
-from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.summary_statistics.angular_correlation_function_wigner import (
     AngularCorrelationFunctionWigner,
@@ -59,41 +58,14 @@ class WLMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        lp = self.LinPerturbations(background, self.zs)
-        nlp = self.NonLinPerturbations(
-            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
-        )
-        she = ShearTracer(
-            nlp,
-            self.data["dndz_she"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_she_keys},
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        she = self._get_she_tracer(parameters, nlp)
         cf_all_th = AngularCorrelationFunctionWigner(
             AngularTwoPoint(she, she), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec_plus = np.array([cf_all_th[key][0, 0] for key in self.WL_keys]).flatten()
         vec_minus = np.array([cf_all_th[key][1, 1] for key in self.WL_keys]).flatten()
         vec = np.concatenate([vec_plus, vec_minus])
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
@@ -135,42 +107,13 @@ class GCphMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        lp = self.LinPerturbations(background, self.zs)
-        nlp = self.NonLinPerturbations(
-            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
-        )
-        pos = PositionsTracer(
-            nlp,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            galaxy_bias_model="poly",
-            include_rsd=self.settings.get("include_rsd", False),
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        pos = self._get_pos_tracer(parameters, nlp)
         cf_all_th = AngularCorrelationFunctionWigner(
             AngularTwoPoint(pos, pos), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key] for key in self.GG_keys]).flatten()
 
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
@@ -220,49 +163,15 @@ class GGLMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        lp = self.LinPerturbations(background, self.zs)
-        nlp = self.NonLinPerturbations(
-            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
-        )
-        pos = PositionsTracer(
-            nlp,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            galaxy_bias_model="poly",
-            include_rsd=self.settings.get("include_rsd", False),
-        )
-        she = ShearTracer(
-            nlp,
-            self.data["dndz_she"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_she_keys},
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        pos = self._get_pos_tracer(parameters, nlp)
+        she = self._get_she_tracer(parameters, nlp)
 
         cf_all_th = AngularCorrelationFunctionWigner(
             AngularTwoPoint(pos, she), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key][0] for key in self.GGL_keys]).flatten()
 
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
