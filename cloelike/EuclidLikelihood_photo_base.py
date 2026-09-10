@@ -192,6 +192,7 @@ class PhotoLikelihoodBase:
         "mnu",
         "gamma_MG",
         "N_mnu",
+        "alpha_s",
     )
 
     # Full set of parameters that determine Background/LinPerturbations/NonLinPerturbations
