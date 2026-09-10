@@ -1,5 +1,4 @@
 import numpy as np
-from cloelib.observables.photo import ShearTracer, PositionsTracer
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 
@@ -50,41 +49,14 @@ class WLMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        lp = self.LinPerturbations(background, self.zs)
-        nlp = self.NonLinPerturbations(
-            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
-        )
-        she = ShearTracer(
-            nlp,
-            self.data["dndz_she"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_she_keys},
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        she = self._get_she_tracer(parameters, nlp)
         if self.mode == "coupled":
             cell_all_th = AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
             vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
         else:
             cell_all_th = AngularTwoPoint(she, she).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
@@ -136,42 +108,14 @@ class GCphMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        lp = self.LinPerturbations(background, self.zs)
-        nlp = self.NonLinPerturbations(
-            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
-        )
-        pos = PositionsTracer(
-            nlp,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            galaxy_bias_model=self.settings["galaxy_bias_model"],
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        pos = self._get_pos_tracer(parameters, nlp)
         if self.mode == "coupled":
             cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         else:
             cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
@@ -231,48 +175,15 @@ class GGLMixin:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        lp = self.LinPerturbations(background, self.zs)
-        nlp = self.NonLinPerturbations(
-            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
-        )
-        pos = PositionsTracer(
-            nlp,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            galaxy_bias_model=self.settings["galaxy_bias_model"],
-        )
-        she = ShearTracer(
-            nlp,
-            self.data["dndz_she"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_she_keys},
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        pos = self._get_pos_tracer(parameters, nlp)
+        she = self._get_she_tracer(parameters, nlp)
         if self.mode == "coupled":
             cell_all_th = AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
         else:
             cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 

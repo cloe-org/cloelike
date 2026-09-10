@@ -6,14 +6,14 @@ Explore the **tutorials** in the [`cloe-org/playground/tutorials/likelihood`](ht
 
 ```python
 import numpy as np
-from cloelike.EuclidLikelihood_BAO import EuclidLikelihood_BAO
+from cloelike.EuclidLikelihood_GCspectro_BAO import EuclidLikelihood_GCspectro_BAO
 from cloelib.cosmology.CAMBcosmology import CAMBBackground  # or your preferred Background class
 
 # Load your data dictionary (e.g. from a .pkl or .fits file)
 data = {...}  # Check out the expected format in notebooks
 
 # Instantiate the likelihood
-likelihood = EuclidLikelihood_BAO(data=data, Background=CAMBBackground)
+likelihood = EuclidLikelihood_GCspectro_BAO(data=data, Background=CAMBBackground)
 
 # Evaluate the log-likelihood for a set of cosmological parameters
 parameters = {

@@ -5,10 +5,11 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 
 env:
   ENV_NAME: cloe-org-env
-  ENV_FILE: cloe-org-environments/environments/cloe-org-env-linux-v2026.1.yaml
+  ENV_FILE: cloe-org-environments/environments/cloe-org-env-linux-v2026.2.yaml
 
 jobs:
   style:
@@ -46,6 +47,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: cloe-org/cloe-org-environments
+          ref: 2026.2
           path: cloe-org-environments
 
       - name: Setup Mambaforge
@@ -79,6 +81,16 @@ jobs:
       - name: Install comet-emu
         run: |
           mamba run -n $ENV_NAME pip install comet-emu
+
+      - name: Cache COMET emulator files
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/miniconda3/envs/${{ env.ENV_NAME }}/lib/python${{ matrix.python-version }}/site-packages/comet/data_dir
+          key: comet-data-v2.0
+
+      - name: Pre-download COMET emulator data
+        run: |
+          mamba run -n $ENV_NAME python -c "import comet"
 
       - name: Install cloelike
         run: |
