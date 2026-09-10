@@ -185,6 +185,16 @@
         "code",
         "ideas"
       ]
+    },
+    {
+      "login": "raphkou",
+      "name": "Raphaël Kou",
+      "avatar_url": "https://avatars.githubusercontent.com/u/61792335?v=4",
+      "profile": "https://github.com/raphkou",
+      "contributions": [
+        "review",
+        "maintenance"
+      ]
     }
   ]
 }
