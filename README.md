@@ -138,6 +138,7 @@ This project follows the [all-contributors](https://github.com/all-contributors/
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/MartinKaercher"><img src="https://avatars.githubusercontent.com/u/64490739?v=4?s=100" width="100px;" alt="Martin Kärcher"/><br /><sub><b>Martin Kärcher</b></sub></a><br /><a href="#code-MartinKaercher" title="Code">💻</a> <a href="#ideas-MartinKaercher" title="Ideas, Planning, & Feedback">🤔</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/raphkou"><img src="https://avatars.githubusercontent.com/u/61792335?v=4?s=100" width="100px;" alt="Raphaël Kou"/><br /><sub><b>Raphaël Kou</b></sub></a><br /><a href="#review-raphkou" title="Reviewed Pull Requests">👀</a> <a href="#maintenance-raphkou" title="Maintenance">🚧</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ivansladoljev"><img src="https://avatars.githubusercontent.com/u/144113061?v=4?s=100" width="100px;" alt="Ivan Sladoljev"/><br /><sub><b>Ivan Sladoljev</b></sub></a><br /><a href="#code-ivansladoljev" title="Code">💻</a> <a href="#bug-ivansladoljev" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
 </table>
