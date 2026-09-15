@@ -22,7 +22,7 @@
 | `EuclidLikelihood_3x2pt`         | 3×2pt (WL + GCph + GGL) combined                                      |
 | `EuclidLikelihood_2x2pt`         | 2×2pt (WL + GGL) combined                                             |
 | `EuclidLikelihood_GCspectro_Pls` | Spectroscopic Galaxy Clustering (GCspectro) power spectrum multipoles |
-| `EuclidLikelihood_BAO`           | Baryon Acoustic Oscillations (BAO)                                    |
+| `EuclidLikelihood_GCspectro_BAO` | Baryon Acoustic Oscillations (BAO)                                    |
 
 ---
 

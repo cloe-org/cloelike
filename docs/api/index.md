@@ -8,4 +8,4 @@ This section provides auto-generated API documentation for all public classes an
 options:
 show_source: false
 show_root_heading: true
-members: - EuclidLikelihood_WL - EuclidLikelihood_GCph - EuclidLikelihood_GGL - EuclidLikelihood_3x2pt - EuclidLikelihood_2x2pt - EuclidLikelihood_GCspectro_Pls - EuclidLikelihood_BAO
+members: - EuclidLikelihood_WL - EuclidLikelihood_GCph - EuclidLikelihood_GGL - EuclidLikelihood_3x2pt - EuclidLikelihood_2x2pt - EuclidLikelihood_GCspectro_Pls - EuclidLikelihood_GCspectro_xils - EuclidLikelihood_GCspectro_BAO - EuclidLikelihood_GCspectro_Pls_BAO
