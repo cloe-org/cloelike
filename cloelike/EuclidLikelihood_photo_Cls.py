@@ -75,7 +75,10 @@ class GCphMixin:
 
     def _init_gcph(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
-        bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
+        if self.settings["galaxy_bias_model"] == "per_bin":
+            bias_keys = [f"b1_photo_bin{i}" for i in range(self.n_pos_bins)]
+        elif self.settings["galaxy_bias_model"] == "poly":
+            bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
         mag_bias_keys = [
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]
@@ -132,7 +135,10 @@ class GGLMixin:
     def _init_ggl(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
+        if self.settings["galaxy_bias_model"] == "per_bin":
+            bias_keys = [f"b1_photo_bin{i}" for i in range(self.n_pos_bins)]
+        elif self.settings["galaxy_bias_model"] == "poly":
+            bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
         mag_bias_keys = [
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]

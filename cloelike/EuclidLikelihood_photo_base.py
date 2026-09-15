@@ -130,6 +130,7 @@ class PhotoLikelihoodBase:
         self.scale_cuts = settings["scale_cuts"]
         self.rebin = False
         self.zs = data["z_arr"]
+        self.settings.setdefault("galaxy_bias_model", "poly")
         if self.mode == "coupled":
             self.mixmat = deepcopy(data.get("mixmat", {}))
         else:
@@ -251,7 +252,7 @@ class PhotoLikelihoodBase:
             self.data["dndz_pos"],
             self.zs,
             nuisance_params={k: parameters[k] for k in self.full_pos_keys},
-            galaxy_bias_model="poly",
+            galaxy_bias_model=self.settings["galaxy_bias_model"],
         )
         self._pos_tracer_cache = (key, tracer)
         return tracer
