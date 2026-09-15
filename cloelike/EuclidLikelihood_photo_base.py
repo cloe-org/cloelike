@@ -252,6 +252,7 @@ class PhotoLikelihoodBase:
             self.zs,
             nuisance_params={k: parameters[k] for k in self.full_pos_keys},
             galaxy_bias_model="poly",
+            include_rsd=self.settings.get("include_rsd", False),
         )
         self._pos_tracer_cache = (key, tracer)
         return tracer
