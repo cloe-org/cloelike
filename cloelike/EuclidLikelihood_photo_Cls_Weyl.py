@@ -49,7 +49,7 @@ class GCphMixin_Weyl:
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
         _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
-        pos = self._get_pos_tracer_Weyl(parameters, Weyl_nlp, mode="GC")
+        pos = self._get_pos_tracer(parameters, Weyl_nlp, mode="GC")
         if self.mode == "coupled":
             cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, Weyl_nlp.k, self.mixmat)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
@@ -114,7 +114,7 @@ class GGLMixin_Weyl:
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
         _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
-        pos = self._get_pos_tracer_Weyl(parameters, Weyl_nlp, mode = "GGL")
+        pos = self._get_pos_tracer(parameters, Weyl_nlp, mode = "GGL")
         she = self._get_she_tracer(parameters, Weyl_nlp)
         if self.mode == "coupled":
             cell_all_th = AngularTwoPoint(pos, she).get_pseudo_Cl(0, Weyl_nlp.k, self.mixmat)
