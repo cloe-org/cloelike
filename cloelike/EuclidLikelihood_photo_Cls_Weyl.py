@@ -1,9 +1,7 @@
 import numpy as np
-from cloelib.observables.photo import ShearTracer
-from cloelib.cosmology.Weyl_cosmology import Weyl_Perturbations
-from cloelib.observables.photo_Weyl import PositionsTracer_Weyl_GC, PositionsTracer_Weyl_GGL
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
+from cloelike.EuclidLikelihood_photo_base_Weyl import PhotoLikelihoodBase_Weyl
 
 
 class GCphMixin_Weyl:
@@ -50,56 +48,14 @@ class GCphMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-
-        # For Weyl imlementation: check if settings contains 'z_ini'
-        if self.settings.get('z_ini') is None:
-            raise ValueError("z_ini must be set in settings")
-        z_ini = self.settings.get('z_ini')
-        
-        # For Weyl implementation: create lp and nlp objects, add z_ini to zs array
-        lp = self.LinPerturbations(background, np.append(self.zs, z_ini))
-        nlp = self.NonLinPerturbations(
-            background, lp, 
-            np.append(self.zs, z_ini),
-            log10TAGN=parameters["log10TAGN"]
-        ) 
-
-        # Use Weyl perturbations class
-        Weyl_p = Weyl_Perturbations(nlp, lp, self.zs, z_ini)
- 
-        # Weyl: Replaced PositionsTracer with PositionsTracer_Weyl_GC
-        pos = PositionsTracer_Weyl_GC(
-            Weyl_p,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            include_rsd = self.settings.get('include_rsd', False),
-        )
+        _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
+        pos = self._get_pos_tracer_Weyl(parameters, Weyl_nlp, mode="GC")
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
+            cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, Weyl_nlp.k, self.mixmat)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         else:
-            cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, nlp.k)
+            cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, Weyl_nlp.k)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
@@ -132,7 +88,7 @@ class GGLMixin_Weyl:
         ]
         dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
         width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys # Contains only nuisance params., not Jhat params. which are passed separately to the tracer
+        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
         self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
         self.GGL_keys = [
             ("POS", "SHE", i, j)
@@ -157,69 +113,22 @@ class GGLMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-
-        # Use Weyl perturbations class
-        if self.settings.get('z_ini') is None:
-            raise ValueError("z_ini must be set in settings")
-        z_ini = self.settings.get('z_ini')
-        
-        # For Weyl implementation: create lp and nlp objects, add z_ini to zs array
-        lp = self.LinPerturbations(background, np.append(self.zs, z_ini))
-        nlp = self.NonLinPerturbations(
-            background, lp, 
-            np.append(self.zs, z_ini), log10TAGN=parameters["log10TAGN"]
-        ) 
-
-
-        Weyl_p = Weyl_Perturbations(nlp, lp, self.zs, z_ini)
-
-        # Weyl: Replaced PositionsTracer with PositionsTracer_Weyl_GGL
-        pos = PositionsTracer_Weyl_GGL(
-            Weyl_p,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            Jhat_params={key: parameters[key] for key in self.Jhat_keys},
-            include_rsd = self.settings.get('include_rsd', False),
-        )
-        she = ShearTracer(
-            nlp,
-            self.data["dndz_she"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_she_keys},
-        )
+        _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
+        pos = self._get_pos_tracer_Weyl(parameters, Weyl_nlp, mode = "GGL")
+        she = self._get_she_tracer(parameters, Weyl_nlp)
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
+            cell_all_th = AngularTwoPoint(pos, she).get_pseudo_Cl(0, Weyl_nlp.k, self.mixmat)
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
         else:
-            cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, nlp.k)
+            cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, Weyl_nlp.k)
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 
 
-class EuclidLikelihood_GCph_Weyl(GCphMixin_Weyl, PhotoLikelihoodBase):
+class EuclidLikelihood_GCph_Weyl(GCphMixin_Weyl, PhotoLikelihoodBase_Weyl):
     """
-    EuclidLikelihood_GCph computes the likelihood for galaxy clustering photometric (GCph) data
+    EuclidLikelihood_GCph_Weyl computes the likelihood for galaxy clustering photometric (GCph) data
     using the Euclid survey specifications.
 
     Inherits from:
@@ -245,9 +154,9 @@ class EuclidLikelihood_GCph_Weyl(GCphMixin_Weyl, PhotoLikelihoodBase):
     pass
 
 
-class EuclidLikelihood_GGL_Weyl(GGLMixin_Weyl, PhotoLikelihoodBase):
+class EuclidLikelihood_GGL_Weyl(GGLMixin_Weyl, PhotoLikelihoodBase_Weyl):
     """
-    EuclidLikelihood_GGL class for galaxy-galaxy lensing likelihood computation.
+    EuclidLikelihood_GGL_Weyl class for galaxy-galaxy lensing likelihood computation.
 
     This class combines the functionalities of PhotoLikelihoodBase and GGLMixin to compute
     the likelihood for galaxy-galaxy lensing (GGL) using photometric data. It initializes
@@ -277,7 +186,7 @@ class EuclidLikelihood_GGL_Weyl(GGLMixin_Weyl, PhotoLikelihoodBase):
     pass
 
 
-class EuclidLikelihood_2x2pt_Weyl(GCphMixin_Weyl, GGLMixin_Weyl, PhotoLikelihoodBase):
+class EuclidLikelihood_2x2pt_Weyl(GCphMixin_Weyl, GGLMixin_Weyl, PhotoLikelihoodBase_Weyl):
     """
     Likelihood class for Euclid 2x2pt photometric clustering and galaxy-galaxy lensing analysis.
 
@@ -305,4 +214,3 @@ class EuclidLikelihood_2x2pt_Weyl(GCphMixin_Weyl, GGLMixin_Weyl, PhotoLikelihood
     """
 
     pass
-

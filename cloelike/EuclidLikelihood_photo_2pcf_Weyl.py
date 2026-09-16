@@ -1,7 +1,4 @@
 import numpy as np
-from cloelib.observables.photo import ShearTracer
-from cloelib.cosmology.Weyl_cosmology import Weyl_Perturbations
-from cloelib.observables.photo_Weyl import PositionsTracer_Weyl_GC, PositionsTracer_Weyl_GGL
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.summary_statistics.angular_correlation_function_wigner import (
     AngularCorrelationFunctionWigner,
@@ -9,14 +6,78 @@ from cloelib.summary_statistics.angular_correlation_function_wigner import (
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 
 
-class GCphMixin_Weyl:
+class WLMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)  # Call the next class in the MRO
+        self._init_wl()
+
+    def _init_wl(self):
+        self.n_she_bins = self.data["dndz_she"].shape[0]
+        IA_keys = ["AIA", "EtaIA", "CIA"]
+        mul_bias_keys = [
+            f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
+        ]
+        dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
+        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
+        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
+        self.WL_keys = [
+            ("SHE", "SHE", i, j)
+            for i in range(1, self.n_she_bins + 1)
+            for j in range(i, self.n_she_bins + 1)
+        ]
+
+    def get_masking_vector(self):
+        v = super().get_masking_vector()
+        vec_plus = np.concatenate(
+            [
+                self._masking(self.data["theta"], self.scale_cuts[key][:2])
+                for key in self.WL_keys
+            ]
+        )
+        vec_minus = np.concatenate(
+            [
+                self._masking(self.data["theta"], self.scale_cuts[key][2:4])
+                for key in self.WL_keys
+            ]
+        )
+        vec = np.concatenate(
+            [vec_plus, vec_minus]
+        )  # vec_plus:xi_plus,vec_minus:xi_minus
+        return np.concatenate([v, vec])
+
+    def get_data_vector_full(self):
+        v = super().get_data_vector_full()
+        vec_plus = np.array(
+            [self.data["2pcf"][key][0, 0] for key in self.WL_keys]
+        ).flatten()
+        vec_minus = np.array(
+            [self.data["2pcf"][key][1, 1] for key in self.WL_keys]
+        ).flatten()
+        vec = np.concatenate([vec_plus, vec_minus])
+        return np.concatenate([v, vec])
+
+    def get_theory_vector_full(self, parameters):
+        v = super().get_theory_vector_full(parameters)
+        _, _, nlp = self._get_perturbations(parameters)
+        she = self._get_she_tracer(parameters, nlp)
+        cf_all_th = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(she, she), self.ells_integration, nlp.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
+        vec_plus = np.array([cf_all_th[key][0, 0] for key in self.WL_keys]).flatten()
+        vec_minus = np.array([cf_all_th[key][1, 1] for key in self.WL_keys]).flatten()
+        vec = np.concatenate([vec_plus, vec_minus])
+        self.theory_prediction = cf_all_th
+        return np.concatenate([v, vec])
+
+
+class GCphMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_gcph()
 
     def _init_gcph(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
-        bias_keys = [f"bhat_bin{i}" for i in range(self.n_pos_bins)] # Adjusted bias keys for Weyl case
+        bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
         mag_bias_keys = [
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]
@@ -46,59 +107,18 @@ class GCphMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        # For Weyl imlementation: check if settings contains 'z_ini'
-        if self.settings.get('z_ini') is None:
-            raise ValueError("z_ini must be set in settings")
-        z_ini = self.settings.get('z_ini')
-        
-        # For Weyl implementation: create lp and nlp objects, add z_ini to zs array
-        lp = self.LinPerturbations(background, np.append(self.zs, z_ini))
-        nlp = self.NonLinPerturbations(
-            background, lp, 
-            np.append(self.zs, z_ini),
-            log10TAGN=parameters["log10TAGN"]
-        ) 
-
-        # Use Weyl perturbations class
-        Weyl_p = Weyl_Perturbations(nlp, lp, self.zs, z_ini)
- 
-        # Weyl: Replaced PositionsTracer with PositionsTracer_Weyl_GC
-        pos = PositionsTracer_Weyl_GC(
-            Weyl_p,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            include_rsd = self.settings.get('include_rsd', False),
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        pos = self._get_pos_tracer(parameters, nlp)
         cf_all_th = AngularCorrelationFunctionWigner(
             AngularTwoPoint(pos, pos), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key] for key in self.GG_keys]).flatten()
 
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
 
-class GGLMixin_Weyl:
+class GGLMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._init_ggl()
@@ -106,8 +126,7 @@ class GGLMixin_Weyl:
     def _init_ggl(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        bias_keys = [f"bhat_bin{i}" for i in range(self.n_pos_bins)] # Adjusted bias keys for Weyl implementation
-        self.Jhat_keys = [f"Jhat_bin{i}" for i in range(self.n_pos_bins)] # Added Jhat keys for Weyl implementation
+        bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
         mag_bias_keys = [
             f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
         ]
@@ -119,7 +138,7 @@ class GGLMixin_Weyl:
         ]
         dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
         width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys # Contains only nuisance params., not Jhat params. which are passed separately to the tracer
+        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
         self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
         self.GGL_keys = [
             ("POS", "SHE", i, j)
@@ -144,65 +163,47 @@ class GGLMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        background = self.Background(
-            **{
-                k: parameters[k]
-                for k in [
-                    "H0",
-                    "Omega_cdm0",
-                    "Omega_b0",
-                    "Omega_k0",
-                    "w0",
-                    "wa",
-                    "ns",
-                    "As",
-                    "mnu",
-                    "gamma_MG",
-                    "N_mnu",
-                ]
-            }
-        )
-        # Use Weyl perturbations class
-        if self.settings.get('z_ini') is None:
-            raise ValueError("z_ini must be set in settings")
-        z_ini = self.settings.get('z_ini')
-        
-        # For Weyl implementation: create lp and nlp objects, add z_ini to zs array
-        lp = self.LinPerturbations(background, np.append(self.zs, z_ini))
-        nlp = self.NonLinPerturbations(
-            background, lp, 
-            np.append(self.zs, z_ini), log10TAGN=parameters["log10TAGN"]
-        ) 
-
-        Weyl_p = Weyl_Perturbations(nlp, lp, self.zs, z_ini)
-
-        # Weyl: Replaced PositionsTracer with PositionsTracer_Weyl_GGL
-        pos = PositionsTracer_Weyl_GGL(
-            Weyl_p,
-            self.data["dndz_pos"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_pos_keys},
-            Jhat_params={key: parameters[key] for key in self.Jhat_keys},
-            include_rsd = self.settings.get('include_rsd', False),
-        )
-        she = ShearTracer(
-            nlp,
-            self.data["dndz_she"],
-            self.zs,
-            nuisance_params={key: parameters[key] for key in self.full_she_keys},
-        )
+        _, _, nlp = self._get_perturbations(parameters)
+        pos = self._get_pos_tracer(parameters, nlp)
+        she = self._get_she_tracer(parameters, nlp)
 
         cf_all_th = AngularCorrelationFunctionWigner(
             AngularTwoPoint(pos, she), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key][0] for key in self.GGL_keys]).flatten()
 
-        self.derived["sigma8_0"] = nlp.sigma8_0()
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
 
-class EuclidLikelihood_GCph_Weyl(GCphMixin_Weyl, PhotoLikelihoodBase):
+class EuclidLikelihood_WL(WLMixin, PhotoLikelihoodBase):
+    """
+    EuclidLikelihood_WL computes the weak lensing (WL) likelihood for photometric surveys using Euclid data.
+
+    Inherits from:
+        PhotoLikelihoodBase: Base class for photometric likelihoods.
+        WLMixin: Mixin providing weak lensing specific functionality.
+
+    Parameters
+    ----------
+    data : dict
+        Input data required for likelihood computation, including observed ells and other relevant quantities.
+    settings : dict
+        Configuration settings for the likelihood calculation.
+    Background : object
+        Instance representing the cosmological background model.
+    LinPerturbations : object
+        Instance representing linear perturbations.
+    NonLinPerturbations : object
+        Instance representing non-linear perturbations.
+    mode : str, optional
+        Mode of operation, default is "coupled".
+    """
+
+    pass
+
+
+class EuclidLikelihood_GCph(GCphMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_GCph computes the likelihood for galaxy clustering photometric (GCph) data
     using the Euclid survey specifications.
@@ -230,7 +231,7 @@ class EuclidLikelihood_GCph_Weyl(GCphMixin_Weyl, PhotoLikelihoodBase):
     pass
 
 
-class EuclidLikelihood_GGL_Weyl(GGLMixin_Weyl, PhotoLikelihoodBase):
+class EuclidLikelihood_GGL(GGLMixin, PhotoLikelihoodBase):
     """
     EuclidLikelihood_GGL class for galaxy-galaxy lensing likelihood computation.
 
@@ -258,7 +259,30 @@ class EuclidLikelihood_GGL_Weyl(GGLMixin_Weyl, PhotoLikelihoodBase):
     pass
 
 
-class EuclidLikelihood_2x2pt_Weyl(GCphMixin_Weyl, GGLMixin_Weyl, PhotoLikelihoodBase):
+class EuclidLikelihood_3x2pt(GCphMixin, GGLMixin, WLMixin, PhotoLikelihoodBase):
+    """
+    EuclidLikelihood_3x2pt combines weak lensing (WL), galaxy clustering (GCph), and galaxy-galaxy lensing (GGL)
+    likelihoods for photometric cosmological analyses, supporting scale cuts and masking.
+    Parameters
+    ----------
+    data : dict
+        Dictionary containing observational data vectors and related metadata.
+    settings : dict
+        Configuration settings for the likelihood calculation.
+    Background : object
+        Instance providing background cosmology calculations.
+    LinPerturbations : object
+        Instance for linear perturbation theory calculations.
+    NonLinPerturbations : object
+        Instance for non-linear perturbation theory calculations.
+    mode : str, optional
+        Mode for likelihood calculation, default is "coupled".
+    """
+
+    pass
+
+
+class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
     """
     Likelihood class for Euclid 2x2pt photometric clustering and galaxy-galaxy lensing analysis.
 
