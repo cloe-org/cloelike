@@ -1,3 +1,6 @@
+from unittest import result
+
+import numpy as np
 from cloelib.cosmology.Weyl_cosmology import WeylNonLinearPerturbations, WeylLinearPerturbations
 from cloelib.observables.photo_Weyl import PositionsTracer_Weyl_GC, PositionsTracer_Weyl_GGL
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
@@ -55,6 +58,42 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
             mode=mode,
         )
 
+    def _get_perturbations(self, parameters):
+        """Build (and cache) Background/LinPerturbations/NonLinPerturbations for
+        the given parameters.
+
+        Combined likelihoods (e.g. 3x2pt) mix several probe-specific mixins in
+        one MRO chain, each of which needs the perturbations. Caching here
+        (instead of rebuilding in every mixin's get_theory_vector_full) avoids
+        recomputing the same cosmology multiple times per call. The cache is
+        keyed on the cosmology-relevant subset of `parameters` so a change in
+        any of those values rebuilds it, while repeated calls with an unchanged
+        cosmology (e.g. only nuisance parameters varying) reuse it.
+        """
+        key = self._cosmo_key(parameters)
+        cached = getattr(self, "_perturbations_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        background = self.Background(
+            **{k: parameters[k] for k in self._BACKGROUND_PARAM_KEYS}
+        )
+
+        # Add z_ini to the redshift array for the perturbation objects, since the Weyl wrapper will require it.
+        z_vals = np.append(self.zs, self.settings.get("z_ini"))
+
+        lp = self.LinPerturbations(background, z_vals)
+        nlp = self.NonLinPerturbations(
+            background, lp, z_vals, log10TAGN=parameters["log10TAGN"]
+        )
+        # sigma8_0() self-memoizes by overwriting `nlp.sigma8_0` with its
+        # result on first call, so it must be called exactly once per nlp
+        # instance -- here, rather than in each mixin (which would fail on
+        # the second mixin to see this shared, cached nlp).
+        self.derived["sigma8_0"] = nlp.sigma8_0()
+        result = (background, lp, nlp)
+        self._perturbations_cache = (key, result)
+        return result
+
     def _get_Weyl_perturbations(self, parameters):
         """Return cosmological perturbations adapted to the Weyl potential.
 
@@ -64,19 +103,33 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         The resulting tuple has the same background object as the parent and
         Weyl-specific linear/non-linear perturbation objects for tracer use.
         """
-        # Check if settings contains 'z_ini'
-        if self.settings.get('z_ini') is None:
+        if self.settings.get("z_ini") is None:
             raise ValueError("z_ini must be set in settings")
 
+        key = self._cosmo_key(parameters)
+
+        cached = getattr(self, "_Weyl_perturbations_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+
         background, lp, nlp = self._get_perturbations(parameters)
-        Weyl_lp = WeylLinearPerturbations(lp, self.zs, self.settings.z_ini)
-        Weyl_nlp = WeylNonLinearPerturbations(
-            nlp, Weyl_lp, self.zs, self.settings.z_ini
+
+        Weyl_lp = WeylLinearPerturbations(
+            lp, self.zs, self.settings.get("z_ini")
         )
-        return background, Weyl_lp, Weyl_nlp
+        Weyl_nlp = WeylNonLinearPerturbations(
+            nlp, Weyl_lp, self.zs, self.settings.get("z_ini")
+        )
+
+        result = (background, Weyl_lp, Weyl_nlp)
+        self._Weyl_perturbations_cache = (key, result)
+        return result
 
     def _get_pos_tracer(self, parameters, Weyl_nlp, mode):
-        """Build and cache the Weyl-specific position tracer.
+        """Build the Weyl-specific position tracer.
+        Note: Unlike the parent class, which has a single PositionsTracer, the Weyl likelihood has two different position tracers: one for GC and one for GGL. 
+        This method returns the appropriate tracer based on the `mode` argument.
+        We do not cache the positions tracer here, since GGL and GC need to use two different once. 
 
         Args:
             parameters (dict): Cosmological and nuisance parameters.
@@ -84,7 +137,7 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
             mode (str): Probe type. Must be ``"GC"`` or ``"GGL"``.
 
         Returns:
-            PositionsTracer_Weyl_GC or PositionsTracer_Weyl_GGL: Cached tracer
+            PositionsTracer_Weyl_GC or PositionsTracer_Weyl_GGL: Tracer
             instance corresponding to ``mode``.
 
         Raises:
@@ -93,9 +146,8 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         key = self._cosmo_key(parameters) + tuple(
             parameters[k] for k in self.full_pos_keys
         )
-        cached = getattr(self, "_pos_tracer_cache", None)
-        if cached is not None and cached[0] == key:
-            return cached[1]
+
+        # Removed checking for cashed object (GC and GGL need to use two different pos tracers)
 
         nuisance_params = {k: parameters[k] for k in self.full_pos_keys}
         include_rsd = self.settings.get("include_rsd", False)
@@ -109,15 +161,18 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
                 include_rsd=include_rsd,
             )
         elif mode == "GGL":
+            Jhat_params = {k: parameters[k] for k in self.Jhat_keys}
             tracer = PositionsTracer_Weyl_GGL(
                 Weyl_nlp,
                 self.data["dndz_pos"],
                 self.zs,
                 nuisance_params=nuisance_params,
+                Jhat_params=Jhat_params,
                 include_rsd=include_rsd,
             )
         else:
             raise ValueError(f"Invalid mode: {mode}. Must be 'GC' or 'GGL'.")
 
-        self._pos_tracer_cache = (key, tracer)
+
+        # Removed caching (GC and GGL need to use two different pos tracers)
         return tracer
