@@ -17,6 +17,7 @@ from cloelib.cosmology.mochi_class_cosmology import mochiCLASSNonLinearPerturbat
 from cloelib.cosmology.mochi_class_lin_emu_cosmology import (
     mochiCLASSEmuLinearPerturbations,
 )
+from cloelib.cosmology.nDGPemu_cosmology import NDGPemuNonLinearPerturbations
 
 
 @runtime_checkable
@@ -147,6 +148,11 @@ class PhotoLikelihoodBase:
                 NonLinPerturbations  # for now, nonlinear = linear
             )
             self.model = "mochiCLASSEmu"
+            self.gravity_model = None
+        elif NonLinPerturbations == NDGPemuNonLinearPerturbations:
+            self.NonLinPerturbations = NonLinPerturbations
+            self.model = "ndgpemu"
+            self.LinPerturbationsBase = LinPerturbationsBase
             self.gravity_model = None
         else:
             raise TypeError(
@@ -465,6 +471,24 @@ class WLMixin:
                 background, self.zs, cp_file=parameters["cp_file"]
             )
 
+        elif self.model == "ndgpemu":
+            lp_base = self.LinPerturbationsBase(background, self.zs)
+            lp = self.LinPerturbations(
+                background,
+                lp_base,
+                gravity_model="dgp",
+                mgpars=parameters,
+            )
+            nlp_base = HMemuNonLinearPerturbations(
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
+            )
+            if "omega_rc" not in parameters:
+                raise KeyError(
+                    "Parameter 'omega_rc' is required for model='ndgpemu' but was not provided."
+                )
+            omega_rc = parameters["omega_rc"]
+            nlp = self.NonLinPerturbations(background, lp, nlp_base, omega_rc, self.zs)
+
         she = ShearTracer(
             nlp,
             self.data["dndz_she"],
@@ -695,6 +719,25 @@ class GCphMixin:
             nlp = self.NonLinPerturbations(
                 background, self.zs, cp_file=parameters["cp_file"]
             )
+
+        elif self.model == "ndgpemu":
+            lp_base = self.LinPerturbationsBase(background, self.zs)
+            lp = self.LinPerturbations(
+                background,
+                lp_base,
+                gravity_model="dgp",
+                mgpars=parameters,
+            )
+            nlp_base = HMemuNonLinearPerturbations(
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
+            )
+            if "omega_rc" not in parameters:
+                raise KeyError(
+                    "Parameter 'omega_rc' is required for model='ndgpemu' but was not provided."
+                )
+            omega_rc = parameters["omega_rc"]
+            nlp = self.NonLinPerturbations(background, lp, nlp_base, omega_rc, self.zs)
+
         pos = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
@@ -934,6 +977,25 @@ class GGLMixin:
             nlp = self.NonLinPerturbations(
                 background, self.zs, cp_file=parameters["cp_file"]
             )
+
+        elif self.model == "ndgpemu":
+            lp_base = self.LinPerturbationsBase(background, self.zs)
+            lp = self.LinPerturbations(
+                background,
+                lp_base,
+                gravity_model="dgp",
+                mgpars=parameters,
+            )
+            nlp_base = HMemuNonLinearPerturbations(
+                background, lp_base, self.zs, log10TAGN=parameters["log10TAGN"]
+            )
+            if "omega_rc" not in parameters:
+                raise KeyError(
+                    "Parameter 'omega_rc' is required for model='ndgpemu' but was not provided."
+                )
+            omega_rc = parameters["omega_rc"]
+            nlp = self.NonLinPerturbations(background, lp, nlp_base, omega_rc, self.zs)
+
         pos = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
