@@ -28,6 +28,7 @@ default_pars = {
     "mnu": 0.0,
     "ns": 0.96,
     "As": 2.1e-9,
+    "alpha_s": 0.0,
     "H0": 67.0,
     "w0": -1.0,
     "wa": 0.0,
@@ -220,7 +221,7 @@ def test_likelihood_value(data_setup, settings_setup):
 
     computed_loglike = likelihood.loglike(parameters)
 
-    expected_loglike = -1202.94683925
+    expected_loglike = -1403.4874791311815
     assert computed_loglike == pytest.approx(expected_loglike, rel=1e-5), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
@@ -254,8 +255,51 @@ def test_likelihood_value_with_AM(data_setup, settings_setup, AM_priors_setup):
 
     computed_loglike = likelihood.loglike_AM(parameters)
 
-    expected_loglike = -539.03080617
+    expected_loglike = -633.9985729642024
     assert computed_loglike == pytest.approx(expected_loglike, rel=1e-5), (
         f"Expected log-likelihood to be approximately {expected_loglike}, "
         f"but got {computed_loglike}"
     )
+
+
+def test_hartlap_factor(data_setup, settings_setup):
+    like_no_hartlap = EuclidLikelihood_GCspectro_xils(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+    )
+    num_data_points = like_no_hartlap.masked_covariance_matrix.shape[0]
+    num_mocks = num_data_points + 200
+
+    like_hartlap = EuclidLikelihood_GCspectro_xils(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        num_mocks=num_mocks,
+    )
+
+    expected_factor = (num_mocks - num_data_points - 2) / (num_mocks - 1)
+    np.testing.assert_allclose(
+        like_hartlap.inverse_masked_covariance_matrix,
+        expected_factor * like_no_hartlap.inverse_masked_covariance_matrix,
+    )
+
+
+def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
+    num_data_points = EuclidLikelihood_GCspectro_xils(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+    ).masked_covariance_matrix.shape[0]
+
+    with pytest.raises(ValueError):
+        EuclidLikelihood_GCspectro_xils(
+            data=data_setup,
+            settings=settings_setup,
+            Background=CAMBBackground,
+            SpectroPower=CometEFT_SpectroPower,
+            num_mocks=num_data_points,
+        )

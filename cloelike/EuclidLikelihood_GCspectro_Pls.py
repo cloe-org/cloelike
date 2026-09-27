@@ -25,6 +25,7 @@ class EuclidLikelihood_GCspectro_Pls:
         SpectroPower: type,
         Perturbations: Optional[type] = None,
         AM_priors: Optional[dict] = None,
+        num_mocks: Optional[int] = None,
     ):
         r"""Class constructor
 
@@ -59,6 +60,12 @@ class EuclidLikelihood_GCspectro_Pls:
             marginalisation. The first layer must have the same keys as
             ``data["GCspectro"]``; the second layer has keys corresponding to
             the model parameters and values of the form ``[mean, std]``
+        num_mocks: int
+            Number of mock realisations used to estimate the covariance
+            matrix, if it is a numerical (sample) covariance -- triggers the
+            Hartlap (2007) debiasing correction on the inverse covariance
+            matrix. ``None`` (default) means the covariance is analytic/
+            theoretical, so no correction is applied.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -73,6 +80,7 @@ class EuclidLikelihood_GCspectro_Pls:
         self.Background = Background
         self.Perturbations = Perturbations
         self.SpectroPower = SpectroPower
+        self.num_mocks = num_mocks
 
         self._prepare(data)
 
@@ -324,11 +332,41 @@ class EuclidLikelihood_GCspectro_Pls:
             self.masking_vector
         ][:, self.masking_vector]
 
+    def hartlap_factor(self) -> float:
+        r"""Hartlap factor to correct the biased estimator for the inverse covariance
+        matrix as obtained from a finite number of mock realisations.
+
+        Only meaningful if ``num_mocks`` was specified when the class was
+        instantiated. If ``self.num_mocks`` is ``None``, the covariance
+        matrix is assumed to be theoretical (no sampling error), so no
+        correction is needed and this method is never called.
+
+        Returns
+        -------
+        factor: float
+            Hartlap factor.
+
+        Raises
+        ------
+        ValueError
+            If ``num_mocks <= num_data_points + 2``, since the debiasing factor would then be
+            non-positive.
+        """
+        num_data_points = self.masked_covariance_matrix.shape[0]
+        if self.num_mocks <= num_data_points + 2:
+            raise ValueError(
+                f"Hartlap correction requires num_mocks > num_data_points + 2 (got num_mocks={self.num_mocks}, "
+                f"num_data_points={num_data_points}): the debiasing factor would be non-positive."
+            )
+        return (self.num_mocks - num_data_points - 2) / (self.num_mocks - 1)
+
     def _invert_covariance_matrix(self):
-        r"""Invert GCspectro covariance matrix"""
+        r"""Invert GCspectro covariance matrix, and apply Hartlap factor if needed."""
         self.inverse_masked_covariance_matrix = np.linalg.inv(
             self.masked_covariance_matrix
         )
+        if self.num_mocks is not None:
+            self.inverse_masked_covariance_matrix *= self.hartlap_factor()
 
     def get_theory_vector(self, parameters: dict, term_list: Optional[dict] = None):
         r"""Generate theory vectors based on specified parameters, optionally
@@ -364,6 +402,7 @@ class EuclidLikelihood_GCspectro_Pls:
             gamma_MG=parameters["gamma_MG"],
             mnu=parameters["mnu"],
             N_mnu=parameters["N_mnu"],
+            alpha_s=parameters["alpha_s"],
         )
 
         if self.Perturbations is not None and self.NLcode in ["PBJ"]:
