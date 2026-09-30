@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from functools import lru_cache
 from typing import Protocol, runtime_checkable
@@ -127,7 +128,16 @@ class PhotoLikelihoodBase:
         self.NonLinPerturbations = NonLinPerturbations
         self.theory_prediction = {}
         self.mode = mode
-        self.scale_cuts = settings["scale_cuts"]
+        if "cosebis" in data:
+            # For COSEBIs the scale cuts are set by the W_ell kernels
+            if settings.get("scale_cuts") is not None:
+                warnings.warn(
+                    "For COSEBIs the scale cuts are applied via the w_ells; "
+                    "settings['scale_cuts'] is ignored."
+                )
+            self.scale_cuts = None
+        else:
+            self.scale_cuts = settings["scale_cuts"]
         self.rebin = False
         self.zs = data["z_arr"]
         if self.mode == "coupled":
