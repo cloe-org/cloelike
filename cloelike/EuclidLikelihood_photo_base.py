@@ -1,8 +1,10 @@
+import warnings
 import numpy as np
 from functools import lru_cache
 from typing import Protocol, runtime_checkable
 from copy import deepcopy
 from cloelib.cosmology.cosmology import Background, Perturbations
+from cloelib.observables.photo import PositionsTracer, ShearTracer
 
 
 @runtime_checkable
@@ -87,9 +89,6 @@ class PhotoLikelihoodBase:
         LinPerturbations: Linear perturbations object.
         NonLinPerturbations: Non-linear perturbations object.
         scale_cuts: Scale cuts from settings.
-        selected_modes: COSEBIs, selected modes from settings, defaults to the first seven
-        w_ells: COSEBI, kernel functions for the COSEBIs, contains the scale cut
-        ells_integration_COSEBI: COSEBI, ells for the integration, need to match the w_ells
         zs: Redshift array from data.
         mixmat: Mixing matrix, possibly rebinned.
         weight_mat: Weight matrix used for binning.
@@ -129,24 +128,16 @@ class PhotoLikelihoodBase:
         self.NonLinPerturbations = NonLinPerturbations
         self.theory_prediction = {}
         self.mode = mode
-        if "EE" in data:
-            self.w_ells = settings["w_ells"]
-            if settings.get("scale_cuts", None) is not None:
-                print(
-                    "For COSEBIs the scale cuts need to be applied via the W_ells, the passed scale cuts are ignored now"
+        if "cosebis" in data:
+            # For COSEBIs the scale cuts are set by the W_ell kernels
+            if settings.get("scale_cuts") is not None:
+                warnings.warn(
+                    "For COSEBIs the scale cuts are applied via the w_ells; "
+                    "settings['scale_cuts'] is ignored."
                 )
             self.scale_cuts = None
-
         else:
             self.scale_cuts = settings["scale_cuts"]
-        self.selected_modes = settings.get("selected_modes", np.arange(1, 8))
-        self.ells_integration_COSEBI = settings.get("ells_integration_COSEBI", None)
-
-        if (self.ells_integration_COSEBI is None) and ("EE" in data):
-            raise ValueError(
-                "an ells array corresponding to the W_ells is needed for the COSEBIs"
-            )
-
         self.rebin = False
         self.zs = data["z_arr"]
         if self.mode == "coupled":
@@ -156,6 +147,7 @@ class PhotoLikelihoodBase:
 
         if (ells_integration is None) and ("2pcf" in data):
             self.ells_integration = np.arange(2, 40000)
+
         else:
             self.ells_integration = ells_integration
 
@@ -195,6 +187,103 @@ class PhotoLikelihoodBase:
 
     def _masking(self, arr, interval):
         return (arr >= interval[0]) & (arr <= interval[1])
+
+    # Parameters passed to Background(...) -- log10TAGN is not one of them (only
+    # NonLinPerturbations consumes it), so it can't be folded into this list.
+    _BACKGROUND_PARAM_KEYS = (
+        "H0",
+        "Omega_cdm0",
+        "Omega_b0",
+        "Omega_k0",
+        "w0",
+        "wa",
+        "ns",
+        "As",
+        "mnu",
+        "gamma_MG",
+        "N_mnu",
+        "alpha_s",
+    )
+
+    # Full set of parameters that determine Background/LinPerturbations/NonLinPerturbations
+    # -- i.e. everything the perturbations/tracer caches below key on.
+    _COSMO_PARAM_KEYS = _BACKGROUND_PARAM_KEYS + ("log10TAGN",)
+
+    def _get_perturbations(self, parameters):
+        """Build (and cache) Background/LinPerturbations/NonLinPerturbations for
+        the given parameters.
+
+        Combined likelihoods (e.g. 3x2pt) mix several probe-specific mixins in
+        one MRO chain, each of which needs the perturbations. Caching here
+        (instead of rebuilding in every mixin's get_theory_vector_full) avoids
+        recomputing the same cosmology multiple times per call. The cache is
+        keyed on the cosmology-relevant subset of `parameters` so a change in
+        any of those values rebuilds it, while repeated calls with an unchanged
+        cosmology (e.g. only nuisance parameters varying) reuse it.
+        """
+        key = self._cosmo_key(parameters)
+        cached = getattr(self, "_perturbations_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        background = self.Background(
+            **{k: parameters[k] for k in self._BACKGROUND_PARAM_KEYS}
+        )
+        lp = self.LinPerturbations(background, self.zs)
+        nlp = self.NonLinPerturbations(
+            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
+        )
+        # sigma8_0() self-memoizes by overwriting `nlp.sigma8_0` with its
+        # result on first call, so it must be called exactly once per nlp
+        # instance -- here, rather than in each mixin (which would fail on
+        # the second mixin to see this shared, cached nlp).
+        self.derived["sigma8_0"] = nlp.sigma8_0()
+        result = (background, lp, nlp)
+        self._perturbations_cache = (key, result)
+        return result
+
+    def _cosmo_key(self, parameters):
+        """The same cache key used by `_get_perturbations`, exposed so tracer
+        caching below can be keyed on values rather than on `nlp`'s object
+        identity (which could in principle be reused after garbage collection)."""
+        return tuple(parameters[k] for k in self._COSMO_PARAM_KEYS)
+
+    def _get_pos_tracer(self, parameters, nlp):
+        """Build (and cache) the PositionsTracer for the given parameters/nlp,
+        so GCph and GGL do not each rebuild it within the same call."""
+        key = self._cosmo_key(parameters) + tuple(
+            parameters[k] for k in self.full_pos_keys
+        )
+        cached = getattr(self, "_pos_tracer_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        tracer = PositionsTracer(
+            nlp,
+            self.data["dndz_pos"],
+            self.zs,
+            nuisance_params={k: parameters[k] for k in self.full_pos_keys},
+            galaxy_bias_model="poly",
+            include_rsd=self.settings.get("include_rsd", False),
+        )
+        self._pos_tracer_cache = (key, tracer)
+        return tracer
+
+    def _get_she_tracer(self, parameters, nlp):
+        """Build (and cache) the ShearTracer for the given parameters/nlp, so
+        WL and GGL do not each rebuild it within the same call."""
+        key = self._cosmo_key(parameters) + tuple(
+            parameters[k] for k in self.full_she_keys
+        )
+        cached = getattr(self, "_she_tracer_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        tracer = ShearTracer(
+            nlp,
+            self.data["dndz_she"],
+            self.zs,
+            nuisance_params={k: parameters[k] for k in self.full_she_keys},
+        )
+        self._she_tracer_cache = (key, tracer)
+        return tracer
 
     def get_masking_vector(self):
         return np.array([], dtype=bool)

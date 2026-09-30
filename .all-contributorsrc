@@ -59,7 +59,8 @@
         "content",
         "data",
         "doc",
-        "talk"
+        "talk",
+        "review"
       ]
     },
     {
@@ -87,7 +88,8 @@
       "profile": "http://www.cosmostat.org/people/santiago-casas",
       "contributions": [
         "ideas",
-        "review"
+        "review",
+        "maintenance"
       ]
     },
     {
@@ -162,6 +164,55 @@
       "contributions": [
         "code",
         "ideas"
+      ]
+    },
+    {
+      "login": "FelicitasKeil",
+      "name": "Felicitas Keil",
+      "avatar_url": "https://avatars.githubusercontent.com/u/70713596?v=4",
+      "profile": "https://github.com/FelicitasKeil",
+      "contributions": [
+        "bug",
+        "code"
+      ]
+    },
+    {
+      "login": "MartinKaercher",
+      "name": "Martin Kärcher",
+      "avatar_url": "https://avatars.githubusercontent.com/u/64490739?v=4",
+      "profile": "https://github.com/MartinKaercher",
+      "contributions": [
+        "code",
+        "ideas"
+      ]
+    },
+    {
+      "login": "raphkou",
+      "name": "Raphaël Kou",
+      "avatar_url": "https://avatars.githubusercontent.com/u/61792335?v=4",
+      "profile": "https://github.com/raphkou",
+      "contributions": [
+        "review",
+        "maintenance"
+      ]
+    },
+    {
+      "login": "ivansladoljev",
+      "name": "Ivan Sladoljev",
+      "avatar_url": "https://avatars.githubusercontent.com/u/144113061?v=4",
+      "profile": "https://github.com/ivansladoljev",
+      "contributions": [
+        "code",
+        "bug"
+      ]
+    },
+    {
+      "login": "NastassiaG",
+      "name": "NastassiaG",
+      "avatar_url": "https://avatars.githubusercontent.com/u/107264848?v=4",
+      "profile": "https://github.com/NastassiaG",
+      "contributions": [
+        "code"
       ]
     }
   ]

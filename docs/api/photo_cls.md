@@ -167,3 +167,21 @@ show_source: true
 ::: cloelike.EuclidLikelihood_photo_2pcf.EuclidLikelihood_2x2pt
 options:
 show_source: true
+
+---
+
+## COSEBIs
+
+Classes from `cloelike.EuclidLikelihood_photo_COSEBIs`. The data are the `COSEBI` objects returned by `euclidlib.le3.twopcf_wl.cosebis`, with shape `(2, 2, n_modes)`; only the E-modes enter the likelihood. The angular range is set by the `w_ells` kernels, which must match the data `thmin`/`thmax`.
+
+### WLCosebi
+
+::: cloelike.EuclidLikelihood_photo_COSEBIs.WLCosebi
+options:
+show_source: true
+
+### EuclidLikelihood_WLCosebi
+
+::: cloelike.EuclidLikelihood_photo_COSEBIs.EuclidLikelihood_WLCosebi
+options:
+show_source: true
