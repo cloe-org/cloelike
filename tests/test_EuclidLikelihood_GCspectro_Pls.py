@@ -4,7 +4,7 @@ import requests
 
 # --- cloe-org imports ---
 from cloelib.cosmology.camb_cosmology import CAMBBackground
-from cloelib.observables.CometEFT_spectro import CometEFT_SpectroPower
+from cloelib.observables.spectro.CometEFT_spectro import CometEFT_SpectroPower
 from cloelike.EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
 
 # --- euclidlib imports ---
