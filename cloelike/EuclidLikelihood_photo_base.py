@@ -1,11 +1,25 @@
+import warnings
 import numpy as np
 from functools import lru_cache
 from typing import Protocol, runtime_checkable
 from copy import deepcopy
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import PositionsTracer, ShearTracer
-from cloelib.observables.photo.positions import PBJNonlinearBiasLoopComputer
 from cloelib.observables.photo.shear import PBJTATTLoopComputer
+
+
+def _nonlinear_bias_loop_computer(perturbations):
+    """Default one-loop kernels for galaxy_bias_model="nonlinear", imported
+    here so cloelike also works with cloelib versions without it."""
+    try:
+        from cloelib.observables.photo.positions import PBJNonlinearBiasLoopComputer
+    except ImportError as e:
+        raise ImportError(
+            "galaxy_bias_model='nonlinear' needs a cloelib with "
+            "PBJNonlinearBiasLoopComputer (cloelib PR #384)."
+        ) from e
+    return PBJNonlinearBiasLoopComputer(perturbations)
+
 
 # Intrinsic-alignment models accepted in settings["ia_model"], mapped to the
 # (required, optional) nuisance parameters ShearTracer reads for each. Optional
@@ -160,7 +174,16 @@ class PhotoLikelihoodBase:
         self.NonLinPerturbations = NonLinPerturbations
         self.theory_prediction = {}
         self.mode = mode
-        self.scale_cuts = settings["scale_cuts"]
+        if "cosebis" in data:
+            # For COSEBIs the scale cuts are set by the W_ell kernels
+            if settings.get("scale_cuts") is not None:
+                warnings.warn(
+                    "For COSEBIs the scale cuts are applied via the w_ells; "
+                    "settings['scale_cuts'] is ignored."
+                )
+            self.scale_cuts = None
+        else:
+            self.scale_cuts = settings["scale_cuts"]
         self.ia_model = settings.get("ia_model", "NLA")
         if self.ia_model not in IA_MODEL_KEYS:
             raise ValueError(
@@ -373,12 +396,13 @@ class PhotoLikelihoodBase:
         cached = getattr(self, "_pos_tracer_cache", None)
         if cached is not None and cached[0] == key:
             return cached[1]
+        # The nonlinear bias options are only passed when selected, so the linear
+        # bias models also work with cloelib versions without the nonlinear bias.
+        nl_bias_kwargs = {}
         if self.galaxy_bias_model == "nonlinear":
-            loop_computer = self._get_loop_computer(
-                "nl_bias", PBJNonlinearBiasLoopComputer, parameters
+            nl_bias_kwargs["nl_bias_loop_computer"] = self._get_loop_computer(
+                "nl_bias", _nonlinear_bias_loop_computer, parameters
             )
-        else:
-            loop_computer = None
         tracer = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
@@ -386,7 +410,7 @@ class PhotoLikelihoodBase:
             nuisance_params=nuisance,
             galaxy_bias_model=self.galaxy_bias_model,
             include_rsd=self.settings.get("include_rsd", False),
-            nl_bias_loop_computer=loop_computer,
+            **nl_bias_kwargs,
         )
         self._pos_tracer_cache = (key, tracer)
         return tracer
