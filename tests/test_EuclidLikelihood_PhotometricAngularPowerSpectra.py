@@ -5,9 +5,7 @@ import euclidlib as el
 
 from cloelib.cosmology.camb_cosmology import CAMBBackground
 from cloelib.auxiliary.bnt import BNTMatrixCalculator
-from cloelib.cosmology.cosmology import with_baryon_boost
 from cloelib.cosmology.HMcode2020Emu_cosmology import (
-    HMcode2020BaryonBoostMixin,
     HMemuLinearPerturbations,
     HMemuNonLinearPerturbations,
 )
@@ -470,6 +468,12 @@ def test_nonlinear_galaxy_bias_selection(data_setup, fiducial_params):
 
 
 def test_baryon_boost_selection(data_setup, fiducial_params):
+    # The baryonic boosts are not in every cloelib version (cloelib PR #257)
+    cosmology = pytest.importorskip("cloelib.cosmology.cosmology")
+    if not hasattr(cosmology, "with_baryon_boost"):
+        pytest.skip("cloelib without with_baryon_boost")
+    from cloelib.cosmology.HMcode2020Emu_cosmology import HMcode2020BaryonBoostMixin
+
     builtin = _wl_theory(data_setup, fiducial_params, {})
     dmo = _wl_theory(data_setup, fiducial_params, {"nonlinear_param_keys": ()})
     assert not np.allclose(dmo, builtin, rtol=1e-2, atol=0)
@@ -478,7 +482,7 @@ def test_baryon_boost_selection(data_setup, fiducial_params):
         data_setup,
         fiducial_params,
         {"nonlinear_param_keys": (), "baryon_param_keys": ("log10TAGN",)},
-        NonLinPerturbations=with_baryon_boost(
+        NonLinPerturbations=cosmology.with_baryon_boost(
             HMemuNonLinearPerturbations, HMcode2020BaryonBoostMixin
         ),
     )

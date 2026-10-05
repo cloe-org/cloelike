@@ -66,7 +66,7 @@ jobs:
         run: |
           mamba install -n $ENV_NAME -c conda-forge -y libboost-headers
 
-      - name: Install cloelib (with pylevin and mpmath for COSEBIs)
+      - name: Install cloelib (with pylevin and mpmath for COSEBIs, fast-pt for TATT and nonlinear bias)
         run: |
           # pylevin is only distributed as source: build it against the GSL,
           # Boost and GCC of the environment
@@ -74,7 +74,7 @@ jobs:
           mamba run -n $ENV_NAME env \
             CPPFLAGS="-I$ENV_PREFIX/include" \
             LDFLAGS="-L$ENV_PREFIX/lib -Wl,-rpath,$ENV_PREFIX/lib" \
-            pip install "cloelib[pylevin,mpmath] @ git+https://github.com/cloe-org/cloelib.git"
+            pip install "cloelib[pylevin,mpmath,fastpt] @ git+https://github.com/cloe-org/cloelib.git"
           mamba run -n $ENV_NAME python -c "import pylevin, mpmath"
 
       - name: Install HMCode2020emu
