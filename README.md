@@ -104,8 +104,8 @@ metadata in [`CITATION.cff`](CITATION.cff). On GitHub, select **Cite this reposi
 to copy the citation in APA or BibTeX format.
 
 The citation lists the same six maintainers as
-[`cloelib`](https://github.com/cloe-org/cloelib), including Santiago Casas's DLR
-and TTK, RWTH Aachen University affiliations. Other contributions are acknowledged
+[`cloelib`](https://github.com/cloe-org/cloelib).
+Other contributions are acknowledged
 in the [contributors section](#-contributors).
 
 ---
