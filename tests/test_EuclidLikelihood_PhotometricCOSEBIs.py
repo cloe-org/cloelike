@@ -3,13 +3,16 @@ import pytest
 import euclidlib as el
 from cosmolib.data import COSEBI
 
-from cloelib.auxiliary.cosebi_helpers import get_W_ell
 from cloelib.cosmology.camb_cosmology import CAMBBackground
 from cloelib.cosmology.HMcode2020Emu_cosmology import (
     HMemuLinearPerturbations,
     HMemuNonLinearPerturbations,
 )
 from cloelike.EuclidLikelihood_photo_COSEBIs import EuclidLikelihood_WLCosebi
+
+pytest.importorskip("pylevin")
+pytest.importorskip("mpmath")
+from cloelib.auxiliary.cosebi_helpers import get_W_ell  # noqa: E402
 
 N_BINS = 2
 N_MODES = 5
