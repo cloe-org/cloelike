@@ -151,3 +151,20 @@ def test_scale_cuts_ignored_warns(kernels):
             make_cosebis(), kernels, selected_modes=[1, 2], scale_cuts={"a": [1, 2]}
         )
     assert like.scale_cuts is None
+
+
+def test_ia_model_selection(kernels):
+    params = {**FIDUCIAL_PARAMS, "AIA": 1.0, "EtaIA": 1.0, "CIA": 0.0134}
+    modes = np.arange(1, N_MODES + 1)
+
+    def theory(ia_model, **extra):
+        like = make_like(
+            make_cosebis(), kernels, selected_modes=modes, ia_model=ia_model
+        )
+        return like.get_theory_vector_full({**params, **extra})
+
+    nla = theory("NLA")
+    assert not np.allclose(nla, theory(None), rtol=1e-2, atol=0)
+    # With A2 = b_TA = 0 and NLA's pivot z0 = 0, TATT reduces to NLA.
+    tatt = theory("TATT", A2IA=0.0, bTA=0.0, z0IA=0.0)
+    np.testing.assert_allclose(tatt, nla, rtol=2e-3)

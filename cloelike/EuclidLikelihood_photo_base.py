@@ -5,6 +5,33 @@ from typing import Protocol, runtime_checkable
 from copy import deepcopy
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import PositionsTracer, ShearTracer
+from cloelib.observables.photo.shear import PBJTATTLoopComputer
+
+
+def _nonlinear_bias_loop_computer(perturbations):
+    """Default one-loop kernels for galaxy_bias_model="nonlinear", imported
+    here so cloelike also works with cloelib versions without it."""
+    try:
+        from cloelib.observables.photo.positions import PBJNonlinearBiasLoopComputer
+    except ImportError as e:
+        raise ImportError(
+            "galaxy_bias_model='nonlinear' needs a cloelib with "
+            "PBJNonlinearBiasLoopComputer (cloelib PR #384)."
+        ) from e
+    return PBJNonlinearBiasLoopComputer(perturbations)
+
+
+# Intrinsic-alignment models accepted in settings["ia_model"], mapped to the
+# (required, optional) nuisance parameters ShearTracer reads for each. Optional
+# ones fall back to cloelib's defaults when absent from `parameters`.
+IA_MODEL_KEYS = {
+    None: ((), ()),
+    "NLA": (("AIA", "EtaIA", "CIA"), ()),
+    "TATT": (("AIA", "A2IA", "bTA"), ("EtaIA", "Eta2IA", "CIA", "z0IA")),
+}
+
+# Galaxy bias models accepted in settings["galaxy_bias_model"].
+GALAXY_BIAS_MODELS = ("poly", "per_bin", "per_bin_int", "nonlinear")
 
 
 @runtime_checkable
@@ -76,7 +103,26 @@ class PhotoLikelihoodBase:
     likelihoods based on theoretical predictions and observed data vectors.
     Args:
         data (dict): Dictionary containing observational data, including '2pcf', 'theta', 'z_arr', and 'cov'.
-        settings (dict): Configuration settings, including 'scale_cuts'.
+        settings (dict): Configuration settings. Besides the required 'scale_cuts',
+            the theory model is selected with the optional keys:
+
+            - 'ia_model': None, "NLA" (default) or "TATT". NLA reads AIA, EtaIA, CIA;
+              TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA.
+            - 'galaxy_bias_model': "poly" (default, b1_photo_poly0..3), "per_bin" or
+              "per_bin_int" (b1_photo_bin{i}, i = 0..n_pos_bins-1), or "nonlinear"
+              (b1_photo_nl_bin{i}, and optionally b2_, bs2_, b3nl_, bk2_photo_nl_bin{i}).
+            - 'include_rsd': bool, default False.
+            - 'nonlinear_param_keys': names of sampled parameters passed as keyword
+              arguments to NonLinPerturbations, default ("log10TAGN",). Use () for
+              backends without baryonic feedback (e.g. EE2).
+            - 'baryon_param_keys': names of sampled parameters passed as
+              `baryon_kwargs` to NonLinPerturbations, for classes built with
+              `cloelib.cosmology.cosmology.with_baryon_boost`. Default ().
+            - 'nonlinear_kwargs': fixed keyword arguments for NonLinPerturbations
+              (e.g. {"nonlinear_model": "mead2020"}). Default {}.
+            - 'tatt_loop_computer', 'nl_bias_loop_computer': factories called with
+              the linear perturbations to build the one-loop kernels for TATT and
+              the nonlinear galaxy bias. Default to cloelib's FAST-PT computers.
         Background: Object representing background cosmology.
         LinPerturbations: Object representing linear perturbations.
         NonLinPerturbations: Object representing non-linear perturbations.
@@ -138,6 +184,28 @@ class PhotoLikelihoodBase:
             self.scale_cuts = None
         else:
             self.scale_cuts = settings["scale_cuts"]
+        self.ia_model = settings.get("ia_model", "NLA")
+        if self.ia_model not in IA_MODEL_KEYS:
+            raise ValueError(
+                f"Unknown ia_model {self.ia_model!r}; "
+                f"choose one of {list(IA_MODEL_KEYS)}."
+            )
+        self.galaxy_bias_model = settings.get("galaxy_bias_model", "poly")
+        if self.galaxy_bias_model not in GALAXY_BIAS_MODELS:
+            raise ValueError(
+                f"Unknown galaxy_bias_model {self.galaxy_bias_model!r}; "
+                f"choose one of {list(GALAXY_BIAS_MODELS)}."
+            )
+        if self.galaxy_bias_model == "nonlinear" and settings.get("include_rsd", False):
+            # Fail here rather than at the first loglike call.
+            raise ValueError(
+                "galaxy_bias_model='nonlinear' does not support include_rsd=True "
+                "yet: cloelib's generalized Cl engine has no RSD term."
+            )
+        self.nonlinear_param_keys = tuple(
+            settings.get("nonlinear_param_keys", ("log10TAGN",))
+        )
+        self.baryon_param_keys = tuple(settings.get("baryon_param_keys", ()))
         self.rebin = False
         self.zs = data["z_arr"]
         if self.mode == "coupled":
@@ -188,8 +256,9 @@ class PhotoLikelihoodBase:
     def _masking(self, arr, interval):
         return (arr >= interval[0]) & (arr <= interval[1])
 
-    # Parameters passed to Background(...) -- log10TAGN is not one of them (only
-    # NonLinPerturbations consumes it), so it can't be folded into this list.
+    # Parameters passed to Background(...). Parameters consumed only by
+    # NonLinPerturbations (e.g. log10TAGN) are set per instance through
+    # settings["nonlinear_param_keys"] and settings["baryon_param_keys"].
     _BACKGROUND_PARAM_KEYS = (
         "H0",
         "Omega_cdm0",
@@ -205,9 +274,51 @@ class PhotoLikelihoodBase:
         "alpha_s",
     )
 
-    # Full set of parameters that determine Background/LinPerturbations/NonLinPerturbations
-    # -- i.e. everything the perturbations/tracer caches below key on.
-    _COSMO_PARAM_KEYS = _BACKGROUND_PARAM_KEYS + ("log10TAGN",)
+    def _init_she_keys(self):
+        """Shear nuisance parameters required by the selected IA model."""
+        n = self.data["dndz_she"].shape[0]
+        ia_required, ia_optional = IA_MODEL_KEYS[self.ia_model]
+        self.full_she_keys = (
+            list(ia_required)
+            + [f"multiplicative_bias_{i}" for i in range(1, n + 1)]
+            + [f"dz_shear_{i}" for i in range(1, n + 1)]
+            + [f"width_shear_{i}" for i in range(1, n + 1)]
+        )
+        self.optional_she_keys = list(ia_optional)
+
+    def _init_pos_keys(self):
+        """Position nuisance parameters required by the selected bias model."""
+        n = self.data["dndz_pos"].shape[0]
+        if self.galaxy_bias_model == "poly":
+            bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
+            optional = []
+        elif self.galaxy_bias_model == "nonlinear":
+            # Higher-order terms are optional: cloelib drops a term whose
+            # coefficient is absent.
+            bias_keys = [f"b1_photo_nl_bin{i}" for i in range(n)]
+            optional = [
+                f"{p}_photo_nl_bin{i}"
+                for p in ("b2", "bs2", "b3nl", "bk2")
+                for i in range(n)
+            ]
+        else:
+            bias_keys = [f"b1_photo_bin{i}" for i in range(n)]
+            optional = []
+        self.full_pos_keys = (
+            bias_keys
+            + [f"magnification_bias_{i}" for i in range(1, n + 1)]
+            + [f"dz_pos_{i}" for i in range(1, n + 1)]
+            + [f"width_pos_{i}" for i in range(1, n + 1)]
+        )
+        self.optional_pos_keys = optional
+
+    @staticmethod
+    def _select(parameters, required, optional=()):
+        """Subset of `parameters`: all `required` keys, plus the `optional`
+        ones that are present."""
+        selected = {k: parameters[k] for k in required}
+        selected.update({k: parameters[k] for k in optional if k in parameters})
+        return selected
 
     def _get_perturbations(self, parameters):
         """Build (and cache) Background/LinPerturbations/NonLinPerturbations for
@@ -228,9 +339,18 @@ class PhotoLikelihoodBase:
         background = self.Background(
             **{k: parameters[k] for k in self._BACKGROUND_PARAM_KEYS}
         )
-        lp = self.LinPerturbations(background, self.zs)
+        lp = self.LinPerturbations(background=background, redshifts=self.zs)
+        nl_kwargs = dict(self.settings.get("nonlinear_kwargs", {}))
+        nl_kwargs.update({k: parameters[k] for k in self.nonlinear_param_keys})
+        if self.baryon_param_keys:
+            nl_kwargs["baryon_kwargs"] = {
+                k: parameters[k] for k in self.baryon_param_keys
+            }
         nlp = self.NonLinPerturbations(
-            background, lp, self.zs, log10TAGN=parameters["log10TAGN"]
+            background=background,
+            linearperturbations=lp,
+            redshifts=self.zs,
+            **nl_kwargs,
         )
         # sigma8_0() self-memoizes by overwriting `nlp.sigma8_0` with its
         # result on first call, so it must be called exactly once per nlp
@@ -239,30 +359,58 @@ class PhotoLikelihoodBase:
         self.derived["sigma8_0"] = nlp.sigma8_0()
         result = (background, lp, nlp)
         self._perturbations_cache = (key, result)
+        # Loop computers depend only on the cosmology; drop the old ones.
+        self._loop_computers = {}
         return result
 
     def _cosmo_key(self, parameters):
         """The same cache key used by `_get_perturbations`, exposed so tracer
         caching below can be keyed on values rather than on `nlp`'s object
         identity (which could in principle be reused after garbage collection)."""
-        return tuple(parameters[k] for k in self._COSMO_PARAM_KEYS)
+        keys = (
+            self._BACKGROUND_PARAM_KEYS
+            + self.nonlinear_param_keys
+            + self.baryon_param_keys
+        )
+        return tuple(parameters[k] for k in keys)
+
+    def _get_loop_computer(self, name, default_factory, parameters):
+        """One-loop kernel computer for TATT ("tatt") or the nonlinear galaxy
+        bias ("nl_bias"), built once per cosmology so the FAST-PT kernels are
+        shared between tracers and nuisance-only steps.
+
+        It is built from the linear perturbations: the one-loop integrals need
+        the linear power spectrum, which not every nonlinear backend exposes.
+        """
+        _, lp, _ = self._get_perturbations(parameters)
+        if name not in self._loop_computers:
+            factory = self.settings.get(f"{name}_loop_computer", default_factory)
+            self._loop_computers[name] = factory(lp)
+        return self._loop_computers[name]
 
     def _get_pos_tracer(self, parameters, nlp):
         """Build (and cache) the PositionsTracer for the given parameters/nlp,
         so GCph and GGL do not each rebuild it within the same call."""
-        key = self._cosmo_key(parameters) + tuple(
-            parameters[k] for k in self.full_pos_keys
-        )
+        nuisance = self._select(parameters, self.full_pos_keys, self.optional_pos_keys)
+        key = self._cosmo_key(parameters) + tuple(sorted(nuisance.items()))
         cached = getattr(self, "_pos_tracer_cache", None)
         if cached is not None and cached[0] == key:
             return cached[1]
+        # The nonlinear bias options are only passed when selected, so the linear
+        # bias models also work with cloelib versions without the nonlinear bias.
+        nl_bias_kwargs = {}
+        if self.galaxy_bias_model == "nonlinear":
+            nl_bias_kwargs["nl_bias_loop_computer"] = self._get_loop_computer(
+                "nl_bias", _nonlinear_bias_loop_computer, parameters
+            )
         tracer = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
             self.zs,
-            nuisance_params={k: parameters[k] for k in self.full_pos_keys},
-            galaxy_bias_model="poly",
+            nuisance_params=nuisance,
+            galaxy_bias_model=self.galaxy_bias_model,
             include_rsd=self.settings.get("include_rsd", False),
+            **nl_bias_kwargs,
         )
         self._pos_tracer_cache = (key, tracer)
         return tracer
@@ -270,17 +418,24 @@ class PhotoLikelihoodBase:
     def _get_she_tracer(self, parameters, nlp):
         """Build (and cache) the ShearTracer for the given parameters/nlp, so
         WL and GGL do not each rebuild it within the same call."""
-        key = self._cosmo_key(parameters) + tuple(
-            parameters[k] for k in self.full_she_keys
-        )
+        nuisance = self._select(parameters, self.full_she_keys, self.optional_she_keys)
+        key = self._cosmo_key(parameters) + tuple(sorted(nuisance.items()))
         cached = getattr(self, "_she_tracer_cache", None)
         if cached is not None and cached[0] == key:
             return cached[1]
+        if self.ia_model == "TATT":
+            loop_computer = self._get_loop_computer(
+                "tatt", PBJTATTLoopComputer, parameters
+            )
+        else:
+            loop_computer = None
         tracer = ShearTracer(
             nlp,
             self.data["dndz_she"],
             self.zs,
-            nuisance_params={k: parameters[k] for k in self.full_she_keys},
+            nuisance_params=nuisance,
+            ia_model=self.ia_model,
+            tatt_loop_computer=loop_computer,
         )
         self._she_tracer_cache = (key, tracer)
         return tracer

@@ -36,13 +36,7 @@ class WLCosebi:
 
     def _init_wl(self):
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        IA_keys = ["AIA", "EtaIA", "CIA"]
-        mul_bias_keys = [
-            f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
-        ]
-        dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
+        self._init_she_keys()
         self.WL_keys = [
             ("SHE", "SHE", i, j)
             for i in range(1, self.n_she_bins + 1)
