@@ -275,3 +275,66 @@ def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
             SpectroPower=CometEFT_SpectroPower,
             num_mocks=num_data_points,
         )
+
+
+class MGSpectroPower:
+    """Stand-in for a SpectroPower backend accepting beyond-LCDM settings."""
+
+    NLcode = "PyBird"
+
+    def __init__(
+        self, linear_perturbations, nuisance_parameters, redshift, mg_settings=None
+    ):
+        pass
+
+
+def mg_settings_setup(settings_setup, **mg):
+    return {"GCspectro": {**settings_setup["GCspectro"], **mg}}
+
+
+def test_mg_settings_forwarded(data_setup, settings_setup):
+    like = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=mg_settings_setup(
+            settings_setup,
+            mg_model="nDGP",
+            mg_parameters={"log10Omrc": "logOmegarc"},
+        ),
+        Background=CAMBBackground,
+        SpectroPower=MGSpectroPower,
+    )
+    parameters = default_pars.copy()
+    parameters["log10Omrc"] = -1.0
+    assert like._mg_settings(parameters) == {"mg_model": "nDGP", "logOmegarc": -1.0}
+
+
+def test_mg_settings_none_without_mg_model(data_setup, settings_setup):
+    like = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=MGSpectroPower,
+    )
+    assert like._mg_settings(default_pars) is None
+
+
+def test_mg_model_with_unsupported_backend(data_setup, settings_setup):
+    with pytest.raises(ValueError):
+        EuclidLikelihood_GCspectro_Pls(
+            data=data_setup,
+            settings=mg_settings_setup(settings_setup, mg_model="nDGP"),
+            Background=CAMBBackground,
+            SpectroPower=CometEFT_SpectroPower,
+        )
+
+
+def test_mg_parameters_without_mg_model(data_setup, settings_setup):
+    with pytest.raises(ValueError):
+        EuclidLikelihood_GCspectro_Pls(
+            data=data_setup,
+            settings=mg_settings_setup(
+                settings_setup, mg_parameters={"log10Omrc": "logOmegarc"}
+            ),
+            Background=CAMBBackground,
+            SpectroPower=MGSpectroPower,
+        )

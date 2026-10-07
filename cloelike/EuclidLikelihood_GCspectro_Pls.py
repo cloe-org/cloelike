@@ -1,3 +1,4 @@
+import inspect
 import numpy as np
 import warnings
 
@@ -47,7 +48,12 @@ class EuclidLikelihood_GCspectro_Pls:
             ``"scale_cuts"``. in the third layer ``settings["GCspectro"][z]``
             is expected to be a dictionary containing pairs ``"ell<i>: [a,b]"``,
             where ``"i"`` runs over 0,2,4 and ``"a,b"`` represent the range of
-            modes included in the fit.
+            modes included in the fit. Optionally, the second layer can select
+            a beyond-LCDM model with ``"mg_model"`` (model name understood by
+            the SpectroPower backend, e.g. ``"nDGP"`` for PyBird) and
+            ``"mg_parameters"``, a dictionary mapping the sampled parameter
+            names to the backend options they set, e.g.
+            ``{"log10Omrc": "logOmegarc"}``.
         Background: type
             Protocol-consistent Background class
         SpectroPower: type
@@ -82,6 +88,20 @@ class EuclidLikelihood_GCspectro_Pls:
         self.SpectroPower = SpectroPower
         self.num_mocks = num_mocks
 
+        # Optional beyond-LCDM model, forwarded to the SpectroPower backend
+        self.mg_model = self.settings.get("mg_model")
+        self.mg_parameters = self.settings.get("mg_parameters", {})
+        if self.mg_model is None and self.mg_parameters:
+            raise ValueError("'mg_parameters' given without 'mg_model'.")
+        if (
+            self.mg_model is not None
+            and "mg_settings" not in inspect.signature(SpectroPower).parameters
+        ):
+            raise ValueError(
+                f"{self.NLcode} does not support beyond-LCDM models "
+                f"(mg_model={self.mg_model!r})."
+            )
+
         self._prepare(data)
 
         if self.NLcode == "COMET":
@@ -98,7 +118,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 self.RSD_parameter_names.append("cnlo")
             elif self.RSDmodel == "VDG_infty":
                 self.RSD_parameter_names.append("avir")
-        elif self.NLcode == "PBJ":
+        elif self.NLcode in ["PBJ", "PyBird"]:
             self.RSD_parameter_names = [
                 "b1",
                 "b2",
@@ -132,7 +152,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 }
                 if self.RSDmodel == "EFTofLSS":
                     self.AM_par_to_diag["cnlo"] = ["b1-b1-cnlo", "b1-cnlo", "cnlo"]
-            elif self.NLcode == "PBJ":
+            elif self.NLcode in ["PBJ", "PyBird"]:
                 self.AM_par_to_diag = {
                     "bG3": ["bG3"],
                     "c0": ["c0"],
@@ -405,13 +425,18 @@ class EuclidLikelihood_GCspectro_Pls:
             alpha_s=parameters["alpha_s"],
         )
 
-        if self.Perturbations is not None and self.NLcode in ["PBJ"]:
+        if self.Perturbations is not None and self.NLcode in ["PBJ", "PyBird"]:
             zs = np.float64(self.redshifts)
             cosmo_input = self.Perturbations(background, zs)
         elif self.NLcode in ["COMET"]:
             cosmo_input = background
         else:
-            raise ValueError("Perturbations are required for PBJ, but not for COMET.")
+            raise ValueError(
+                "Perturbations are required for PBJ and PyBird, but not for COMET."
+            )
+
+        mg_settings = self._mg_settings(parameters)
+        mg_kwargs = {} if mg_settings is None else {"mg_settings": mg_settings}
 
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
@@ -424,7 +449,9 @@ class EuclidLikelihood_GCspectro_Pls:
                 key: parameters[key][i] for key in self.noise_syst_parameter_names
             }
 
-            power = self.SpectroPower(cosmo_input, RSD_params, redshift=float(z))
+            power = self.SpectroPower(
+                cosmo_input, RSD_params, redshift=float(z), **mg_kwargs
+            )
             obs = LegendreMultipoles(
                 spectro_power=power,
                 background_fiducial=self.background_fiducial,
@@ -468,6 +495,27 @@ class EuclidLikelihood_GCspectro_Pls:
                 theory_vec_AM[z] = np.zeros((0, Nk))
 
         return np.array(theory_vec), theory_vec_AM
+
+    def _mg_settings(self, parameters: dict) -> Optional[dict]:
+        r"""Beyond-LCDM settings forwarded to the SpectroPower backend
+
+        Parameters
+        ----------
+        parameters: dict
+            Input parameters
+
+        Returns
+        -------
+        mg_settings: dict or None
+            ``"mg_model"`` plus the backend options set by the parameters
+            listed in ``mg_parameters``, or ``None`` for LCDM
+        """
+        if self.mg_model is None:
+            return None
+        mg_settings = {"mg_model": self.mg_model}
+        for name, option in self.mg_parameters.items():
+            mg_settings[option] = float(parameters[name])
+        return mg_settings
 
     def _mask_theory_vector(self, mask_AM: bool = False):
         r"""Mask theory vector, optionally also masking the terms for
@@ -517,6 +565,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 "b1-cnlo": parameters["b1"],
             },
             "PBJ": {},
+            "PyBird": {},
         }
         return coeff[self.NLcode]
 
@@ -600,6 +649,8 @@ class EuclidLikelihood_GCspectro_Pls:
             self.inverse_masked_covariance_matrix,
             self.masked_theory_vector_AM_reduced,
         ) + np.diag(1.0 / self.AM_sigmas**2)
+        # Kept for inspection of the marginalisation
+        self.F0, self.F1i, self.F2ij = F0, F1i, F2ij
         chi2 = F0 - np.einsum("i,ij,j->", F1i, np.linalg.inv(F2ij), F1i)
         if not use_Jeffreys:
             chi2 += np.log(np.linalg.det(F2ij))
