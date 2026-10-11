@@ -14,9 +14,11 @@ from cloelike.EuclidLikelihood_photo_Cls import (
     EuclidLikelihood_GCph,
     EuclidLikelihood_GGL,
     EuclidLikelihood_3x2pt,
+    EuclidLikelihood_2x2pt,
     EuclidLikelihood_WL_BNT,
     EuclidLikelihood_GGL_BNT,
     EuclidLikelihood_3x2pt_BNT,
+    EuclidLikelihood_2x2pt_BNT,
 )
 
 urls = {
@@ -383,6 +385,87 @@ def test_euclid_likelihood_3x2pt_bnt(data_setup, fiducial_params, bnt_matrix):
     assert not np.isnan(val_bnt)
     assert not np.isinf(val_bnt)
     assert round(val_bnt, 3) == round(val_base, 3)
+
+
+def test_bnt_projection_acts_on_shear_blocks(data_setup, fiducial_params, bnt_matrix):
+    """The loglike is invariant under any invertible projection, so the tests
+    above cannot tell which block BNT acts on. Check the theory vectors block by
+    block instead: the combined likelihoods order their blocks WL, GGL, GCph, so
+    the WL and GGL slices must match the single-probe BNT likelihoods and the
+    GCph slice must be left untouched."""
+    ds = data_setup
+
+    def make_like(cls, data):
+        return cls(
+            data=data,
+            settings=build_settings_DR1(ds),
+            Background=CAMBBackground,
+            LinPerturbations=HMemuLinearPerturbations,
+            NonLinPerturbations=HMemuNonLinearPerturbations,
+            mode="coupled",
+        )
+
+    data_wl = build_data(
+        ds,
+        ("SHE", "SHE", 1, 1),
+        ds["covmat_wl"],
+        ["my_dndz_she_norm"],
+        include_she=True,
+    )
+    data_ggl = build_data(
+        ds,
+        ("POS", "SHE", 1, 1),
+        ds["covmat_ggl"],
+        ["my_dndz_pos_norm", "my_dndz_she_norm"],
+        include_pos=True,
+        include_she=True,
+    )
+    data_3x2 = build_data(
+        ds,
+        ("POS", "POS", 1, 1),
+        ds["covmat_3x2pt"],
+        ["my_dndz_pos_norm", "my_dndz_she_norm"],
+        include_pos=True,
+        include_she=True,
+    )
+    for data in (data_wl, data_ggl, data_3x2):
+        data["BNT_matrix"] = bnt_matrix
+
+    theory_wl_bnt = make_like(EuclidLikelihood_WL_BNT, data_wl).get_theory_vector_full(
+        fiducial_params
+    )
+    theory_ggl_bnt = make_like(
+        EuclidLikelihood_GGL_BNT, data_ggl
+    ).get_theory_vector_full(fiducial_params)
+    n_wl = theory_wl_bnt.size
+    n_ggl = theory_ggl_bnt.size
+
+    # 3x2pt: [WL ; GGL ; GCph]
+    theory_3x2 = make_like(EuclidLikelihood_3x2pt, data_3x2).get_theory_vector_full(
+        fiducial_params
+    )
+    theory_3x2_bnt = make_like(
+        EuclidLikelihood_3x2pt_BNT, data_3x2
+    ).get_theory_vector_full(fiducial_params)
+    np.testing.assert_allclose(theory_3x2_bnt[:n_wl], theory_wl_bnt, rtol=1e-10)
+    np.testing.assert_allclose(
+        theory_3x2_bnt[n_wl : n_wl + n_ggl], theory_ggl_bnt, rtol=1e-10
+    )
+    np.testing.assert_array_equal(
+        theory_3x2_bnt[n_wl + n_ggl :], theory_3x2[n_wl + n_ggl :]
+    )
+
+    # 2x2pt: [GGL ; GCph]
+    data_2x2 = dict(data_3x2)
+    data_2x2["cov"] = ds["covmat_3x2pt"][n_wl:, n_wl:]
+    theory_2x2 = make_like(EuclidLikelihood_2x2pt, data_2x2).get_theory_vector_full(
+        fiducial_params
+    )
+    theory_2x2_bnt = make_like(
+        EuclidLikelihood_2x2pt_BNT, data_2x2
+    ).get_theory_vector_full(fiducial_params)
+    np.testing.assert_allclose(theory_2x2_bnt[:n_ggl], theory_ggl_bnt, rtol=1e-10)
+    np.testing.assert_array_equal(theory_2x2_bnt[n_ggl:], theory_2x2[n_ggl:])
 
 
 def _wl_theory(ds, parameters, extra_settings, NonLinPerturbations=None):
