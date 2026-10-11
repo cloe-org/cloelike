@@ -217,10 +217,11 @@ class BNTMixin:
 
         P acts on the concatenated data/theory vector:
 
-            [ GCph ; GGL ; WL ]
+            [ WL ; GGL ; GCph ]
 
-        where some blocks may be absent depending on the specific likelihood
-        class (WL only, GCph+GGL, or full 3x2pt).
+        which is the order in which the mixins append their blocks, where some
+        blocks may be absent depending on the specific likelihood class (WL only,
+        GGL+GCph, or full 3x2pt).
         """
         base_vec = super().get_data_vector_full()
         dim_total = base_vec.size
@@ -247,12 +248,10 @@ class BNTMixin:
         P = np.eye(dim_total)
 
         # Offsets in the full vector.
-        start_GC = 0
-        end_GC = start_GC + dim_GC
-        start_GGL = end_GC
-        end_GGL = start_GGL + dim_GGL
-        start_WL = end_GGL
+        start_WL = 0
         end_WL = start_WL + dim_WL
+        start_GGL = end_WL
+        end_GGL = start_GGL + dim_GGL
 
         # GGL block: transform shear index only.
         if dim_GGL > 0:
@@ -528,8 +527,9 @@ class EuclidLikelihood_3x2pt(GCphMixin, GGLMixin, WLMixin, PhotoLikelihoodBase):
         WLMixin: Mixin providing weak lensing specific functionality.
 
     Note: The order of inheritance matters due to the method resolution order (MRO) in Python
-    and how mixins extend the base class functionality. Also, the order of the mixins assumes
-    the ordering of the covariance matrix blocks is GCph, GGL and WL.
+    and how mixins extend the base class functionality. Each mixin appends its block after
+    the blocks of the mixins that follow it in the MRO, so the data vector, and therefore
+    the covariance matrix blocks, are ordered WL, GGL and GCph.
 
     Parameters
     ----------
@@ -558,8 +558,9 @@ class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
     providing methods to compute the full data and theory vectors for both probes.
 
     Note: The order of inheritance matters due to the method resolution order (MRO) in Python
-    and how mixins extend the base class functionality. The order of the mixins assumes
-    the ordering of the covariance matrix blocks is GCph, GGL.
+    and how mixins extend the base class functionality. Each mixin appends its block after
+    the blocks of the mixins that follow it in the MRO, so the data vector, and therefore
+    the covariance matrix blocks, are ordered GGL and GCph.
 
     Parameters
     ----------
