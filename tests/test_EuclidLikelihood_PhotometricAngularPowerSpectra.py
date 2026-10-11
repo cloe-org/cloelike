@@ -383,3 +383,134 @@ def test_euclid_likelihood_3x2pt_bnt(data_setup, fiducial_params, bnt_matrix):
     assert not np.isnan(val_bnt)
     assert not np.isinf(val_bnt)
     assert round(val_bnt, 3) == round(val_base, 3)
+
+
+def _wl_theory(ds, parameters, extra_settings, NonLinPerturbations=None):
+    data = build_data(
+        ds,
+        ("SHE", "SHE", 1, 1),
+        ds["covmat_wl"],
+        ["my_dndz_she_norm"],
+        include_she=True,
+    )
+    settings = {**build_settings_DR1(ds), **extra_settings}
+    like = EuclidLikelihood_WL(
+        data=data,
+        settings=settings,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=NonLinPerturbations or HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    return like.get_theory_vector_full(parameters)
+
+
+def _gc_theory(ds, parameters, extra_settings):
+    data = build_data(
+        ds,
+        ("POS", "POS", 1, 1),
+        ds["covmat_gc"],
+        ["my_dndz_pos_norm"],
+        include_pos=True,
+    )
+    # cloelib's generalized Cl engine (used by the nonlinear bias) has no RSD.
+    settings = {**build_settings_DR1(ds), "include_rsd": False, **extra_settings}
+    like = EuclidLikelihood_GCph(
+        data=data,
+        settings=settings,
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode="coupled",
+    )
+    return like.get_theory_vector_full(parameters)
+
+
+def test_ia_model_selection(data_setup, fiducial_params):
+    params = {**fiducial_params, "AIA": 1.0, "EtaIA": 1.0, "CIA": 0.0134}
+    no_ia = _wl_theory(data_setup, params, {"ia_model": None})
+    nla = _wl_theory(data_setup, params, {"ia_model": "NLA"})
+    assert not np.allclose(nla, no_ia, rtol=1e-2, atol=0)
+
+    # With A2 = b_TA = 0 and NLA's pivot z0 = 0, TATT reduces to NLA.
+    tatt_params = {**params, "A2IA": 0.0, "bTA": 0.0, "z0IA": 0.0}
+    tatt = _wl_theory(data_setup, tatt_params, {"ia_model": "TATT"})
+    np.testing.assert_allclose(tatt, nla, rtol=2e-3)
+
+    tatt_full = _wl_theory(
+        data_setup, {**tatt_params, "A2IA": 1.0, "bTA": 1.0}, {"ia_model": "TATT"}
+    )
+    assert not np.allclose(tatt_full, tatt, rtol=1e-2, atol=0)
+
+
+def test_nonlinear_galaxy_bias_selection(data_setup, fiducial_params):
+    n_bins = data_setup["my_dndz_pos_norm"].shape[0]
+    b1 = {i: 1.0 + 0.2 * i for i in range(n_bins)}
+    linear = _gc_theory(
+        data_setup,
+        {**fiducial_params, **{f"b1_photo_bin{i}": b for i, b in b1.items()}},
+        {"galaxy_bias_model": "per_bin"},
+    )
+    nl_params = {
+        **fiducial_params,
+        **{f"b1_photo_nl_bin{i}": b for i, b in b1.items()},
+    }
+    # Without higher-order terms the nonlinear bias reduces to linear bias.
+    nonlinear = _gc_theory(data_setup, nl_params, {"galaxy_bias_model": "nonlinear"})
+    np.testing.assert_allclose(nonlinear, linear, rtol=1e-5)
+
+    with_b2 = _gc_theory(
+        data_setup,
+        {**nl_params, **{f"b2_photo_nl_bin{i}": 0.5 for i in range(n_bins)}},
+        {"galaxy_bias_model": "nonlinear"},
+    )
+    assert not np.allclose(with_b2, nonlinear, rtol=1e-2, atol=0)
+
+
+def test_baryon_boost_selection(data_setup, fiducial_params):
+    # The baryonic boosts are not in every cloelib version (cloelib PR #257)
+    cosmology = pytest.importorskip("cloelib.cosmology.cosmology")
+    if not hasattr(cosmology, "with_baryon_boost"):
+        pytest.skip("cloelib without with_baryon_boost")
+    from cloelib.cosmology.HMcode2020Emu_cosmology import HMcode2020BaryonBoostMixin
+
+    builtin = _wl_theory(data_setup, fiducial_params, {})
+    dmo = _wl_theory(data_setup, fiducial_params, {"nonlinear_param_keys": ()})
+    assert not np.allclose(dmo, builtin, rtol=1e-2, atol=0)
+
+    boosted = _wl_theory(
+        data_setup,
+        fiducial_params,
+        {"nonlinear_param_keys": (), "baryon_param_keys": ("log10TAGN",)},
+        NonLinPerturbations=cosmology.with_baryon_boost(
+            HMemuNonLinearPerturbations, HMcode2020BaryonBoostMixin
+        ),
+    )
+    np.testing.assert_allclose(boosted, builtin, rtol=1e-10)
+
+
+@pytest.mark.parametrize(
+    "extra_settings",
+    [
+        {"ia_model": "TATT-M"},
+        {"galaxy_bias_model": "cubic"},
+        {"galaxy_bias_model": "nonlinear", "include_rsd": True},
+    ],
+)
+def test_invalid_model_settings(data_setup, extra_settings):
+    data = build_data(
+        data_setup,
+        ("SHE", "SHE", 1, 1),
+        data_setup["covmat_wl"],
+        ["my_dndz_she_norm"],
+        include_she=True,
+    )
+    with pytest.raises(ValueError):
+        EuclidLikelihood_WL(
+            data=data,
+            settings={**build_settings_DR1(data_setup), **extra_settings},
+            Background=CAMBBackground,
+            LinPerturbations=HMemuLinearPerturbations,
+            NonLinPerturbations=HMemuNonLinearPerturbations,
+            mode="coupled",
+        )
