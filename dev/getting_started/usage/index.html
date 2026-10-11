@@ -565,6 +565,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Basic example: Photometric 3×2pt likelihood">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selecting-the-photometric-theory-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting the photometric theory model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -801,6 +818,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Basic example: Photometric 3×2pt likelihood">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selecting-the-photometric-theory-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Selecting the photometric theory model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -880,19 +914,82 @@
 </span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
 </span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="n">log_like</span> <span class="o">=</span> <span class="n">likelihood</span><span class="o">.</span><span class="n">loglike</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
 </span></code></pre></div>
+<h3 id="selecting-the-photometric-theory-model">Selecting the photometric theory model<a class="headerlink" href="#selecting-the-photometric-theory-model" title="Permanent link">&para;</a></h3>
+<p>The intrinsic-alignment model, galaxy bias model and nonlinear/baryonic options are chosen in <code>settings</code>. All keys are optional. The photometric Cls, 2PCF and COSEBIs likelihoods accept the same ones (COSEBIs is shear only, so it ignores the galaxy-bias keys).</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Options</th>
+<th>Parameters read from <code>parameters</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ia_model</code></td>
+<td><code>"NLA"</code> (default), <code>"TATT"</code>, <code>None</code></td>
+<td>NLA: <code>AIA</code>, <code>EtaIA</code>, <code>CIA</code>. TATT: <code>AIA</code>, <code>A2IA</code>, <code>bTA</code>, optionally <code>EtaIA</code>, <code>Eta2IA</code>, <code>CIA</code>, <code>z0IA</code> (default 0.62)</td>
+</tr>
+<tr>
+<td><code>galaxy_bias_model</code></td>
+<td><code>"poly"</code> (default), <code>"per_bin"</code>, <code>"per_bin_int"</code>, <code>"nonlinear"</code></td>
+<td>poly: <code>b1_photo_poly0..3</code>. per*bin: <code>b1_photo_bin{i}</code>. nonlinear: <code>b1_photo_nl_bin{i}</code>, optionally <code>b2*</code>, <code>bs2*</code>, <code>b3nl*</code>, <code>bk2_photo_nl_bin{i}</code> (<code>i</code> starts at 0)</td>
+</tr>
+<tr>
+<td><code>include_rsd</code></td>
+<td><code>False</code> (default), <code>True</code></td>
+<td>Not supported with <code>galaxy_bias_model="nonlinear"</code></td>
+</tr>
+<tr>
+<td><code>nonlinear_param_keys</code></td>
+<td>default <code>("log10TAGN",)</code></td>
+<td>Passed as keyword arguments to <code>NonLinPerturbations</code>. Use <code>()</code> for backends without baryonic feedback (e.g. EE2)</td>
+</tr>
+<tr>
+<td><code>baryon_param_keys</code></td>
+<td>default <code>()</code></td>
+<td>Passed as <code>baryon_kwargs</code> to a class built with <code>cloelib.cosmology.cosmology.with_baryon_boost</code></td>
+</tr>
+<tr>
+<td><code>nonlinear_kwargs</code></td>
+<td>default <code>{}</code></td>
+<td>Fixed keyword arguments for <code>NonLinPerturbations</code>, e.g. <code>{"nonlinear_model": "mead2020"}</code></td>
+</tr>
+</tbody>
+</table>
+<p>TATT and the nonlinear galaxy bias compute their one-loop kernels with FAST-PT (<code>pip install fast-pt</code>) from the linear perturbations. You can supply your own kernels with <code>settings["tatt_loop_computer"]</code> / <code>settings["nl_bias_loop_computer"]</code>: each is a callable that takes the linear perturbations and returns an object with a <code>.compute(name)</code> method.</p>
+<p>For example, TATT with nonlinear galaxy bias and the FLAMINGO baryonic response on top of HMcode2020Emu:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelib.cosmology.cosmology</span><span class="w"> </span><span class="kn">import</span> <span class="n">with_baryon_boost</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelib.cosmology.FlamingoBaryonResponseEmulator_cosmology</span><span class="w"> </span><span class="kn">import</span> <span class="n">FlamingoBaryonBoostMixin</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="o">**</span><span class="n">settings</span><span class="p">,</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">"ia_model"</span><span class="p">:</span> <span class="s2">"TATT"</span><span class="p">,</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="s2">"galaxy_bias_model"</span><span class="p">:</span> <span class="s2">"nonlinear"</span><span class="p">,</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="s2">"nonlinear_param_keys"</span><span class="p">:</span> <span class="p">(),</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="s2">"baryon_param_keys"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"fgas_sigma"</span><span class="p">,</span> <span class="s2">"Mstar_sigma"</span><span class="p">,</span> <span class="s2">"jet_fraction"</span><span class="p">),</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">}</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">likelihood</span> <span class="o">=</span> <span class="n">EuclidLikelihood_3x2pt</span><span class="p">(</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="n">Background</span><span class="o">=</span><span class="n">CAMBBackground</span><span class="p">,</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="n">LinPerturbations</span><span class="o">=</span><span class="n">HMemuLinearPerturbations</span><span class="p">,</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    <span class="n">NonLinPerturbations</span><span class="o">=</span><span class="n">with_baryon_boost</span><span class="p">(</span><span class="n">HMemuNonLinearPerturbations</span><span class="p">,</span> <span class="n">FlamingoBaryonBoostMixin</span><span class="p">),</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="p">)</span>
+</span></code></pre></div>
 <h2 id="basic-example-spectroscopic-gcspectro-likelihood">Basic example: Spectroscopic GCspectro likelihood<a class="headerlink" href="#basic-example-spectroscopic-gcspectro-likelihood" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelib.cosmology.camb_cosmology</span><span class="w"> </span><span class="kn">import</span> <span class="n">CAMBBackground</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelib.observables.spectro.CometEFT_spectro</span><span class="w"> </span><span class="kn">import</span> <span class="n">CometEFT_SpectroPower</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelike.EuclidLikelihood_GCspectro_Pls</span><span class="w"> </span><span class="kn">import</span> <span class="n">EuclidLikelihood_GCspectro_Pls</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">likelihood</span> <span class="o">=</span> <span class="n">EuclidLikelihood_GCspectro_Pls</span><span class="p">(</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">Background</span><span class="o">=</span><span class="n">CAMBBackground</span><span class="p">,</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">SpectroPower</span><span class="o">=</span><span class="n">CometEFT_SpectroPower</span><span class="p">,</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">)</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">log_like</span> <span class="o">=</span> <span class="n">likelihood</span><span class="o">.</span><span class="n">loglike</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelib.cosmology.camb_cosmology</span><span class="w"> </span><span class="kn">import</span> <span class="n">CAMBBackground</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelib.observables.spectro.CometEFT_spectro</span><span class="w"> </span><span class="kn">import</span> <span class="n">CometEFT_SpectroPower</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cloelike.EuclidLikelihood_GCspectro_Pls</span><span class="w"> </span><span class="kn">import</span> <span class="n">EuclidLikelihood_GCspectro_Pls</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">likelihood</span> <span class="o">=</span> <span class="n">EuclidLikelihood_GCspectro_Pls</span><span class="p">(</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">Background</span><span class="o">=</span><span class="n">CAMBBackground</span><span class="p">,</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="n">SpectroPower</span><span class="o">=</span><span class="n">CometEFT_SpectroPower</span><span class="p">,</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">log_like</span> <span class="o">=</span> <span class="n">likelihood</span><span class="o">.</span><span class="n">loglike</span><span class="p">(</span><span class="n">parameters</span><span class="p">)</span>
 </span></code></pre></div>
 
 
