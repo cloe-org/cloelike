@@ -23,6 +23,7 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 - [🚀 Installation](#-installation)
 - [📊 Usage](#-usage)
 - [🤝 Contributing](#-contributing)
+- [📚 Citation](#-citation)
 - [📜 License](#-license)
 - [🙏 Acknowledgements](#-acknowledgements)
 
@@ -93,6 +94,19 @@ git push origin feature/your-feature-name
 ```
 
 5️⃣ Open a **pull request** and contribute to the project!
+
+---
+
+## 📚 Citation
+
+If you use **cloelike** in your research, please cite the software using the
+metadata in [`CITATION.cff`](CITATION.cff). On GitHub, select **Cite this repository**
+to copy the citation in APA or BibTeX format.
+
+The citation lists the same six maintainers as
+[`cloelib`](https://github.com/cloe-org/cloelib).
+Other contributions are acknowledged
+in the [contributors section](#-contributors).
 
 ---
 
