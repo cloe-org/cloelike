@@ -6,6 +6,7 @@ from copy import deepcopy
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import PositionsTracer, ShearTracer
 from cloelib.observables.photo.shear import PBJTATTLoopComputer
+from cloelib.observables.cmb import CMBLensingTracer
 
 
 def _nonlinear_bias_loop_computer(perturbations):
@@ -438,6 +439,20 @@ class PhotoLikelihoodBase:
             tatt_loop_computer=loop_computer,
         )
         self._she_tracer_cache = (key, tracer)
+        return tracer
+
+    def _get_cmbl_tracer(self, parameters, nlp):
+        """Build (and cache) the CMBLensingTracer for the given parameters/nlp, so
+        CMBLxWL and CMBLxGC do not each rebuild it within the same call."""
+        key = self._cosmo_key(parameters)
+        cached = getattr(self, "_cmbl_tracer_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        tracer = CMBLensingTracer(
+            nlp,
+            self.zs,
+        )
+        self._cmbl_tracer_cache = (key, tracer)
         return tracer
 
     def get_masking_vector(self):
