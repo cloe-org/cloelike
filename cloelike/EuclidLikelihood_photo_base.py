@@ -28,6 +28,9 @@ IA_MODEL_KEYS = {
     None: ((), ()),
     "NLA": (("AIA", "EtaIA", "CIA"), ()),
     "TATT": (("AIA", "A2IA", "bTA"), ("EtaIA", "Eta2IA", "CIA", "z0IA")),
+    # Global TATT-M keys only; the per-bin log10_Mh_{i}, f_r_{i} are added in
+    # _init_she_keys, since they depend on the number of shear bins.
+    "TATT-M": (("alphaM", "betaM"), ("k1", "k2", "k3", "log10_M0", "CIA")),
 }
 
 # Galaxy bias models accepted in settings["galaxy_bias_model"].
@@ -106,8 +109,9 @@ class PhotoLikelihoodBase:
         settings (dict): Configuration settings. Besides the required 'scale_cuts',
             the theory model is selected with the optional keys:
 
-            - 'ia_model': None, "NLA" (default) or "TATT". NLA reads AIA, EtaIA, CIA;
-              TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA.
+            - 'ia_model': None, "NLA" (default) or "TATT" or "TATT-M". NLA reads AIA, EtaIA, CIA;
+              TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA; TATT-M reads alphaM, 
+              betaM, log10_Mh_{i}, f_r_{i} (i = 1..n_she_bins) and optionally k1, k2, k3, log10_M0, CIA..
             - 'galaxy_bias_model': "poly" (default, b1_photo_poly0..3), "per_bin" or
               "per_bin_int" (b1_photo_bin{i}, i = 0..n_pos_bins-1), or "nonlinear"
               (b1_photo_nl_bin{i}, and optionally b2_, bs2_, b3nl_, bk2_photo_nl_bin{i}).
@@ -121,7 +125,7 @@ class PhotoLikelihoodBase:
             - 'nonlinear_kwargs': fixed keyword arguments for NonLinPerturbations
               (e.g. {"nonlinear_model": "mead2020"}). Default {}.
             - 'tatt_loop_computer', 'nl_bias_loop_computer': factories called with
-              the linear perturbations to build the one-loop kernels for TATT and
+              the linear perturbations to build the one-loop kernels for TATT, TATT-M, and
               the nonlinear galaxy bias. Default to cloelib's FAST-PT computers.
         Background: Object representing background cosmology.
         LinPerturbations: Object representing linear perturbations.
@@ -278,8 +282,14 @@ class PhotoLikelihoodBase:
         """Shear nuisance parameters required by the selected IA model."""
         n = self.data["dndz_she"].shape[0]
         ia_required, ia_optional = IA_MODEL_KEYS[self.ia_model]
+        ia_required = list(ia_required)
+        if self.ia_model == "TATT-M":
+            # Per-bin halo mass and red fraction, 1-indexed like the other
+            # shear nuisance parameters.
+            ia_required += [f"log10_Mh_{i}" for i in range(1, n + 1)]
+            ia_required += [f"f_r_{i}" for i in range(1, n + 1)]
         self.full_she_keys = (
-            list(ia_required)
+            ia_required
             + [f"multiplicative_bias_{i}" for i in range(1, n + 1)]
             + [f"dz_shear_{i}" for i in range(1, n + 1)]
             + [f"width_shear_{i}" for i in range(1, n + 1)]
@@ -423,7 +433,7 @@ class PhotoLikelihoodBase:
         cached = getattr(self, "_she_tracer_cache", None)
         if cached is not None and cached[0] == key:
             return cached[1]
-        if self.ia_model == "TATT":
+        if self.ia_model in ("TATT", "TATT-M"):
             loop_computer = self._get_loop_computer(
                 "tatt", PBJTATTLoopComputer, parameters
             )
