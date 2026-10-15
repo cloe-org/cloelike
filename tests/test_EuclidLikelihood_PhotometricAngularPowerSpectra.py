@@ -598,6 +598,7 @@ def test_invalid_model_settings(data_setup, extra_settings):
             mode="coupled",
         )
 
+
 def test_tatt_m_parameters_reach_cloelib(data_setup, fiducial_params):
     n_bins = data_setup["my_dndz_she_norm"].shape[0]
     params = {

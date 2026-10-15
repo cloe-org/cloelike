@@ -110,7 +110,7 @@ class PhotoLikelihoodBase:
             the theory model is selected with the optional keys:
 
             - 'ia_model': None, "NLA" (default) or "TATT" or "TATT-M". NLA reads AIA, EtaIA, CIA;
-              TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA; TATT-M reads alphaM, 
+              TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA; TATT-M reads alphaM,
               betaM, log10_Mh_{i}, f_r_{i} (i = 1..n_she_bins) and optionally k1, k2, k3, log10_M0, CIA..
             - 'galaxy_bias_model': "poly" (default, b1_photo_poly0..3), "per_bin" or
               "per_bin_int" (b1_photo_bin{i}, i = 0..n_pos_bins-1), or "nonlinear"
