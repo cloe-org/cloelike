@@ -529,17 +529,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installing-cloelib" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing cloelib
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#installing-cloelike" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -550,6 +539,17 @@
   
     <nav class="md-nav" aria-label="Installing cloelike">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#from-pypi-latest-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From PyPI (latest release)
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#from-source-latest-development-version" class="md-nav__link">
@@ -832,17 +832,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installing-cloelib" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installing cloelib
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#installing-cloelike" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -853,6 +842,17 @@
   
     <nav class="md-nav" aria-label="Installing cloelike">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#from-pypi-latest-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From PyPI (latest release)
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#from-source-latest-development-version" class="md-nav__link">
@@ -916,22 +916,24 @@
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Python ≥ 3.12 (&lt; 3.13 due to upstream dependency constraints)</li>
-<li><a href="https://github.com/cloe-org/cloelib"><code>cloelib</code></a> (private repository)</li>
+<li><a href="https://github.com/cloe-org/cloelib"><code>cloelib</code></a> ≥ 0.11, installed automatically as a dependency</li>
 </ul>
-<h2 id="installing-cloelib">Installing cloelib<a class="headerlink" href="#installing-cloelib" title="Permanent link">&para;</a></h2>
-<p><code>cloelike</code> depends on <code>cloelib</code>, which is currently a private repository. Please install it manually by following the installation instructions provided in its <a href="https://github.com/cloe-org/cloelib">GitHub repository</a>.</p>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/cloe-org/cloelib.git
-</span></code></pre></div>
 <h2 id="installing-cloelike">Installing cloelike<a class="headerlink" href="#installing-cloelike" title="Permanent link">&para;</a></h2>
+<h3 id="from-pypi-latest-release">From PyPI (latest release)<a class="headerlink" href="#from-pypi-latest-release" title="Permanent link">&para;</a></h3>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>cloelike
+</span></code></pre></div>
+<p>This also installs <a href="https://pypi.org/project/cloelib/"><code>cloelib</code></a> from PyPI. To use the development version of <code>cloelib</code> instead, install it first following the instructions in its <a href="https://github.com/cloe-org/cloelib">GitHub repository</a>:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/cloe-org/cloelib.git
+</span></code></pre></div>
 <h3 id="from-source-latest-development-version">From source (latest development version)<a class="headerlink" href="#from-source-latest-development-version" title="Permanent link">&para;</a></h3>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/cloe-org/cloelike.git
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>cloelike
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>pip<span class="w"> </span>install<span class="w"> </span>.
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/cloe-org/cloelike.git
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>cloelike
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>pip<span class="w"> </span>install<span class="w"> </span>.
 </span></code></pre></div>
 <h3 id="from-a-specific-release">From a specific release<a class="headerlink" href="#from-a-specific-release" title="Permanent link">&para;</a></h3>
 <p>To work with the latest stable release, check out the corresponding tag:</p>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>&lt;name-latest-release&gt;
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span>.
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>&lt;name-latest-release&gt;
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span>.
 </span></code></pre></div>
 <p>where <code>&lt;name-latest-release&gt;</code> is the tag name visible under <a href="https://github.com/cloe-org/cloelike/releases">Releases</a>.</p>
 <h2 id="optional-dependencies">Optional dependencies<a class="headerlink" href="#optional-dependencies" title="Permanent link">&para;</a></h2>
