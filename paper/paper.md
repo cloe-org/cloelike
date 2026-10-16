@@ -39,6 +39,10 @@ authors:
     orcid: 0000-0002-6632-2614
     affiliation: 7
 
+  - name: Klara Bertmann
+    orcid: 0009-0004-6700-2470
+    affiliation: 9
+
   - name: Carmelita Carbone
     orcid: 0000-0003-0125-3563
     affiliation: 8
@@ -51,10 +55,6 @@ authors:
     orcid: 0009-0001-5175-9282
     affiliation: 2
 
-  - name: Klara Bertmann
-    orcid: 0009-0004-6700-2470
-    affiliation: 9
-
   - name: Nastassia Grimm
     orcid: 0000-0001-9602-0599
     affiliation: 10
@@ -65,6 +65,14 @@ authors:
 
   - name: Felicitas Keil
     orcid: 0000-0002-8108-1679
+    affiliation: 12
+
+  # TODO: add ORCID
+  - name: Zuzanna Kostrzewa-Rutkowska
+    affiliation: 2
+
+  - name: Raphaël Kou
+    orcid: 0000-0003-3408-3062
     affiliation: 12
 
   - name: Davide Sciotti
@@ -129,13 +137,13 @@ affiliations:
   - name: Department of Physics, Royal Holloway, University of London, United Kingdom
     index: 18
 
-date: 26 April 2026
+date: 16 October 2026
 bibliography: paper.bib
 ---
 
 # Summary
 
-\texttt{cloelike}, available at \href{https://github.com/cloe-org/cloelike}{cloe-org/cloelike}, is a Python package providing modular, composable Gaussian likelihood classes for the main cosmological large-scale structure observables targeted by the ESA \emph{Euclid} space mission. It is a core component of the \texttt{CLOE} (Cosmology Likelihood for Observables in Euclid) ecosystem and interfaces directly with \texttt{cloelib} for theoretical predictions and \texttt{euclidlib} for reading official \emph{Euclid} data products. The package implements Gaussian likelihoods covering harmonic angular power spectra and real-space two-point correlation functions for weak lensing (WL), photometric galaxy clustering (GCph), and Galaxy--Galaxy Lensing (GGL) in all joint probe combinations (3$\times$2pt, 2$\times$2pt), as well as spectroscopic full-shape power spectrum multipoles, and baryonic Acoustic oscillations (BAO). \texttt{cloelike} is actively used in internal Euclid Consortium analyses and is openly released to support community validation and reproducibility.
+\texttt{cloelike}, available at \href{https://github.com/cloe-org/cloelike}{cloe-org/cloelike}, is a Python package providing modular, composable Gaussian likelihood classes for the main cosmological large-scale structure observables targeted by the ESA \emph{Euclid} space mission. It is a core component of the \texttt{CLOE} (Cosmology Likelihood for Observables in Euclid) ecosystem and interfaces directly with \texttt{cloelib} for theoretical predictions and \texttt{euclidlib} for reading official \emph{Euclid} data products. Here we present version 0.3 of \texttt{cloelike}, the first release distributed through PyPI. It implements Gaussian likelihoods covering harmonic angular power spectra, real-space two-point correlation functions, and COSEBIs for weak lensing (WL), photometric galaxy clustering (GCph), and galaxy--galaxy lensing (GGL) in all joint probe combinations ($3\times2$pt, $2\times2$pt), as well as spectroscopic galaxy clustering through full-shape power spectrum and correlation function multipoles, baryon acoustic oscillations (BAO), and their joint full-shape+BAO combination. \texttt{cloelike} is actively used in internal Euclid Consortium analyses and is openly released to support community validation and reproducibility.
 
 # Statement of Need
 
@@ -165,7 +173,7 @@ In contrast, \texttt{cloelike} adopts a deliberately modular and simpler philoso
 
 # Software Design
 
-\texttt{cloelike} supports likelihoods already prepared for photometric harmonic and configuration-space summary statistics (the latter including two-point correlation functions and COSEBIs), as well as spectroscopic galaxy clustering observables, both in their full-shape and BAO formulations, with the possibility of constructing a joint likelihood combining the two spectroscopic probes.
+\texttt{cloelike} v0.3 supports likelihoods already prepared for photometric harmonic and configuration-space summary statistics (the latter including two-point correlation functions and COSEBIs), as well as spectroscopic galaxy clustering observables, both in their full-shape (power spectrum and correlation function multipoles) and BAO formulations, with the possibility of constructing a joint likelihood combining the two spectroscopic probes. On the photometric side, v0.3 provides the weak lensing, photometric galaxy clustering, galaxy--galaxy lensing, $3\times2$pt and $2\times2$pt likelihoods, an optional Bernardeau--Nishimichi--Taruya (BNT) transform of the shear-related blocks, a choice of intrinsic alignment models (NLA or TATT) and galaxy bias models (polynomial, per-bin, or non-linear), and nuisance parameters for multiplicative shear bias, magnification bias, and shifts and stretches of the redshift distributions. On the spectroscopic side, full-shape likelihoods can use either the \texttt{COMET} (EFTofLSS or VDG$_\infty$) or \texttt{PBJ} theory models, with analytical marginalisation over the parameters that enter the model linearly, under Gaussian priors. All spectroscopic likelihoods can apply the Hartlap correction to the inverse covariance when it is estimated from a finite number of mocks.
 
 The internal architecture of \texttt{cloelike} follows a modular design based on a strict separation of concerns. For photometric probes, which share a common statistical structure, all operations related to data-vector ingestion, masking, scale cuts, covariance loading, precision-matrix handling, and consistency checks are implemented in a shared base class[^spectrobase]. This common layer provides a unified interface for handling observational inputs independently of the specific summary statistic being analysed. On top of this shared infrastructure, the computation of the theoretical observables is delegated to independent probe-specific mixins. Each mixin encapsulates only the logic required to compute a given observable—for example, harmonic-space angular power spectra, configuration-space correlation functions, or COSEBIs—while inheriting the shared data and covariance machinery from the base class. This approach avoids code duplication, ensures consistency across probes, and makes the addition of new observables straightforward, since only the corresponding theoretical prediction module needs to be implemented.
 
@@ -177,13 +185,13 @@ Building on this modular foundation, \texttt{cloelike} enables a high degree of 
 
 A key feature of the framework is its seamless integration with theory predictions provided by \texttt{cloelib} using Python protocols. Through a well-defined interface, \texttt{cloelike} retrieves theoretical predictions for all supported observables, ensuring consistency in cosmological parameter definitions, nuisance modeling, and numerical settings. This tight coupling minimizes duplication of functionality and code, and reduces the risk of inconsistencies between likelihood and theory layers. Moreover, it allows \texttt{cloelike} to benefit directly from any future developments in \texttt{cloelib}. This includes, for example, ongoing improvements in non-linear modeling, such as galaxy bias, redshift-space distortions, and intrinsic alignment, as well as extensions to beyond-$\Lambda$CDM scenarios.
 
-From an implementation perspective, Python mixins in the photometric case provide an elegant yet powerful mechanism to extend the framework for likelihood combinations, such as 3$\times$2pt and 2$\times$2pt. New probes or summary statistics can be incorporated by defining additional mixins that implement the required observable computations and data-vector mappings, without altering the core likelihood machinery. This promotes rapid prototyping and facilitates the inclusion of novel observables, such as cross-correlations with the cosmic microwave background, which is essential for future data releases and methodological developments within the Euclid Consortium.
+From an implementation perspective, Python mixins in the photometric case provide an elegant yet powerful mechanism to extend the framework for likelihood combinations, such as $3\times2$pt and $2\times2$pt. New probes or summary statistics can be incorporated by defining additional mixins that implement the required observable computations and data-vector mappings, without altering the core likelihood machinery. This promotes rapid prototyping and facilitates the inclusion of novel observables, such as cross-correlations with the cosmic microwave background, which is essential for future data releases and methodological developments within the Euclid Consortium.
 
 All \texttt{cloelike} likelihoods, independently of the probe or data space considered, are initialised from two Python dictionaries that provide the required data products and analysis specifications. The \texttt{data} dictionary contains the data vector, auxiliary data products, and the corresponding covariance matrix, while the \texttt{settings} dictionary defines analysis choices such as scale cuts for each redshift bin in tomographic analyses.
 
-In addition, each likelihood requires the appropriate \texttt{cloelib} protocol-compatible theory classes. Photometric likelihoods require classes for \texttt{Background} and \texttt{Perturbations}; spectroscopic galaxy-clustering full-shape likelihoods require \texttt{Background} and \texttt{SpectroPower}; and BAO likelihoods require only a \texttt{Background} class.
+In addition, each likelihood requires the appropriate \texttt{cloelib} protocol-compatible theory classes. Photometric likelihoods require classes for \texttt{Background}, \texttt{LinPerturbations} and \texttt{NonLinPerturbations}; spectroscopic galaxy-clustering full-shape likelihoods require \texttt{Background} and \texttt{SpectroPower} (plus a \texttt{Perturbations} class when the theory model takes the linear power spectrum as input, as \texttt{PBJ} does); and BAO likelihoods require only a \texttt{Background} class. \texttt{cloelike} v0.3 requires \texttt{cloelib} v0.11 or later.
 
-Moreover, \texttt{cloelike} is designed with performance and scalability in mind. Vectorized operations, caching of intermediate quantities (inverse of the covariance matrix), and compatibility with parallel sampling codes ensure that the likelihood evaluations remain efficient even for high-dimensional parameter spaces. The framework is also compatible with standard sampling and optimization tools, enabling its deployment in both Bayesian inference and frequentist pipelines.
+Moreover, \texttt{cloelike} is designed with performance and scalability in mind. Vectorized operations, caching of intermediate quantities (the inverse of the covariance matrix, masking vectors, and the projection kernels and perturbations shared by the probes of a combined likelihood), and compatibility with parallel sampling codes ensure that the likelihood evaluations remain efficient even for high-dimensional parameter spaces. The framework is also compatible with standard sampling and optimization tools, enabling its deployment in both Bayesian inference and frequentist pipelines.
 
 Finally, the architecture naturally supports joint analyses across multiple probes. By construction, shared parameters spaces, as long as there is no cross-covariances between the probes, can be consistently handled, allowing \texttt{cloelike} to perform coherent multi-probe likelihood evaluations by means of summing log-likelihood evaluations. This capability is central to extracting the full scientific potential of forthcoming survey data, where combined constraints from weak lensing, galaxy clustering, and other observables will play a decisive role in testing cosmological models.
 
@@ -282,6 +290,7 @@ default_pars = {
     'mnu': 0.06,
     'gamma_MG': 0.545,
     'N_mnu': 1,
+    'alpha_s': 0.0,
     'log10TAGN': 7.8,
 
     # Intrinsic alignment model
@@ -327,7 +336,7 @@ loglike = like_WL.loglike(default_pars)
 
 ## Spectroscopic galaxy clustering full-shape
 
-In this example, we compute a log-likelihood evaluation for spectroscopic galaxy clustering full-shape.
+In this example, we compute a log-likelihood evaluation for spectroscopic galaxy clustering full-shape. In v0.3, the likelihood ingests the \texttt{euclidlib} data products directly: the fiducial cosmology is read from the data vector, and the conversion from $h^{-1}\,$Mpc to Mpc units and the assembly of the covariance blocks are handled internally.
 
 ```python
 # ------------------------------------------------------------------
@@ -365,164 +374,61 @@ mixing = power_spectrum_multipole_mixing_matrix(
 # ------------------------------------------------------------------
 # Step 3: Construct the data dictionary expected by cloelike
 # ------------------------------------------------------------------
-# The spectroscopic likelihood requires:
-# - Power spectrum multipoles P_0(k), P_2(k), and P_4(k)
-# - Effective k values
-# - Number densities
-# - Covariance matrices
-# - Mixing matrices
-# - Fiducial cosmology, required for AP distortions
+# For each redshift bin, we hand over the raw euclidlib objects:
+# - Power spectrum multipoles (datavec), including the fiducial
+#   cosmology needed for AP distortions
+# - Covariance matrix (covariance)
+# - Mixing matrix (mixing), optional
 
 data = {
-    'GCspectro': {},
-    'fiducial_cosmology': {}
-}
-
-
-# ------------------------------------------------------------------
-# Step 4: Store the fiducial cosmology
-# ------------------------------------------------------------------
-# We extract the fiducial cosmology from the data vector and complete
-# the parameter dictionary with the quantities required by cloelib.
-
-dv = datavec[("SPE", "SPE", 0, 0)]
-
-data['fiducial_cosmology']['H0'] = dv.fiducial_cosmology['H0']
-data['fiducial_cosmology']['Omega_cdm0'] = (
-    dv.fiducial_cosmology['Omega_m0']
-    - dv.fiducial_cosmology['Omega_b0']
-)
-data['fiducial_cosmology']['Omega_b0'] = dv.fiducial_cosmology['Omega_b0']
-data['fiducial_cosmology']['Omega_k0'] = dv.fiducial_cosmology['Omega_k0']
-data['fiducial_cosmology']['mnu'] = 0.0
-data['fiducial_cosmology']['N_mnu'] = 0
-data['fiducial_cosmology']['w0'] = dv.fiducial_cosmology['w0']
-data['fiducial_cosmology']['wa'] = 0.0
-data['fiducial_cosmology']['ns'] = dv.fiducial_cosmology['ns']
-data['fiducial_cosmology']['As'] = 2.1e-9
-data['fiducial_cosmology']['gamma_MG'] = 0.545
-
-
-# ------------------------------------------------------------------
-# Step 5: Convert units consistently
-# ------------------------------------------------------------------
-# The data vectors are stored in Mpc/h units, while cloelib currently
-# works internally in Mpc units. We therefore rescale k, P(k), the
-# covariance, and number densities using the fiducial value of h.
-
-fid_h = data['fiducial_cosmology']['H0'] / 100.0
-
-k_fac = fid_h
-pk_fac = 1.0 / fid_h**3
-cov_fac = 1.0 / fid_h**6
-
-
-# ------------------------------------------------------------------
-# Step 6: Fill the redshift-dependent GCspectro data blocks
-# ------------------------------------------------------------------
-# For each redshift bin, we store the multipoles, covariance matrix,
-# number density, and mixing matrix in the structure expected by
-# EuclidLikelihood_GCspectro_Pls.
-
-for ii, z in enumerate(labels):
-
-    data['GCspectro'][z] = {}
-
-    dv_inst = datavec[('SPE', 'SPE', ii, ii)]
-    cv_inst = covariance[('SPE', 'SPE', ii, ii)]
-    mm_inst = mixing[('SPE', 'SPE', ii, ii)]
-
-    # Number density
-    data['GCspectro'][z]['nbar'] = dv_inst.nbar * fid_h**3
-
-    # Power spectrum multipoles
-    data['GCspectro'][z]['k'] = dv_inst.keff * k_fac
-    data['GCspectro'][z]['pk0'] = dv_inst.multipoles[0] * pk_fac
-    data['GCspectro'][z]['pk2'] = dv_inst.multipoles[2] * pk_fac
-    data['GCspectro'][z]['pk4'] = dv_inst.multipoles[4] * pk_fac
-
-    # Covariance matrix
-    full_matrix = np.block([
-        [cv_inst.covariance[f'ELL_{i}-{j}'] for j in [0, 2, 4]]
-        for i in [0, 2, 4]
-    ])
-    data['GCspectro'][z]['cov'] = full_matrix * cov_fac
-
-    # Mixing matrix
-    mixing_matrix_dict = {
-        'kout': mm_inst.kout * k_fac
-    }
-
-    mixing_matrix_dict.update({
-        f'kin{ell}': mm_inst.kin[ell] * k_fac
-        for ell in [0, 2, 4]
-    })
-
-    mixing_matrix_dict.update({
-        f'W{i}{j}': mm_inst.mixing[f'ELL_{i}-{j}'].squeeze()
-        for i, j in product([0, 2, 4], repeat=2)
-    })
-
-    data['GCspectro'][z]['mixing_matrix'] = mixing_matrix_dict
-
-
-# ------------------------------------------------------------------
-# Step 7: Define the analysis settings
-# ------------------------------------------------------------------
-# Scale cuts are initially specified in Mpc/h units for each multipole
-# and redshift bin. They are converted below to Mpc units to remain
-# consistent with cloelib.
-
-settings = {
-    'scale_cuts': {
-        'GCspectro': {
-            'bin1': {
-                'ell0': [0.0, 0.20],
-                'ell2': [0.0, 0.15],
-                'ell4': [0.0, 0.15],
-            },
-            'bin2': {
-                'ell0': [0.0, 0.25],
-                'ell2': [0.0, 0.20],
-                'ell4': [0.0, 0.20],
-            },
-            'bin3': {
-                'ell0': [0.0, 0.25],
-                'ell2': [0.0, 0.20],
-                'ell4': [0.0, 0.20],
-            },
-            'bin4': {
-                'ell0': [0.0, 0.30],
-                'ell2': [0.0, 0.25],
-                'ell4': [0.0, 0.25],
-            },
+    'GCspectro': {
+        z: {
+            'datavec': datavec[('SPE', 'SPE', ii, ii)],
+            'covariance': covariance[('SPE', 'SPE', ii, ii)],
+            'mixing': mixing[('SPE', 'SPE', ii, ii)],
         }
+        for ii, z in enumerate(labels)
     }
 }
 
+
+# ------------------------------------------------------------------
+# Step 4: Define the analysis settings
+# ------------------------------------------------------------------
+# Scale cuts are specified for each redshift bin and multipole in
+# h/Mpc units, and converted to 1/Mpc units to remain consistent
+# with cloelib.
+
+fid_h = datavec[('SPE', 'SPE', 0, 0)].fiducial_cosmology['H0'] / 100.0
+
+scale_cuts = {
+    '1.':   {'ell0': [0.0, 0.20], 'ell2': [0.0, 0.15], 'ell4': [0.0, 0.15]},
+    '1.2':  {'ell0': [0.0, 0.25], 'ell2': [0.0, 0.20], 'ell4': [0.0, 0.20]},
+    '1.4':  {'ell0': [0.0, 0.25], 'ell2': [0.0, 0.20], 'ell4': [0.0, 0.20]},
+    '1.65': {'ell0': [0.0, 0.30], 'ell2': [0.0, 0.25], 'ell4': [0.0, 0.25]},
+}
+
 settings = {
-    'scale_cuts': {
-        'GCspectro': {
-            bin_key: {
-                ell_key: [v * fid_h for v in values]
-                for ell_key, values in bin_values.items()
-            }
-            for bin_key, bin_values
-            in settings['scale_cuts']['GCspectro'].items()
+    'GCspectro': {
+        'scale_cuts': {
+            z: {ell: [v * fid_h for v in cut] for ell, cut in cuts.items()}
+            for z, cuts in scale_cuts.items()
         }
     }
 }
 
 
 # ------------------------------------------------------------------
-# Step 8: Initialise the likelihood
+# Step 5: Initialise the likelihood
 # ------------------------------------------------------------------
 # The likelihood combines:
-# - Background cosmology from cloelib
-# - Spectroscopic galaxy clustering predictions from CometEFT
+# - Background cosmology from cloelib (CAMBBackground)
+# - Spectroscopic galaxy clustering predictions from COMET
+#   (CometEFT_SpectroPower)
 #
-# The likelihood receives the prepared Euclid data products and computes
-# the spectroscopic GC power-spectrum likelihood.
+# Optional arguments: AM_priors enables analytical marginalisation
+# over the linear parameters, and num_mocks applies the Hartlap
+# correction for covariances estimated from mocks.
 
 like_spec = EuclidLikelihood_GCspectro_Pls(
     data=data,
@@ -533,7 +439,7 @@ like_spec = EuclidLikelihood_GCspectro_Pls(
 
 
 # ------------------------------------------------------------------
-# Step 9: Define cosmological and nuisance parameters
+# Step 6: Define cosmological and nuisance parameters
 # ------------------------------------------------------------------
 # The nuisance parameters are provided as arrays, with one value per
 # spectroscopic redshift bin.
@@ -550,6 +456,7 @@ parameters = {
     'wa': 0.0,
     'ns': 0.96,
     'As': 2.1e-9,
+    'alpha_s': 0.0,
     'gamma_MG': 0.545,
 
     # Galaxy bias and EFT nuisance parameters
@@ -572,7 +479,7 @@ parameters = {
 
 
 # ------------------------------------------------------------------
-# Step 10: Evaluate the log-likelihood
+# Step 7: Evaluate the log-likelihood
 # ------------------------------------------------------------------
 # This computes the agreement between the spectroscopic GC data vector
 # and the theoretical prediction for the parameter values above.
@@ -594,11 +501,12 @@ For practical examples, example scripts, and interactive tutorials, visit the \h
 
 # Availability
 
-**Source:** [github.com/cloe-org/cloelike](https://github.com/cloe-org/cloelike)
-**License:** MIT
-**Install (PyPI):** \texttt{pip install cloelike}
-**Documentation:** [https://cloe-org.github.io/cloelike/dev/home/](https://cloe-org.github.io/cloelike/dev/home/)
-**Examples:** [github.com/cloe-org/playground](https://github.com/cloe-org/playground)
+- **Source:** [github.com/cloe-org/cloelike](https://github.com/cloe-org/cloelike)
+- **Version:** 0.3
+- **License:** MIT
+- **Install (PyPI):** \texttt{pip install cloelike} (also installs a compatible \texttt{cloelib} $\geq$ 0.11)
+- **Documentation:** [https://cloe-org.github.io/cloelike/dev/home/](https://cloe-org.github.io/cloelike/dev/home/)
+- **Examples:** [github.com/cloe-org/playground](https://github.com/cloe-org/playground)
 
 # Acknowledgements
 
