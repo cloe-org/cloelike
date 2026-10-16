@@ -64,9 +64,13 @@ with name-latest-release the latest name that appears in "Releases".
 
 ## 📂 Dependency: `cloelib`
 
-`cloelike` depends on the [`cloelib`](https://github.com/cloe-org/cloelib) package (private for now).
+`cloelike` depends on the [`cloelib`](https://github.com/cloe-org/cloelib) package (≥ 0.11), which is available on [PyPI](https://pypi.org/project/cloelib/) and is installed automatically with `cloelike`.
 
-For the time being, please install `cloelib` manually by following the installation instructions provided in its [GitHub repository](https://github.com/cloe-org/cloelib).
+To use the development version of `cloelib` instead, install it first following the instructions in its [GitHub repository](https://github.com/cloe-org/cloelib):
+
+```sh
+pip install git+https://github.com/cloe-org/cloelib.git
+```
 
 ---
 
