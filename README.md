@@ -165,6 +165,7 @@ This project follows the [all-contributors](https://github.com/all-contributors/
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/raphkou"><img src="https://avatars.githubusercontent.com/u/61792335?v=4?s=100" width="100px;" alt="Raphaël Kou"/><br /><sub><b>Raphaël Kou</b></sub></a><br /><a href="#review-raphkou" title="Reviewed Pull Requests">👀</a> <a href="#maintenance-raphkou" title="Maintenance">🚧</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ivansladoljev"><img src="https://avatars.githubusercontent.com/u/144113061?v=4?s=100" width="100px;" alt="Ivan Sladoljev"/><br /><sub><b>Ivan Sladoljev</b></sub></a><br /><a href="#code-ivansladoljev" title="Code">💻</a> <a href="#bug-ivansladoljev" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/NastassiaG"><img src="https://avatars.githubusercontent.com/u/107264848?v=4?s=100" width="100px;" alt="NastassiaG"/><br /><sub><b>NastassiaG</b></sub></a><br /><a href="#code-NastassiaG" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/zuzannakr"><img src="https://avatars.githubusercontent.com/u/12124870?v=4?s=100" width="100px;" alt="zuzannakr"/><br /><sub><b>zuzannakr</b></sub></a><br /><a href="#review-zuzannakr" title="Reviewed Pull Requests">👀</a> <a href="#mentoring-zuzannakr" title="Mentoring">🧑‍🏫</a></td>
     </tr>
   </tbody>
 </table>
