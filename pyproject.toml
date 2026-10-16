@@ -18,6 +18,12 @@ authors = [
 
 requires-python = ">=3.12,<3.13"
 
+dependencies = [
+    "cloelib>=0.11",
+    "numpy",
+    "scipy",
+]
+
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -29,12 +35,10 @@ docs = [
 
 [tool.hatch.version]
 source = "vcs"
+raw-options = { local_scheme = "no-local-version" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "cloelike/_version.py"
 
 [tool.pytest.ini_options]
-addopts = "--verbose --cov=cloelib"
-
-[tool.hatch.metadata]
-allow-direct-references = true
+addopts = "--verbose --cov=cloelike"
