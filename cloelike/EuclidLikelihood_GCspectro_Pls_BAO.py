@@ -670,30 +670,40 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         self._mask_theory_vector(mask_AM=True)
         # Calculating chi2 including analytical marginalisation
         diff = self.masked_theory_vector - self.masked_data_vector
-        F0 = np.einsum(
-            "i,ij,j->", diff, self.inverse_masked_covariance_matrix, diff
-        ) + np.sum((self.AM_means / self.AM_sigmas) ** 2)
+        # Intermediate products are computed once and reused; optimize=True
+        # makes einsum contract pairwise through BLAS
+        Cinv_diff = np.einsum(
+            "ij,j->i", self.inverse_masked_covariance_matrix, diff, optimize=True
+        )
+        T_Cinv = np.einsum(
+            "ij,jk->ik",
+            self.masked_theory_vector_AM_reduced,
+            self.inverse_masked_covariance_matrix,
+            optimize=True,
+        )
+        F0 = np.einsum("i,i->", diff, Cinv_diff, optimize=True) + np.sum(
+            (self.AM_means / self.AM_sigmas) ** 2
+        )
         F1i = (
             -np.einsum(
-                "ij,jk,k->i",
+                "ij,j->i",
                 self.masked_theory_vector_AM_reduced,
-                self.inverse_masked_covariance_matrix,
-                diff,
+                Cinv_diff,
+                optimize=True,
             )
             + self.AM_means / self.AM_sigmas**2
         )
         F2ij = np.einsum(
-            "ik,kp,jp->ij",
-            self.masked_theory_vector_AM_reduced,
-            self.inverse_masked_covariance_matrix,
-            self.masked_theory_vector_AM_reduced,
+            "ik,jk->ij", T_Cinv, self.masked_theory_vector_AM_reduced, optimize=True
         ) + np.diag(1.0 / self.AM_sigmas**2)
-        chi2 = F0 - np.einsum("i,ij,j->", F1i, np.linalg.inv(F2ij), F1i)
-        if not use_Jeffreys:
-            chi2 += np.log(np.linalg.det(F2ij))
+        F2ij_inv = np.linalg.inv(F2ij)
 
         # Access to means of marginalised params
-        self.marg_pars_means_raw = np.dot(F1i, np.linalg.inv(F2ij))
+        self.marg_pars_means_raw = np.einsum("i,ij->j", F1i, F2ij_inv, optimize=True)
+
+        chi2 = F0 - np.einsum("j,j->", self.marg_pars_means_raw, F1i, optimize=True)
+        if not use_Jeffreys:
+            chi2 += np.linalg.slogdet(F2ij)[1]
 
         # Also as a dictionary for easy interpretation
         vals = iter(self.marg_pars_means_raw)
