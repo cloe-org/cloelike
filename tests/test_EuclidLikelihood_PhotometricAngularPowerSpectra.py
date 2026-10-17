@@ -575,7 +575,7 @@ def test_baryon_boost_selection(data_setup, fiducial_params):
 @pytest.mark.parametrize(
     "extra_settings",
     [
-        {"ia_model": "TATT-M"},
+        {"ia_model": "TATT-X"},
         {"galaxy_bias_model": "cubic"},
         {"galaxy_bias_model": "nonlinear", "include_rsd": True},
     ],
@@ -597,3 +597,22 @@ def test_invalid_model_settings(data_setup, extra_settings):
             NonLinPerturbations=HMemuNonLinearPerturbations,
             mode="coupled",
         )
+
+
+def test_tatt_m_parameters_reach_cloelib(data_setup, fiducial_params):
+    n_bins = data_setup["my_dndz_she_norm"].shape[0]
+    params = {
+        **fiducial_params,
+        "alphaM": 1.0,
+        "betaM": 0.5,
+        **{f"log10_Mh_{i}": 13.5 + 0.2 * i for i in range(1, n_bins + 1)},
+        **{f"f_r_{i}": 0.8 for i in range(1, n_bins + 1)},
+    }
+    settings = {"ia_model": "TATT-M"}
+    base = _wl_theory(data_setup, params, settings)
+    assert np.all(np.isfinite(base))
+
+    # A per-bin key (the last bin) and an optional key must both change the result.
+    for change in ({f"log10_Mh_{n_bins}": 15.5}, {"k1": 0.3}):
+        changed = _wl_theory(data_setup, {**params, **change}, settings)
+        assert not np.allclose(changed, base, rtol=1e-3, atol=0)
