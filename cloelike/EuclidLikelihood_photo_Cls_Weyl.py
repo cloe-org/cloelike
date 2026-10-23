@@ -1,6 +1,5 @@
 import numpy as np
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
-from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 from cloelike.EuclidLikelihood_photo_base_Weyl import PhotoLikelihoodBase_Weyl
 
 
