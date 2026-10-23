@@ -13,6 +13,7 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-blue?logo=pytest)](https://docs.pytest.org/)
 [![Linting: Ruff](https://img.shields.io/badge/linting-ruff-purple?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![Code Style: Prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4.svg?logo=prettier&logoColor=white)](https://prettier.io/)
+[![PyPI version](https://img.shields.io/pypi/v/cloelike.svg?logo=pypi&logoColor=white)](https://pypi.org/project/cloelike/)
 [![All Contributors](https://img.shields.io/github/all-contributors/cloe-org/cloelike?color=ee8449)](#contributors-)
 
 ---
@@ -23,6 +24,7 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 - [🚀 Installation](#-installation)
 - [📊 Usage](#-usage)
 - [🤝 Contributing](#-contributing)
+- [📚 Citation](#-citation)
 - [📜 License](#-license)
 - [🙏 Acknowledgements](#-acknowledgements)
 
@@ -38,7 +40,13 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 
 ## 🚀 Installation
 
-To install `cloelike` source code, clone the repository and install it via `pip`:
+Install the latest release of `cloelike` from [PyPI](https://pypi.org/project/cloelike/). This also installs a compatible version of [`cloelib`](https://github.com/cloe-org/cloelib):
+
+```sh
+pip install cloelike
+```
+
+To install `cloelike` from source, clone the repository and install it via `pip`:
 
 ```sh
 pip install .
@@ -56,9 +64,13 @@ with name-latest-release the latest name that appears in "Releases".
 
 ## 📂 Dependency: `cloelib`
 
-`cloelike` depends on the [`cloelib`](https://github.com/cloe-org/cloelib) package (private for now).
+`cloelike` depends on the [`cloelib`](https://github.com/cloe-org/cloelib) package (≥ 0.11), which is available on [PyPI](https://pypi.org/project/cloelib/) and is installed automatically with `cloelike`.
 
-For the time being, please install `cloelib` manually by following the installation instructions provided in its [GitHub repository](https://github.com/cloe-org/cloelib).
+To use the development version of `cloelib` instead, install it first following the instructions in its [GitHub repository](https://github.com/cloe-org/cloelib):
+
+```sh
+pip install git+https://github.com/cloe-org/cloelib.git
+```
 
 ---
 
@@ -93,6 +105,19 @@ git push origin feature/your-feature-name
 ```
 
 5️⃣ Open a **pull request** and contribute to the project!
+
+---
+
+## 📚 Citation
+
+If you use **cloelike** in your research, please cite the software using the
+metadata in [`CITATION.cff`](CITATION.cff). On GitHub, select **Cite this repository**
+to copy the citation in APA or BibTeX format.
+
+The citation lists the same six maintainers as
+[`cloelib`](https://github.com/cloe-org/cloelib).
+Other contributions are acknowledged
+in the [contributors section](#-contributors).
 
 ---
 
@@ -140,6 +165,7 @@ This project follows the [all-contributors](https://github.com/all-contributors/
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/raphkou"><img src="https://avatars.githubusercontent.com/u/61792335?v=4?s=100" width="100px;" alt="Raphaël Kou"/><br /><sub><b>Raphaël Kou</b></sub></a><br /><a href="#review-raphkou" title="Reviewed Pull Requests">👀</a> <a href="#maintenance-raphkou" title="Maintenance">🚧</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ivansladoljev"><img src="https://avatars.githubusercontent.com/u/144113061?v=4?s=100" width="100px;" alt="Ivan Sladoljev"/><br /><sub><b>Ivan Sladoljev</b></sub></a><br /><a href="#code-ivansladoljev" title="Code">💻</a> <a href="#bug-ivansladoljev" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/NastassiaG"><img src="https://avatars.githubusercontent.com/u/107264848?v=4?s=100" width="100px;" alt="NastassiaG"/><br /><sub><b>NastassiaG</b></sub></a><br /><a href="#code-NastassiaG" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/zuzannakr"><img src="https://avatars.githubusercontent.com/u/12124870?v=4?s=100" width="100px;" alt="zuzannakr"/><br /><sub><b>zuzannakr</b></sub></a><br /><a href="#review-zuzannakr" title="Reviewed Pull Requests">👀</a> <a href="#mentoring-zuzannakr" title="Mentoring">🧑‍🏫</a></td>
     </tr>
   </tbody>
 </table>

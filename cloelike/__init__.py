@@ -6,6 +6,7 @@ __all__ = [
     "EuclidLikelihood_GGL",
     "EuclidLikelihood_3x2pt",
     "EuclidLikelihood_2x2pt",
+    "EuclidLikelihood_WLCosebi",
     "EuclidLikelihood_GCspectro_Pls",
     "EuclidLikelihood_GCspectro_xils",
     "EuclidLikelihood_GCspectro_BAO",
@@ -19,6 +20,7 @@ from .EuclidLikelihood_photo_Cls import (
     EuclidLikelihood_3x2pt,
     EuclidLikelihood_2x2pt,
 )
+from .EuclidLikelihood_photo_COSEBIs import EuclidLikelihood_WLCosebi
 from .EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
 from .EuclidLikelihood_GCspectro_xils import EuclidLikelihood_GCspectro_xils
 from .EuclidLikelihood_GCspectro_BAO import EuclidLikelihood_GCspectro_BAO

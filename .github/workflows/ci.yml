@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install pre-commit
         run: |
@@ -62,9 +62,20 @@ jobs:
       - name: Configure Git for private repo access
         run: git config --global url."https://${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
-      - name: Install cloelib
+      - name: Install Boost headers (needed to build pylevin)
         run: |
-          mamba run -n $ENV_NAME pip install git+https://github.com/cloe-org/cloelib.git
+          mamba install -n $ENV_NAME -c conda-forge -y libboost-headers
+
+      - name: Install cloelib (with pylevin and mpmath for COSEBIs, fast-pt for TATT and nonlinear bias)
+        run: |
+          # pylevin is only distributed as source: build it against the GSL,
+          # Boost and GCC of the environment
+          ENV_PREFIX=$(mamba run -n $ENV_NAME python -c 'import sys; print(sys.prefix)')
+          mamba run -n $ENV_NAME env \
+            CPPFLAGS="-I$ENV_PREFIX/include" \
+            LDFLAGS="-L$ENV_PREFIX/lib -Wl,-rpath,$ENV_PREFIX/lib" \
+            pip install "cloelib[pylevin,mpmath,fastpt] @ git+https://github.com/cloe-org/cloelib.git"
+          mamba run -n $ENV_NAME python -c "import pylevin, mpmath"
 
       - name: Install HMCode2020emu
         run: |
@@ -109,7 +120,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install build tools
         run: pipx run build
