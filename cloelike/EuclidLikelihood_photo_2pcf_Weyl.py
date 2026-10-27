@@ -12,7 +12,9 @@ class GCphMixin_Weyl:
         self._init_gcph()
 
     def _init_gcph(self):
-        self.n_pos_bins = self.data["dndz_pos"].shape[0] # Note: _init_pos_keys has been modified to include bhat_bin parameters
+        self.n_pos_bins = self.data["dndz_pos"].shape[
+            0
+        ]  # Note: _init_pos_keys has been modified to include bhat_bin parameters
         self._init_pos_keys()
         self.GG_keys = [
             ("POS", "POS", i, j)
@@ -46,6 +48,7 @@ class GCphMixin_Weyl:
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
 
+
 class GGLMixin_Weyl:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,15 +57,16 @@ class GGLMixin_Weyl:
     def _init_ggl(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        self._init_pos_keys() # Note: _init_pos_keys has been modified to include bhat_bin parameters
-        self.Jhat_keys = [f"Jhat_bin{i}" for i in range(self.n_pos_bins)] # Added Jhat keys for Weyl implementation
+        self._init_pos_keys()  # Note: _init_pos_keys has been modified to include bhat_bin parameters
+        self.Jhat_keys = [
+            f"Jhat_bin{i}" for i in range(self.n_pos_bins)
+        ]  # Added Jhat keys for Weyl implementation
         self._init_she_keys()
         self.GGL_keys = [
             ("POS", "SHE", i, j)
             for i in range(1, self.n_pos_bins + 1)
             for j in range(1, self.n_she_bins + 1)
         ]
-
 
     def get_masking_vector(self):
         v = super().get_masking_vector()
@@ -81,10 +85,10 @@ class GGLMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        _, _, nlp = self._get_perturbations(parameters) 
+        _, _, nlp = self._get_perturbations(parameters)
         Weyl_p = self._get_Weyl_perturbations(parameters)
 
-        pos_Weyl = self._get_pos_tracer_Weyl(parameters, Weyl_p, mode = "GGL")
+        pos_Weyl = self._get_pos_tracer_Weyl(parameters, Weyl_p, mode="GGL")
         she = self._get_she_tracer(parameters, Weyl_p)
 
         pos_standard = self._get_pos_tracer(parameters, nlp)
@@ -96,11 +100,12 @@ class GGLMixin_Weyl:
         cf_all_th_IAOnly = AngularCorrelationFunctionWigner(
             AngularTwoPoint(pos_standard, she_IAOnly), self.ells_integration, Weyl_p.k
         ).get_xi(np.radians(self.data["theta"] / 60))
-        vec = np.array([cf_all_th[key][0] for key in self.GGL_keys]).flatten()
+        vec = np.array(
+            [cf_all_th[key][0] + cf_all_th_IAOnly[key][0] for key in self.GGL_keys]
+        ).flatten()
 
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
-
 
 
 class EuclidLikelihood_GCph_Weyl(GCphMixin_Weyl, PhotoLikelihoodBase_Weyl):
@@ -159,7 +164,9 @@ class EuclidLikelihood_GGL_Weyl(GGLMixin_Weyl, PhotoLikelihoodBase_Weyl):
     pass
 
 
-class EuclidLikelihood_2x2pt_Weyl(GCphMixin_Weyl, GGLMixin_Weyl, PhotoLikelihoodBase_Weyl):
+class EuclidLikelihood_2x2pt_Weyl(
+    GCphMixin_Weyl, GGLMixin_Weyl, PhotoLikelihoodBase_Weyl
+):
     """
     Likelihood class for Euclid 2x2pt photometric clustering and galaxy-galaxy lensing analysis.
 

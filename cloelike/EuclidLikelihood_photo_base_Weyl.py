@@ -1,9 +1,14 @@
 import numpy as np
 from cloelib.cosmology.Weyl_cosmology import WeylPerturbations
-from cloelib.observables.photo.positions_Weyl import PositionsTracer_Weyl_GC, PositionsTracer_Weyl_GGL, ShearTracer_IAOnly
+from cloelib.observables.photo.positions_Weyl import (
+    PositionsTracer_Weyl_GC,
+    PositionsTracer_Weyl_GGL,
+    ShearTracer_IAOnly,
+)
 from cloelib.observables.photo.positions import PositionsTracer
 from cloelib.observables.photo.shear import PBJTATTLoopComputer
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
+
 
 class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
     """Base likelihood class for the Weyl-potential photometric model.
@@ -61,10 +66,7 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
     def _init_pos_keys(self):
         """Position nuisance parameters required by the selected bias model."""
         if self.galaxy_bias_model != "per_bin":
-            raise ValueError(
-                "Weyl tracer classes require "
-                "galaxy_bias_model='per_bin'."
-            )
+            raise ValueError("Weyl tracer classes require galaxy_bias_model='per_bin'.")
 
         n = self.data["dndz_pos"].shape[0]
         bias_keys = [f"bhat_bin{i}" for i in range(n)]
@@ -144,19 +146,17 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
 
         _, lp, nlp = self._get_perturbations(parameters)
 
-        Weyl_p = WeylPerturbations(
-            nlp, lp, self.zs, self.settings.get("z_ini")
-        )
+        Weyl_p = WeylPerturbations(nlp, lp, self.zs, self.settings.get("z_ini"))
 
-        result = (Weyl_p)
+        result = Weyl_p
         self._Weyl_perturbations_cache = (key, result)
         return result
-    
+
     def _get_pos_tracer_Weyl(self, parameters, nlp, mode):
         """Build the Weyl-specific position tracer.
-        Note: Unlike the parent class, which has a single PositionsTracer, the Weyl likelihood has two different position tracers: one for GC and one for GGL. 
+        Note: Unlike the parent class, which has a single PositionsTracer, the Weyl likelihood has two different position tracers: one for GC and one for GGL.
         This method returns the appropriate tracer based on the `mode` argument.
-        We do not cache the positions tracer here, since GGL and GC need to use two different once. 
+        We do not cache the positions tracer here, since GGL and GC need to use two different once.
 
         Args:
             parameters (dict): Cosmological and nuisance parameters.
@@ -196,8 +196,9 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
                 include_rsd=include_rsd,
             )
         else:
-            raise ValueError(f"Invalid mode: {mode}. Must be 'GC', 'GGL' or 'standard'.")
-
+            raise ValueError(
+                f"Invalid mode: {mode}. Must be 'GC', 'GGL' or 'standard'."
+            )
 
         # Removed caching (GC and GGL need to use two different pos tracers)
         return tracer
@@ -207,9 +208,9 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         so GCph and GGL do not each rebuild it within the same call."""
         nuisance = self._select(parameters, self.full_pos_keys, self.optional_pos_keys)
 
-        #key = self._cosmo_key(parameters) + tuple(sorted(nuisance.items()))
-        #cached = getattr(self, "_pos_tracer_cache", None)
-        #if cached is not None and cached[0] == key:
+        # key = self._cosmo_key(parameters) + tuple(sorted(nuisance.items()))
+        # cached = getattr(self, "_pos_tracer_cache", None)
+        # if cached is not None and cached[0] == key:
         #    return cached[1]
 
         # Calculate sigma8(z_effs)
@@ -218,25 +219,27 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         dz = np.gradient(zs)
         z_effs = []
         for i in range(dndz_pos.shape[0]):
-            n = dndz_pos[i,:]
+            n = dndz_pos[i, :]
             z_eff = np.sum(zs * n * dz) / np.sum(n * dz)
             z_effs.append(z_eff)
-        sigma8_zeffs = self.derived["sigma8_0"]*np.squeeze(nlp.growth_factor(z_effs, np.array([0.1]))) 
+        sigma8_zeffs = self.derived["sigma8_0"] * np.squeeze(
+            nlp.growth_factor(z_effs, np.array([0.1]))
+        )
 
         # Add b1_photo_bin parameters by dividing bhat through respective sigma8(z_eff) value
         for i, sigma8 in enumerate(np.atleast_1d(sigma8_zeffs)):
-            nuisance[f"b1_photo_bin{i+1}"] = nuisance[f"bhat_bin{i}"] / sigma8
+            nuisance[f"b1_photo_bin{i + 1}"] = nuisance[f"bhat_bin{i}"] / sigma8
 
         tracer = PositionsTracer(
             nlp,
             dndz_pos,
             zs,
             nuisance_params=nuisance,
-            galaxy_bias_model='per_bin',
+            galaxy_bias_model="per_bin",
             include_rsd=self.settings.get("include_rsd", False),
         )
 
-        #self._pos_tracer_cache = (key, tracer)
+        # self._pos_tracer_cache = (key, tracer)
         return tracer
 
     def _get_she_tracer_IAOnly(self, parameters, nlp):
@@ -244,7 +247,7 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         WL and GGL do not each rebuild it within the same call."""
         nuisance = self._select(parameters, self.full_she_keys, self.optional_she_keys)
 
-        if self.ia_model == None:
+        if self.ia_model is None:
             raise ValueError("ia_model is required to compute IA only contribution")
 
         if self.ia_model == "TATT":
