@@ -17,13 +17,7 @@ class GCphMixin_Weyl:
 
     def _init_gcph(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
-        bias_keys = [f"bhat_bin{i}" for i in range(self.n_pos_bins)] # Adjusted bias keys for Weyl case
-        mag_bias_keys = [
-            f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
-        ]
-        dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
+        self._init_pos_keys() # Note: _init_pos_keys has been modified to include bhat_bin parameters
         self.GG_keys = [
             ("POS", "POS", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -47,13 +41,13 @@ class GCphMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
-        pos = self._get_pos_tracer(parameters, Weyl_nlp, mode="GC")
+        Weyl_p = self._get_Weyl_perturbations(parameters)
+        pos = self._get_pos_tracer_Weyl(parameters, Weyl_p, mode="GC")
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, Weyl_nlp.k, self.mixmat)
+            cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, Weyl_p.k, self.mixmat)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         else:
-            cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, Weyl_nlp.k)
+            cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, Weyl_p.k)
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
@@ -74,21 +68,9 @@ class GGLMixin_Weyl:
     def _init_ggl(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        bias_keys = [f"bhat_bin{i}" for i in range(self.n_pos_bins)] # Adjusted bias keys for Weyl implementation
+        self._init_pos_keys() # Note: _init_pos_keys has been modified to include bhat_bin parameters
         self.Jhat_keys = [f"Jhat_bin{i}" for i in range(self.n_pos_bins)] # Added Jhat keys for Weyl implementation
-        mag_bias_keys = [
-            f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
-        ]
-        dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        IA_keys = ["AIA", "EtaIA", "CIA"]
-        mul_bias_keys = [
-            f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
-        ]
-        dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
+        self._init_she_keys()
         self.GGL_keys = [
             ("POS", "SHE", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -112,15 +94,23 @@ class GGLMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
-        pos = self._get_pos_tracer(parameters, Weyl_nlp, mode = "GGL")
-        she = self._get_she_tracer(parameters, Weyl_nlp)
+        _, _, nlp = self._get_perturbations(parameters) 
+        Weyl_p = self._get_Weyl_perturbations(parameters)
+
+        pos_Weyl = self._get_pos_tracer_Weyl(parameters, Weyl_p, mode = "GGL")
+        she = self._get_she_tracer(parameters, Weyl_p)
+
+        pos_standard = self._get_pos_tracer(parameters, nlp)
+        she_IAOnly = self._get_she_tracer_IAOnly(parameters, nlp)
+
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, she).get_pseudo_Cl(0, Weyl_nlp.k, self.mixmat)
-            vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
+            cell_all_th = AngularTwoPoint(pos_Weyl, she).get_pseudo_Cl(0, Weyl_p.k, self.mixmat)
+            cell_all_th_IAOnly = AngularTwoPoint(pos_standard, she_IAOnly).get_pseudo_Cl(0, Weyl_p.k, self.mixmat)
+            vec = np.array([cell_all_th[key][0]+cell_all_th_IAOnly[key][0] for key in self.GGL_keys]).flatten()
         else:
-            cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, Weyl_nlp.k)
-            vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
+            cell_all_th = AngularTwoPoint(pos_Weyl, she).get_Cl(self.data["ells"], 0, Weyl_p.k)
+            cell_all_th_IAOnly = AngularTwoPoint(pos_standard, she_IAOnly).get_Cl(self.data["ells"], 0, Weyl_p.k)
+            vec = np.array([cell_all_th[key][0]+cell_all_th_IAOnly[key][0] for key in self.GGL_keys]).flatten()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
 

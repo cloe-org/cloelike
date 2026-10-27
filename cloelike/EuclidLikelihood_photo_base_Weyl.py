@@ -1,8 +1,8 @@
-from unittest import result
-
 import numpy as np
-from cloelib.cosmology.Weyl_cosmology import WeylNonLinearPerturbations, WeylLinearPerturbations
-from cloelib.observables.photo_Weyl import PositionsTracer_Weyl_GC, PositionsTracer_Weyl_GGL
+from cloelib.cosmology.Weyl_cosmology import WeylPerturbations
+from cloelib.observables.photo.positions_Weyl import PositionsTracer_Weyl_GC, PositionsTracer_Weyl_GGL, ShearTracer_IAOnly
+from cloelib.observables.photo.positions import PositionsTracer
+from cloelib.observables.photo.shear import PBJTATTLoopComputer
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 
 class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
@@ -58,6 +58,26 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
             mode=mode,
         )
 
+    def _init_pos_keys(self):
+        """Position nuisance parameters required by the selected bias model."""
+        if self.galaxy_bias_model != "per_bin":
+            raise ValueError(
+                "Weyl tracer classes require "
+                "galaxy_bias_model='per_bin'."
+            )
+
+        n = self.data["dndz_pos"].shape[0]
+        bias_keys = [f"bhat_bin{i}" for i in range(n)]
+        optional = []
+
+        self.full_pos_keys = (
+            bias_keys
+            + [f"magnification_bias_{i}" for i in range(1, n + 1)]
+            + [f"dz_pos_{i}" for i in range(1, n + 1)]
+            + [f"width_pos_{i}" for i in range(1, n + 1)]
+        )
+        self.optional_pos_keys = optional
+
     def _get_perturbations(self, parameters):
         """Build (and cache) Background/LinPerturbations/NonLinPerturbations for
         the given parameters.
@@ -81,17 +101,27 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         # Add z_ini to the redshift array for the perturbation objects, since the Weyl wrapper will require it.
         z_vals = np.append(self.zs, self.settings.get("z_ini"))
 
-        lp = self.LinPerturbations(background, z_vals)
+        lp = self.LinPerturbations(background=background, redshifts=z_vals)
+
+        nl_kwargs = dict(self.settings.get("nonlinear_kwargs", {}))
+        nl_kwargs.update({k: parameters[k] for k in self.nonlinear_param_keys})
+        if self.baryon_param_keys:
+            nl_kwargs["baryon_kwargs"] = {
+                k: parameters[k] for k in self.baryon_param_keys
+            }
+
         nlp = self.NonLinPerturbations(
-            background, lp, z_vals, log10TAGN=parameters["log10TAGN"]
+            background=background,
+            linearperturbations=lp,
+            redshifts=z_vals,
+            **nl_kwargs,
         )
-        # sigma8_0() self-memoizes by overwriting `nlp.sigma8_0` with its
-        # result on first call, so it must be called exactly once per nlp
-        # instance -- here, rather than in each mixin (which would fail on
-        # the second mixin to see this shared, cached nlp).
+
         self.derived["sigma8_0"] = nlp.sigma8_0()
         result = (background, lp, nlp)
         self._perturbations_cache = (key, result)
+        # Loop computers depend only on the cosmology; drop the old ones.
+        self._loop_computers = {}
         return result
 
     def _get_Weyl_perturbations(self, parameters):
@@ -99,9 +129,9 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
 
         The ordinary perturbation objects are built by
         :meth:`PhotoLikelihoodBase._get_perturbations` and then wrapped by
-        :class:`WeylLinearPerturbations` and :class:`WeylNonLinearPerturbations`.
+        :class:`WeylPerturbations`.
         The resulting tuple has the same background object as the parent and
-        Weyl-specific linear/non-linear perturbation objects for tracer use.
+        Weyl-specific perturbation object for tracer use.
         """
         if self.settings.get("z_ini") is None:
             raise ValueError("z_ini must be set in settings")
@@ -112,20 +142,17 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         if cached is not None and cached[0] == key:
             return cached[1]
 
-        background, lp, nlp = self._get_perturbations(parameters)
+        _, lp, nlp = self._get_perturbations(parameters)
 
-        Weyl_lp = WeylLinearPerturbations(
-            lp, self.zs, self.settings.get("z_ini")
-        )
-        Weyl_nlp = WeylNonLinearPerturbations(
-            nlp, Weyl_lp, self.zs, self.settings.get("z_ini")
+        Weyl_p = WeylPerturbations(
+            nlp, lp, self.zs, self.settings.get("z_ini")
         )
 
-        result = (background, Weyl_lp, Weyl_nlp)
+        result = (Weyl_p)
         self._Weyl_perturbations_cache = (key, result)
         return result
-
-    def _get_pos_tracer(self, parameters, Weyl_nlp, mode):
+    
+    def _get_pos_tracer_Weyl(self, parameters, nlp, mode):
         """Build the Weyl-specific position tracer.
         Note: Unlike the parent class, which has a single PositionsTracer, the Weyl likelihood has two different position tracers: one for GC and one for GGL. 
         This method returns the appropriate tracer based on the `mode` argument.
@@ -143,9 +170,6 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
         Raises:
             ValueError: If ``mode`` is not ``"GC"`` or ``"GGL"``.
         """
-        key = self._cosmo_key(parameters) + tuple(
-            parameters[k] for k in self.full_pos_keys
-        )
 
         # Removed checking for cashed object (GC and GGL need to use two different pos tracers)
 
@@ -154,16 +178,17 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
 
         if mode == "GC":
             tracer = PositionsTracer_Weyl_GC(
-                Weyl_nlp,
+                nlp,
                 self.data["dndz_pos"],
                 self.zs,
                 nuisance_params=nuisance_params,
                 include_rsd=include_rsd,
             )
+
         elif mode == "GGL":
             Jhat_params = {k: parameters[k] for k in self.Jhat_keys}
             tracer = PositionsTracer_Weyl_GGL(
-                Weyl_nlp,
+                nlp,
                 self.data["dndz_pos"],
                 self.zs,
                 nuisance_params=nuisance_params,
@@ -171,8 +196,71 @@ class PhotoLikelihoodBase_Weyl(PhotoLikelihoodBase):
                 include_rsd=include_rsd,
             )
         else:
-            raise ValueError(f"Invalid mode: {mode}. Must be 'GC' or 'GGL'.")
+            raise ValueError(f"Invalid mode: {mode}. Must be 'GC', 'GGL' or 'standard'.")
 
 
         # Removed caching (GC and GGL need to use two different pos tracers)
+        return tracer
+
+    def _get_pos_tracer(self, parameters, nlp):
+        """Build (and cache) the PositionsTracer for the given parameters/nlp,
+        so GCph and GGL do not each rebuild it within the same call."""
+        nuisance = self._select(parameters, self.full_pos_keys, self.optional_pos_keys)
+
+        #key = self._cosmo_key(parameters) + tuple(sorted(nuisance.items()))
+        #cached = getattr(self, "_pos_tracer_cache", None)
+        #if cached is not None and cached[0] == key:
+        #    return cached[1]
+
+        # Calculate sigma8(z_effs)
+        dndz_pos = self.data["dndz_pos"]
+        zs = self.zs
+        dz = np.gradient(zs)
+        z_effs = []
+        for i in range(dndz_pos.shape[0]):
+            n = dndz_pos[i,:]
+            z_eff = np.sum(zs * n * dz) / np.sum(n * dz)
+            z_effs.append(z_eff)
+        sigma8_zeffs = self.derived["sigma8_0"]*np.squeeze(nlp.growth_factor(z_effs, np.array([0.1]))) 
+
+        # Add b1_photo_bin parameters by dividing bhat through respective sigma8(z_eff) value
+        for i, sigma8 in enumerate(np.atleast_1d(sigma8_zeffs)):
+            nuisance[f"b1_photo_bin{i+1}"] = nuisance[f"bhat_bin{i}"] / sigma8
+
+        tracer = PositionsTracer(
+            nlp,
+            dndz_pos,
+            zs,
+            nuisance_params=nuisance,
+            galaxy_bias_model='per_bin',
+            include_rsd=self.settings.get("include_rsd", False),
+        )
+
+        #self._pos_tracer_cache = (key, tracer)
+        return tracer
+
+    def _get_she_tracer_IAOnly(self, parameters, nlp):
+        """Build (and cache) the ShearTracer for the given parameters/nlp, so
+        WL and GGL do not each rebuild it within the same call."""
+        nuisance = self._select(parameters, self.full_she_keys, self.optional_she_keys)
+
+        if self.ia_model == None:
+            raise ValueError("ia_model is required to compute IA only contribution")
+
+        if self.ia_model == "TATT":
+            loop_computer = self._get_loop_computer(
+                "tatt", PBJTATTLoopComputer, parameters
+            )
+        else:
+            loop_computer = None
+
+        tracer = ShearTracer_IAOnly(
+            nlp,
+            self.data["dndz_she"],
+            self.zs,
+            nuisance_params=nuisance,
+            ia_model=self.ia_model,
+            tatt_loop_computer=loop_computer,
+        )
+
         return tracer

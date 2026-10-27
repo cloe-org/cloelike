@@ -12,14 +12,8 @@ class GCphMixin_Weyl:
         self._init_gcph()
 
     def _init_gcph(self):
-        self.n_pos_bins = self.data["dndz_pos"].shape[0]
-        bias_keys = [f"bhat_bin{i}" for i in range(self.n_pos_bins)] # Adjusted bias keys for Weyl case
-        mag_bias_keys = [
-            f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
-        ]
-        dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
+        self.n_pos_bins = self.data["dndz_pos"].shape[0] # Note: _init_pos_keys has been modified to include bhat_bin parameters
+        self._init_pos_keys()
         self.GG_keys = [
             ("POS", "POS", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -43,16 +37,14 @@ class GCphMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
-        pos = self._get_pos_tracer(parameters, Weyl_nlp, mode="GC")
+        Weyl_p = self._get_Weyl_perturbations(parameters)
+        pos = self._get_pos_tracer_Weyl(parameters, Weyl_p, mode="GC")
         cf_all_th = AngularCorrelationFunctionWigner(
-            AngularTwoPoint(pos, pos), self.ells_integration, Weyl_nlp.k
+            AngularTwoPoint(pos, pos), self.ells_integration, Weyl_p.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key] for key in self.GG_keys]).flatten()
-
         self.theory_prediction = cf_all_th
         return np.concatenate([v, vec])
-
 
 class GGLMixin_Weyl:
     def __init__(self, *args, **kwargs):
@@ -62,26 +54,15 @@ class GGLMixin_Weyl:
     def _init_ggl(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        bias_keys = [f"bhat_bin{i}" for i in range(self.n_pos_bins)] # Adjusted bias keys for Weyl case
+        self._init_pos_keys() # Note: _init_pos_keys has been modified to include bhat_bin parameters
         self.Jhat_keys = [f"Jhat_bin{i}" for i in range(self.n_pos_bins)] # Added Jhat keys for Weyl implementation
-        mag_bias_keys = [
-            f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
-        ]
-        dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        IA_keys = ["AIA", "EtaIA", "CIA"]
-        mul_bias_keys = [
-            f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
-        ]
-        dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
+        self._init_she_keys()
         self.GGL_keys = [
             ("POS", "SHE", i, j)
             for i in range(1, self.n_pos_bins + 1)
             for j in range(1, self.n_she_bins + 1)
         ]
+
 
     def get_masking_vector(self):
         v = super().get_masking_vector()
@@ -100,12 +81,20 @@ class GGLMixin_Weyl:
 
     def get_theory_vector_full(self, parameters):
         v = super().get_theory_vector_full(parameters)
-        _, _, Weyl_nlp = self._get_Weyl_perturbations(parameters)
-        pos = self._get_pos_tracer(parameters, Weyl_nlp, mode="GGL")
-        she = self._get_she_tracer(parameters, Weyl_nlp)
+        _, _, nlp = self._get_perturbations(parameters) 
+        Weyl_p = self._get_Weyl_perturbations(parameters)
+
+        pos_Weyl = self._get_pos_tracer_Weyl(parameters, Weyl_p, mode = "GGL")
+        she = self._get_she_tracer(parameters, Weyl_p)
+
+        pos_standard = self._get_pos_tracer(parameters, nlp)
+        she_IAOnly = self._get_she_tracer_IAOnly(parameters, nlp)
 
         cf_all_th = AngularCorrelationFunctionWigner(
-            AngularTwoPoint(pos, she), self.ells_integration, Weyl_nlp.k
+            AngularTwoPoint(pos_Weyl, she), self.ells_integration, Weyl_p.k
+        ).get_xi(np.radians(self.data["theta"] / 60))
+        cf_all_th_IAOnly = AngularCorrelationFunctionWigner(
+            AngularTwoPoint(pos_standard, she_IAOnly), self.ells_integration, Weyl_p.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key][0] for key in self.GGL_keys]).flatten()
 
