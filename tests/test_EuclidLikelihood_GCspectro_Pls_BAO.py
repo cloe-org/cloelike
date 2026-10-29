@@ -3,8 +3,9 @@ import pytest
 import requests
 
 # --- cloe-org imports ---
-from cloelib.cosmology.camb_cosmology import CAMBBackground
+from cloelib.cosmology.camb_cosmology import CAMBBackground, CAMBLinearPerturbations
 from cloelib.observables.spectro.CometEFT_spectro import CometEFT_SpectroPower
+from cloelib.summary_statistics.APDistortion import APDistortion
 from cloelike.EuclidLikelihood_GCspectro_Pls_BAO import (
     EuclidLikelihood_GCspectro_Pls_BAO,
 )
@@ -288,3 +289,158 @@ def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
             SpectroPower=CometEFT_SpectroPower,
             num_mocks=num_data_points,
         )
+
+
+def test_tilde_params_recovers_standard_value_loglike(data_setup, settings_setup):
+    """Sampling b1 in "tilde" form (b1_tilde = b1 * Aap**n * sigma12**m)
+    should give the exact same loglike as sampling the equivalent standard
+    b1 directly, once the likelihood converts it back internally."""
+    likelihood_standard = EuclidLikelihood_GCspectro_Pls_BAO(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+    )
+    loglike_standard = likelihood_standard.loglike(default_pars)
+
+    n, m = 1, 2
+    background = CAMBBackground(
+        H0=default_pars["H0"],
+        Omega_cdm0=default_pars["Omega_cdm0"],
+        Omega_b0=default_pars["Omega_b0"],
+        Omega_k0=default_pars["Omega_k0"],
+        w0=default_pars["w0"],
+        wa=default_pars["wa"],
+        ns=default_pars["ns"],
+        As=default_pars["As"],
+        gamma_MG=default_pars["gamma_MG"],
+        mnu=default_pars["mnu"],
+        N_mnu=default_pars["N_mnu"],
+    )
+    ap_distortion = APDistortion(background, likelihood_standard.background_fiducial)
+    perturbations = CAMBLinearPerturbations(
+        background, np.float64(likelihood_standard.redshifts)
+    )
+    sigma12_by_z = dict(zip(perturbations.z, perturbations.sigma12()))
+
+    tilde_pars = dict(default_pars)
+    b1_tilde = np.array(default_pars["b1"], dtype=float).copy()
+    for i, z in enumerate(likelihood_standard.redshifts):
+        Aap = 1.0 / (
+            ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
+        )
+        sigma12 = sigma12_by_z[float(z)]
+        b1_tilde[i] = default_pars["b1"][i] * Aap**n * sigma12**m
+    tilde_pars["b1"] = b1_tilde
+
+    likelihood_tilde = EuclidLikelihood_GCspectro_Pls_BAO(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        Perturbations=CAMBLinearPerturbations,
+        tilde_params={"b1": (n, m)},
+    )
+    loglike_tilde = likelihood_tilde.loglike(tilde_pars)
+
+    assert loglike_tilde == pytest.approx(loglike_standard, rel=1e-6)
+
+
+def test_tilde_params_requires_perturbations_for_comet(data_setup, settings_setup):
+    with pytest.raises(ValueError):
+        likelihood = EuclidLikelihood_GCspectro_Pls_BAO(
+            data=data_setup,
+            settings=settings_setup,
+            Background=CAMBBackground,
+            SpectroPower=CometEFT_SpectroPower,
+            tilde_params={"b1": (1, 2)},
+        )
+        likelihood.loglike(default_pars)
+
+
+def test_tilde_params_recovers_standard_value_loglike_AM(data_setup, settings_setup):
+    """Marginalising bGam3 (dist: AM) while it's also tilde-reparametrized
+    should give the same loglike_AM as marginalising the equivalent standard
+    bGam3 prior directly, up to a known additive offset -- exercises the
+    extra coefficient rescaling in `_coeff_AM`/`AM_par_to_diag`, not just the
+    plain parameter conversion already covered by the non-AM tilde test
+    above.
+
+    The offset: `loglike_AM`'s analytic marginalisation omits the
+    `log det(Sigma_prior)` term (`sum(log(AM_sigmas**2))`) from its Gaussian
+    integral normalisation -- harmless for ordinary use, where `AM_sigmas`
+    is fixed for the whole run and the term is just a constant that cancels
+    in any relative comparison. But `AM_sigmas` here is expressed in
+    different units between the two likelihoods (tilde vs standard), so
+    the omitted constant differs by `sum(log(alpha_i))`, where
+    `alpha_i = sigma_tilde_i / sigma_std_i` per bin -- and that's the exact,
+    analytically-known gap this test expects between the two loglikes.
+    """
+    AM_priors_standard = {
+        "1.": {"bGam3": [0.3, 5.0]},
+        "1.2": {"bGam3": [0.6, 5.0]},
+        "1.4": {"bGam3": [0.8, 5.0]},
+        "1.65": {"bGam3": [1.1, 5.0]},
+    }
+    likelihood_standard = EuclidLikelihood_GCspectro_Pls_BAO(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        AM_priors=AM_priors_standard,
+    )
+    parameters = default_pars.copy()
+    parameters["H0"] += 3
+    loglike_standard = likelihood_standard.loglike_AM(parameters)
+
+    n, m = 1, 2
+    background = CAMBBackground(
+        H0=parameters["H0"],
+        Omega_cdm0=parameters["Omega_cdm0"],
+        Omega_b0=parameters["Omega_b0"],
+        Omega_k0=parameters["Omega_k0"],
+        w0=parameters["w0"],
+        wa=parameters["wa"],
+        ns=parameters["ns"],
+        As=parameters["As"],
+        gamma_MG=parameters["gamma_MG"],
+        mnu=parameters["mnu"],
+        N_mnu=parameters["N_mnu"],
+    )
+    ap_distortion = APDistortion(background, likelihood_standard.background_fiducial)
+    perturbations = CAMBLinearPerturbations(
+        background, np.float64(likelihood_standard.redshifts)
+    )
+    sigma12_by_z = dict(zip(perturbations.z, perturbations.sigma12()))
+
+    def to_tilde(loc, scale, z):
+        Aap = 1.0 / (
+            ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
+        )
+        sigma12 = sigma12_by_z[float(z)]
+        factor = Aap**n * sigma12**m
+        return loc * factor, scale * factor
+
+    AM_priors_tilde = {}
+    alphas = []
+    for z_label, entry in AM_priors_standard.items():
+        loc_std, scale_std = entry["bGam3"]
+        loc_tilde, scale_tilde = to_tilde(loc_std, scale_std, z_label)
+        AM_priors_tilde[z_label] = {"bGam3": [loc_tilde, scale_tilde]}
+        alphas.append(scale_tilde / scale_std)
+
+    likelihood_tilde = EuclidLikelihood_GCspectro_Pls_BAO(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        Perturbations=CAMBLinearPerturbations,
+        AM_priors=AM_priors_tilde,
+        tilde_params={"bGam3": (n, m)},
+    )
+    loglike_tilde = likelihood_tilde.loglike_AM(parameters)
+
+    log_det_sigma_prior_offset = np.sum(np.log(alphas))
+    assert loglike_tilde == pytest.approx(
+        loglike_standard + log_det_sigma_prior_offset, rel=1e-6
+    )
