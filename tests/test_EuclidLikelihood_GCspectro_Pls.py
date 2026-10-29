@@ -278,8 +278,8 @@ def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
         )
 
 
-def test_tilde_params_recovers_standard_value_loglike(data_setup, settings_setup):
-    """Sampling b1 in "tilde" form (b1_tilde = b1 * Aap**n * sigma12**m)
+def test_TCM_params_recovers_standard_value_loglike(data_setup, settings_setup):
+    """Sampling b1 in TCM form (b1_TCM = b1 * Aap**n * sigma12**m)
     should give the exact same loglike as sampling the equivalent standard
     b1 directly, once the likelihood converts it back internally."""
     likelihood_standard = EuclidLikelihood_GCspectro_Pls(
@@ -310,47 +310,47 @@ def test_tilde_params_recovers_standard_value_loglike(data_setup, settings_setup
     )
     sigma12_by_z = dict(zip(perturbations.z, perturbations.sigma12()))
 
-    tilde_pars = dict(default_pars)
-    b1_tilde = np.array(default_pars["b1"], dtype=float).copy()
+    TCM_pars = dict(default_pars)
+    b1_TCM = np.array(default_pars["b1"], dtype=float).copy()
     for i, z in enumerate(likelihood_standard.redshifts):
         Aap = 1.0 / (
             ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
         )
         sigma12 = sigma12_by_z[float(z)]
-        b1_tilde[i] = default_pars["b1"][i] * Aap**n * sigma12**m
-    tilde_pars["b1"] = b1_tilde
+        b1_TCM[i] = default_pars["b1"][i] * Aap**n * sigma12**m
+    TCM_pars["b1"] = b1_TCM
 
-    likelihood_tilde = EuclidLikelihood_GCspectro_Pls(
+    likelihood_TCM = EuclidLikelihood_GCspectro_Pls(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
         SpectroPower=CometEFT_SpectroPower,
         Perturbations=CAMBLinearPerturbations,
-        tilde_params={"b1": (n, m)},
+        TCM_params={"b1": (n, m)},
     )
-    loglike_tilde = likelihood_tilde.loglike(tilde_pars)
+    loglike_TCM = likelihood_TCM.loglike(TCM_pars)
 
-    assert loglike_tilde == pytest.approx(loglike_standard, rel=1e-6)
+    assert loglike_TCM == pytest.approx(loglike_standard, rel=1e-6)
 
 
-def test_tilde_params_requires_perturbations_for_comet(data_setup, settings_setup):
+def test_TCM_params_requires_perturbations_for_comet(data_setup, settings_setup):
     with pytest.raises(ValueError):
         likelihood = EuclidLikelihood_GCspectro_Pls(
             data=data_setup,
             settings=settings_setup,
             Background=CAMBBackground,
             SpectroPower=CometEFT_SpectroPower,
-            tilde_params={"b1": (1, 2)},
+            TCM_params={"b1": (1, 2)},
         )
         likelihood.loglike(default_pars)
 
 
-def test_tilde_params_recovers_standard_value_loglike_AM(data_setup, settings_setup):
-    """Marginalising bGam3 (dist: AM) while it's also tilde-reparametrized
+def test_TCM_params_recovers_standard_value_loglike_AM(data_setup, settings_setup):
+    """Marginalising bGam3 (dist: AM) while it's also TCM-reparametrised
     should give the same loglike_AM as marginalising the equivalent standard
     bGam3 prior directly, up to a known additive offset -- exercises the
     extra coefficient rescaling in `_coeff_AM`/`AM_par_to_diag`, not just the
-    plain parameter conversion already covered by the non-AM tilde test
+    plain parameter conversion already covered by the non-AM TCM test
     above.
 
     The offset: `loglike_AM`'s analytic marginalisation omits the
@@ -358,9 +358,9 @@ def test_tilde_params_recovers_standard_value_loglike_AM(data_setup, settings_se
     integral normalisation -- harmless for ordinary use, where `AM_sigmas`
     is fixed for the whole run and the term is just a constant that cancels
     in any relative comparison. But `AM_sigmas` here is expressed in
-    different units between the two likelihoods (tilde vs standard), so
+    different units between the two likelihoods (TCM vs standard), so
     the omitted constant differs by `sum(log(alpha_i))`, where
-    `alpha_i = sigma_tilde_i / sigma_std_i` per bin -- and that's the exact,
+    `alpha_i = sigma_TCM_i / sigma_std_i` per bin -- and that's the exact,
     analytically-known gap this test expects between the two loglikes.
     """
     AM_priors_standard = {
@@ -400,7 +400,7 @@ def test_tilde_params_recovers_standard_value_loglike_AM(data_setup, settings_se
     )
     sigma12_by_z = dict(zip(perturbations.z, perturbations.sigma12()))
 
-    def to_tilde(loc, scale, z):
+    def to_TCM(loc, scale, z):
         Aap = 1.0 / (
             ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
         )
@@ -408,26 +408,26 @@ def test_tilde_params_recovers_standard_value_loglike_AM(data_setup, settings_se
         factor = Aap**n * sigma12**m
         return loc * factor, scale * factor
 
-    AM_priors_tilde = {}
+    AM_priors_TCM = {}
     alphas = []
     for z_label, entry in AM_priors_standard.items():
         loc_std, scale_std = entry["bGam3"]
-        loc_tilde, scale_tilde = to_tilde(loc_std, scale_std, z_label)
-        AM_priors_tilde[z_label] = {"bGam3": [loc_tilde, scale_tilde]}
-        alphas.append(scale_tilde / scale_std)
+        loc_TCM, scale_TCM = to_TCM(loc_std, scale_std, z_label)
+        AM_priors_TCM[z_label] = {"bGam3": [loc_TCM, scale_TCM]}
+        alphas.append(scale_TCM / scale_std)
 
-    likelihood_tilde = EuclidLikelihood_GCspectro_Pls(
+    likelihood_TCM = EuclidLikelihood_GCspectro_Pls(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
         SpectroPower=CometEFT_SpectroPower,
         Perturbations=CAMBLinearPerturbations,
-        AM_priors=AM_priors_tilde,
-        tilde_params={"bGam3": (n, m)},
+        AM_priors=AM_priors_TCM,
+        TCM_params={"bGam3": (n, m)},
     )
-    loglike_tilde = likelihood_tilde.loglike_AM(parameters)
+    loglike_TCM = likelihood_TCM.loglike_AM(parameters)
 
     log_det_sigma_prior_offset = np.sum(np.log(alphas))
-    assert loglike_tilde == pytest.approx(
+    assert loglike_TCM == pytest.approx(
         loglike_standard + log_det_sigma_prior_offset, rel=1e-6
     )

@@ -33,7 +33,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Perturbations: Optional[type] = None,
         AM_priors: Optional[dict] = None,
         num_mocks: Optional[int] = None,
-        tilde_params: Optional[dict] = None,
+        TCM_params: Optional[dict] = None,
     ):
         r"""Class constructor
 
@@ -77,14 +77,14 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             Hartlap (2007) debiasing correction on the inverse covariance
             matrix. ``None`` (default) means the covariance is analytic/
             theoretical, so no correction is applied.
-        tilde_params: dict
-            Nuisance parameters (bias/RSD/noise) sampled in "tilde" form,
-            i.e. ``tilde = standard * Aap**n * sigma12**m`` instead of the
-            standard value the theory code expects directly. Keys are
-            parameter names (must be in ``RSD_parameter_names`` or
+        TCM_params: dict
+            Nuisance parameters (bias/RSD/noise) sampled in the TCM
+            reparametrisation, i.e. ``TCM = standard * Aap**n * sigma12**m``
+            instead of the standard value the theory code expects directly.
+            Keys are parameter names (must be in ``RSD_parameter_names`` or
             ``noise_syst_parameter_names``), values are ``(n, m)`` exponent
             pairs. ``None`` (default) means no parameter uses this
-            reparametrization. Requires ``Perturbations`` to be given (even
+            reparametrisation. Requires ``Perturbations`` to be given (even
             for COMET, which otherwise doesn't need it) to compute sigma12.
             The BAO alphas do not depend on these parameters.
         """
@@ -102,7 +102,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         self.Perturbations = Perturbations
         self.SpectroPower = SpectroPower
         self.num_mocks = num_mocks
-        self.tilde_params = tilde_params
+        self.TCM_params = TCM_params
 
         self._prepare(data)
 
@@ -481,22 +481,20 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             redshifts=self.redshifts,
         ).alphas_dict
 
-        if self.tilde_params:
+        if self.TCM_params:
             if self.NLcode == "PBJ":
-                tilde_perturbations = cosmo_input
+                TCM_perturbations = cosmo_input
             else:
                 if self.Perturbations is None:
                     raise ValueError(
-                        "tilde_params requires Perturbations to compute sigma12, "
+                        "TCM_params requires Perturbations to compute sigma12, "
                         "even for COMET (which otherwise doesn't need one)."
                     )
-                tilde_perturbations = self.Perturbations(
+                TCM_perturbations = self.Perturbations(
                     background, np.float64(self.redshifts)
                 )
             ap_distortion = APDistortion(background, self.background_fiducial)
-            sigma12_by_z = dict(
-                zip(tilde_perturbations.z, tilde_perturbations.sigma12())
-            )
+            sigma12_by_z = dict(zip(TCM_perturbations.z, TCM_perturbations.sigma12()))
             Aap_arr = np.array(
                 [
                     1.0
@@ -509,12 +507,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             )
             sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
 
-            # Convert every tilde-parametrized nuisance parameter back to
+            # Convert every TCM-reparametrised nuisance parameter back to
             # its standard value, for every bin at once -- downstream code
             # (RSD_params/syst_params below, and _coeff_AM) never needs to
-            # know a tilde reparametrization was used.
+            # know a TCM reparametrisation was used.
             parameters = dict(parameters)
-            for name, (n, m) in self.tilde_params.items():
+            for name, (n, m) in self.TCM_params.items():
                 if name in parameters:
                     parameters[name] = parameters[name] / (Aap_arr**n * sigma12_arr**m)
 
@@ -522,14 +520,14 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         theory_vec_AM = {} if term_list is not None else None
         if term_list is not None:
             coeff = self._coeff_AM(parameters)
-            if self.tilde_params:
-                # A parameter that's both tilde-reparametrized and
+            if self.TCM_params:
+                # A parameter that's both TCM-reparametrised and
                 # analytically marginalised needs its diagram coefficient(s)
                 # rescaled too: the marginalisation integrates over the
-                # tilde value's Gaussian prior, so the linear dependence on
+                # TCM value's Gaussian prior, so the linear dependence on
                 # it (the coefficient) picks up the same 1/(Aap**n *
                 # sigma12**m) factor by the chain rule.
-                for name, (n, m) in self.tilde_params.items():
+                for name, (n, m) in self.TCM_params.items():
                     factor = 1.0 / (Aap_arr**n * sigma12_arr**m)
                     for diagram in self.AM_par_to_diag.get(name, []):
                         coeff[diagram] = (
