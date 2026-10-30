@@ -8,6 +8,7 @@ from typing import Optional
 
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
+from cloelib.summary_statistics.APDistortion import APDistortion
 
 
 class EuclidLikelihood_GCspectro_Pls_BAO:
@@ -32,6 +33,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Perturbations: Optional[type] = None,
         AM_priors: Optional[dict] = None,
         num_mocks: Optional[int] = None,
+        TCM_params: Optional[dict] = None,
     ):
         r"""Class constructor
 
@@ -75,6 +77,16 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             Hartlap (2007) debiasing correction on the inverse covariance
             matrix. ``None`` (default) means the covariance is analytic/
             theoretical, so no correction is applied.
+        TCM_params: dict
+            Nuisance parameters (bias/RSD/noise) sampled in the TCM
+            reparametrisation, i.e. ``TCM = standard * Aap**n * sigma12**m``
+            instead of the standard value the theory code expects directly.
+            Keys are parameter names (must be in ``RSD_parameter_names`` or
+            ``noise_syst_parameter_names``), values are ``(n, m)`` exponent
+            pairs. ``None`` (default) means no parameter uses this
+            reparametrisation. Requires ``Perturbations`` to be given (even
+            for COMET, which otherwise doesn't need it) to compute sigma12.
+            The BAO alphas do not depend on these parameters.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -90,6 +102,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         self.Perturbations = Perturbations
         self.SpectroPower = SpectroPower
         self.num_mocks = num_mocks
+        self.TCM_params = TCM_params
 
         self._prepare(data)
 
@@ -468,10 +481,58 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             redshifts=self.redshifts,
         ).alphas_dict
 
+        if self.TCM_params:
+            if self.NLcode == "PBJ":
+                TCM_perturbations = cosmo_input
+            else:
+                if self.Perturbations is None:
+                    raise ValueError(
+                        "TCM_params requires Perturbations to compute sigma12, "
+                        "even for COMET (which otherwise doesn't need one)."
+                    )
+                TCM_perturbations = self.Perturbations(
+                    background, np.float64(self.redshifts)
+                )
+            ap_distortion = APDistortion(background, self.background_fiducial)
+            sigma12_by_z = dict(zip(TCM_perturbations.z, TCM_perturbations.sigma12()))
+            Aap_arr = np.array(
+                [
+                    1.0
+                    / (
+                        ap_distortion.q_AP_tr(float(z)) ** 2
+                        * ap_distortion.q_AP_lo(float(z))
+                    )
+                    for z in self.redshifts
+                ]
+            )
+            sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
+
+            # Convert every TCM-reparametrised nuisance parameter back to
+            # its standard value, for every bin at once -- downstream code
+            # (RSD_params/syst_params below, and _coeff_AM) never needs to
+            # know a TCM reparametrisation was used.
+            parameters = dict(parameters)
+            for name, (n, m) in self.TCM_params.items():
+                if name in parameters:
+                    parameters[name] = parameters[name] / (Aap_arr**n * sigma12_arr**m)
+
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
         if term_list is not None:
             coeff = self._coeff_AM(parameters)
+            if self.TCM_params:
+                # A parameter that's both TCM-reparametrised and
+                # analytically marginalised needs its diagram coefficient(s)
+                # rescaled too: the marginalisation integrates over the
+                # TCM value's Gaussian prior, so the linear dependence on
+                # it (the coefficient) picks up the same 1/(Aap**n *
+                # sigma12**m) factor by the chain rule.
+                for name, (n, m) in self.TCM_params.items():
+                    factor = 1.0 / (Aap_arr**n * sigma12_arr**m)
+                    for diagram in self.AM_par_to_diag.get(name, []):
+                        coeff[diagram] = (
+                            coeff.get(diagram, np.ones_like(factor)) * factor
+                        )
 
         for i, z in enumerate(self.redshifts):
             RSD_params = {key: parameters[key][i] for key in self.RSD_parameter_names}
