@@ -1,5 +1,8 @@
 import numpy as np
-from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
+from cloelib.summary_statistics.angular_two_point import (
+    AngularTwoPoint,
+    _check_ell_coverage,
+)
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 
 
@@ -27,6 +30,9 @@ class WLCosebi:
             match the data.
         ells_integration_COSEBI: multipoles at which ``w_ells`` are evaluated.
         selected_modes (optional): modes entering the likelihood, defaults to 1..7.
+        ells_interpolation_COSEBI (optional): multipoles at which the C_ell are
+            computed and then interpolated onto ``ells_integration_COSEBI``.
+            Defaults to computing them at every ``ells_integration_COSEBI``.
     """
 
     def __init__(self, *args, **kwargs):
@@ -57,6 +63,12 @@ class WLCosebi:
         if self.ells_integration_COSEBI is None:
             raise ValueError(
                 "settings['ells_integration_COSEBI'] matching the w_ells is required."
+            )
+        self.ells_interpolation_COSEBI = self.settings.get("ells_interpolation_COSEBI")
+        if self.ells_interpolation_COSEBI is not None:
+            # Fail at setup, not during sampling
+            _check_ell_coverage(
+                self.ells_interpolation_COSEBI, self.ells_integration_COSEBI
             )
         self.selected_modes = [
             int(n) for n in np.unique(self.settings.get("selected_modes", range(1, 8)))
@@ -122,7 +134,12 @@ class WLCosebi:
         _, _, nlp = self._get_perturbations(parameters)
         she = self._get_she_tracer(parameters, nlp)
         cosebi_all_th = AngularTwoPoint(she, she).get_cosebis(
-            self.ells_integration_COSEBI, 0, nlp.k, self.w_ells, self.selected_modes
+            self.ells_integration_COSEBI,
+            0,
+            nlp.k,
+            self.w_ells,
+            self.selected_modes,
+            ells_interpolation=self.ells_interpolation_COSEBI,
         )
 
         # Place the theory at the data positions of each selected mode; the
@@ -151,7 +168,8 @@ class EuclidLikelihood_WLCosebi(WLCosebi, PhotoLikelihoodBase):
         ``euclidlib.le3.twopcf_wl.cosebis``), ``dndz_she``, ``z_arr`` and ``cov``.
     settings : dict
         Configuration settings: ``w_ells``, ``ells_integration_COSEBI`` and
-        optionally ``selected_modes``. Scale cuts are set by the ``w_ells``.
+        optionally ``selected_modes`` and ``ells_interpolation_COSEBI``. Scale
+        cuts are set by the ``w_ells``.
     Background : object
         Instance representing the cosmological background model.
     LinPerturbations : object
