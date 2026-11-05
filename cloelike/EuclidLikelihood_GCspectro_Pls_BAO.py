@@ -14,7 +14,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
     # Single source of truth for BAO alpha ordering: this order drives both
     # the alphas data vector and the covariance block assembly in
     # _build_observable, so the two are always kept consistent, per redshift bin.
-    _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_ap"]
+    _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_AP"]
     _BAO_FITS_KEY = {key: key.upper() for key in _BAO_ORDER}
     # Background requires As and gamma_MG to be instantiated, but
     # background_fiducial is only ever used for rdrag/H(z)/D_A(z) (see
@@ -329,15 +329,8 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
     def _build_covariance_matrix(self):
         r"""Arranges the full shape and BAO covariances into a matrix form"""
         cov_blocks = [self.data[z]["covariance"] for z in self.redshifts]
-        self.flattened_covariance_matrix = np.block(
-            [
-                [
-                    block if i == j else np.zeros_like(block)
-                    for j, block in enumerate(cov_blocks)
-                ]
-                for i, _ in enumerate(cov_blocks)
-            ]
-        )
+        # The blocks can have different sizes, as each bin has its own alphas
+        self.flattened_covariance_matrix = block_diag(*cov_blocks)
 
     def _masking(self, arr: np.ndarray, interval: list) -> np.ndarray:
         r"""Get a 1/0 mask for the elements of arr contained in interval
