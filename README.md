@@ -13,6 +13,7 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 [![Tests: pytest](https://img.shields.io/badge/tests-pytest-blue?logo=pytest)](https://docs.pytest.org/)
 [![Linting: Ruff](https://img.shields.io/badge/linting-ruff-purple?logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 [![Code Style: Prettier](https://img.shields.io/badge/code%20style-prettier-ff69b4.svg?logo=prettier&logoColor=white)](https://prettier.io/)
+[![PyPI version](https://img.shields.io/pypi/v/cloelike.svg?logo=pypi&logoColor=white)](https://pypi.org/project/cloelike/)
 [![All Contributors](https://img.shields.io/github/all-contributors/cloe-org/cloelike?color=ee8449)](#contributors-)
 
 ---
@@ -39,7 +40,13 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 
 ## 🚀 Installation
 
-To install `cloelike` source code, clone the repository and install it via `pip`:
+Install the latest release of `cloelike` from [PyPI](https://pypi.org/project/cloelike/). This also installs a compatible version of [`cloelib`](https://github.com/cloe-org/cloelib):
+
+```sh
+pip install cloelike
+```
+
+To install `cloelike` from source, clone the repository and install it via `pip`:
 
 ```sh
 pip install .
@@ -57,9 +64,13 @@ with name-latest-release the latest name that appears in "Releases".
 
 ## 📂 Dependency: `cloelib`
 
-`cloelike` depends on the [`cloelib`](https://github.com/cloe-org/cloelib) package (private for now).
+`cloelike` depends on the [`cloelib`](https://github.com/cloe-org/cloelib) package (≥ 0.11), which is available on [PyPI](https://pypi.org/project/cloelib/) and is installed automatically with `cloelike`.
 
-For the time being, please install `cloelib` manually by following the installation instructions provided in its [GitHub repository](https://github.com/cloe-org/cloelib).
+To use the development version of `cloelib` instead, install it first following the instructions in its [GitHub repository](https://github.com/cloe-org/cloelib):
+
+```sh
+pip install git+https://github.com/cloe-org/cloelib.git
+```
 
 ---
 

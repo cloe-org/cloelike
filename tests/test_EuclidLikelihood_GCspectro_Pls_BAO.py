@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
 import requests
@@ -167,6 +169,35 @@ def AM_priors_setup():
     return AM_priors
 
 
+def alpha_iso_AP_data(data):
+    # The mock alphas and covariance read as alpha_iso and alpha_AP, with no
+    # alpha_AP in the first bin, so that the bins have different sizes
+    renamed = {"GCspectro": {}}
+    for i, (z, entry) in enumerate(data["GCspectro"].items()):
+        dv, cv = entry["datavec_BAO"], entry["covariance"]
+        nan = np.full_like(dv.alpha_par, np.nan)
+        renamed["GCspectro"][z] = {
+            **entry,
+            "datavec_BAO": replace(
+                dv,
+                alpha_par=nan,
+                alpha_perp=nan,
+                alpha_iso=dv.alpha_par,
+                alpha_AP=nan if i == 0 else dv.alpha_perp,
+            ),
+            "covariance": replace(
+                cv,
+                covariance={
+                    key.replace("ALPHA_PAR", "ALPHA_ISO").replace(
+                        "ALPHA_PERP", "ALPHA_AP"
+                    ): val
+                    for key, val in cv.covariance.items()
+                },
+            ),
+        }
+    return renamed
+
+
 def test_likelihood_negative_or_zero(data_setup, settings_setup):
     like = EuclidLikelihood_GCspectro_Pls_BAO(
         data=data_setup,
@@ -288,3 +319,15 @@ def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
             SpectroPower=CometEFT_SpectroPower,
             num_mocks=num_data_points,
         )
+
+
+def test_likelihood_alpha_iso_AP(data_setup, settings_setup):
+    like = EuclidLikelihood_GCspectro_Pls_BAO(
+        data=alpha_iso_AP_data(data_setup),
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+    )
+    size = like.data_vector.size
+    assert like.flattened_covariance_matrix.shape == (size, size)
+    assert np.isfinite(like.loglike(default_pars))

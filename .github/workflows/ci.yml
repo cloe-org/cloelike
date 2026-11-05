@@ -21,7 +21,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install pre-commit
         run: |
@@ -89,6 +89,11 @@ jobs:
         run: |
           mamba run -n $ENV_NAME pip install astropy
 
+      - name: Install euclidlib
+        run: |
+          # tests use the `version` argument of phz.redshift_distributions (>=2026.11)
+          mamba run -n $ENV_NAME pip install "euclidlib>=2026.11"
+
       - name: Install comet-emu
         run: |
           mamba run -n $ENV_NAME pip install comet-emu
@@ -120,7 +125,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install build tools
         run: pipx run build

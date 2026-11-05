@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+from scipy.linalg import block_diag
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 
 
@@ -9,7 +10,7 @@ class EuclidLikelihood_GCspectro_BAO:
     # the data vector and the covariance block assembly in
     # _build_observable, so the two are always kept consistent, per redshift
     # bin.
-    _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_ap"]
+    _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_AP"]
     _BAO_FITS_KEY = {key: key.upper() for key in _BAO_ORDER}
     _BACKGROUND_GAMMA_MG = 0.545
     # As is not directly constrained by BAO data (which store sigma_8
@@ -173,15 +174,8 @@ class EuclidLikelihood_GCspectro_BAO:
     def _build_covariance_matrix(self):
         r"""Arranges the BAO covariance into a matrix form"""
         cov_blocks = [self.data[z]["covariance"] for z in self.redshifts]
-        self.flattened_covariance_matrix = np.block(
-            [
-                [
-                    block if i == j else np.zeros_like(block)
-                    for j, block in enumerate(cov_blocks)
-                ]
-                for i, _ in enumerate(cov_blocks)
-            ]
-        )
+        # The blocks can have different sizes, as each bin has its own alphas
+        self.flattened_covariance_matrix = block_diag(*cov_blocks)
 
     def hartlap_factor(self) -> float:
         r"""Hartlap factor to correct the biased estimator for the inverse covariance
