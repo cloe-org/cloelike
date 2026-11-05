@@ -222,7 +222,10 @@
       "profile": "https://github.com/zuzannakr",
       "contributions": [
         "review",
-        "mentoring"
+        "mentoring",
+        "bug",
+        "maintenance",
+        "ideas"
       ]
     }
   ]
