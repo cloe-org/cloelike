@@ -89,6 +89,11 @@ jobs:
         run: |
           mamba run -n $ENV_NAME pip install astropy
 
+      - name: Install euclidlib
+        run: |
+          # tests use the `version` argument of phz.redshift_distributions (>=2026.11)
+          mamba run -n $ENV_NAME pip install "euclidlib>=2026.11"
+
       - name: Install comet-emu
         run: |
           mamba run -n $ENV_NAME pip install comet-emu

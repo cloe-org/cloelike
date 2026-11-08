@@ -72,7 +72,11 @@ def data_setup(tmp_path_factory):
         with open(tmpdir / filename, "wb") as f:
             f.write(r.content)
 
-    z_nz, nz_heracles = el.phz.redshift_distributions(tmpdir / "nz_example.fits")
+    # nz_example.fits is in the Q1 PHZ format (fixed 3000-bin grid, no Z_STEP
+    # header keys); euclidlib>=2026.11 defaults to the DR1 format.
+    z_nz, nz_heracles = el.phz.redshift_distributions(
+        tmpdir / "nz_example.fits", version="q1"
+    )
     myz = np.linspace(1e-4, 3.0, 100)
 
     def normalize_and_resample(nz_dict, z_grid, z_target):
