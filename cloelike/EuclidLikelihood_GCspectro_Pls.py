@@ -450,15 +450,19 @@ class EuclidLikelihood_GCspectro_Pls:
                 ]
             )
             sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
+            TCM_factor = {
+                name: Aap_arr**n * sigma12_arr**m
+                for name, (n, m) in self.TCM_params.items()
+            }
 
             # Convert every TCM-reparametrised nuisance parameter back to
             # its standard value, for every bin at once -- downstream code
             # (RSD_params/syst_params below, and _coeff_AM) never needs to
             # know a TCM reparametrisation was used.
             parameters = dict(parameters)
-            for name, (n, m) in self.TCM_params.items():
+            for name, factor in TCM_factor.items():
                 if name in parameters:
-                    parameters[name] = parameters[name] / (Aap_arr**n * sigma12_arr**m)
+                    parameters[name] = parameters[name] / factor
 
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
@@ -471,11 +475,10 @@ class EuclidLikelihood_GCspectro_Pls:
                 # TCM value's Gaussian prior, so the linear dependence on
                 # it (the coefficient) picks up the same 1/(Aap**n *
                 # sigma12**m) factor by the chain rule.
-                for name, (n, m) in self.TCM_params.items():
-                    factor = 1.0 / (Aap_arr**n * sigma12_arr**m)
+                for name, factor in TCM_factor.items():
                     for diagram in self.AM_par_to_diag.get(name, []):
                         coeff[diagram] = (
-                            coeff.get(diagram, np.ones_like(factor)) * factor
+                            coeff.get(diagram, np.ones_like(factor)) / factor
                         )
 
         for i, z in enumerate(self.redshifts):
