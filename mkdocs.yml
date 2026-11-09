@@ -50,6 +50,7 @@ nav:
   - API Reference:
       - api/index.md
       - Photometric Likelihoods: api/photo_cls.md
+      - tSZ Likelihoods (GODMAX): api/tsz.md
       - Spectroscopic Likelihoods: api/gcspectro.md
   - Contributing: contributing.md
 

@@ -31,7 +31,7 @@ IA_MODEL_KEYS = {
 }
 
 # Galaxy bias models accepted in settings["galaxy_bias_model"].
-GALAXY_BIAS_MODELS = ("poly", "per_bin", "per_bin_int", "nonlinear")
+GALAXY_BIAS_MODELS = ("poly", "per_bin", "per_bin_int", "nonlinear", "hod")
 
 
 @runtime_checkable
@@ -110,7 +110,9 @@ class PhotoLikelihoodBase:
               TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA.
             - 'galaxy_bias_model': "poly" (default, b1_photo_poly0..3), "per_bin" or
               "per_bin_int" (b1_photo_bin{i}, i = 0..n_pos_bins-1), or "nonlinear"
-              (b1_photo_nl_bin{i}, and optionally b2_, bs2_, b3nl_, bk2_photo_nl_bin{i}).
+              (b1_photo_nl_bin{i}, and optionally b2_, bs2_, b3nl_, bk2_photo_nl_bin{i}),
+              or "hod" (no bias parameters: the bias comes from the halo-model
+              galaxy spectra; needs a halo-model NonLinPerturbations such as GODMAX).
             - 'include_rsd': bool, default False.
             - 'nonlinear_param_keys': names of sampled parameters passed as keyword
               arguments to NonLinPerturbations, default ("log10TAGN",). Use () for
@@ -120,6 +122,9 @@ class PhotoLikelihoodBase:
               `cloelib.cosmology.cosmology.with_baryon_boost`. Default ().
             - 'nonlinear_kwargs': fixed keyword arguments for NonLinPerturbations
               (e.g. {"nonlinear_model": "mead2020"}). Default {}.
+            - 'shear_tracer_kwargs', 'positions_tracer_kwargs': extra keyword
+              arguments for ShearTracer and PositionsTracer (e.g.
+              {"spin2_prefactor": False}). Default {}.
             - 'tatt_loop_computer', 'nl_bias_loop_computer': factories called with
               the linear perturbations to build the one-loop kernels for TATT and
               the nonlinear galaxy bias. Default to cloelib's FAST-PT computers.
@@ -292,6 +297,10 @@ class PhotoLikelihoodBase:
         if self.galaxy_bias_model == "poly":
             bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
             optional = []
+        elif self.galaxy_bias_model == "hod":
+            # The bias is inside the halo-model galaxy spectra.
+            bias_keys = []
+            optional = []
         elif self.galaxy_bias_model == "nonlinear":
             # Higher-order terms are optional: cloelib drops a term whose
             # coefficient is absent.
@@ -340,17 +349,10 @@ class PhotoLikelihoodBase:
             **{k: parameters[k] for k in self._BACKGROUND_PARAM_KEYS}
         )
         lp = self.LinPerturbations(background=background, redshifts=self.zs)
-        nl_kwargs = dict(self.settings.get("nonlinear_kwargs", {}))
-        nl_kwargs.update({k: parameters[k] for k in self.nonlinear_param_keys})
-        if self.baryon_param_keys:
-            nl_kwargs["baryon_kwargs"] = {
-                k: parameters[k] for k in self.baryon_param_keys
-            }
         nlp = self.NonLinPerturbations(
             background=background,
             linearperturbations=lp,
-            redshifts=self.zs,
-            **nl_kwargs,
+            **self._nonlinear_kwargs(parameters),
         )
         # sigma8_0() self-memoizes by overwriting `nlp.sigma8_0` with its
         # result on first call, so it must be called exactly once per nlp
@@ -362,6 +364,18 @@ class PhotoLikelihoodBase:
         # Loop computers depend only on the cosmology; drop the old ones.
         self._loop_computers = {}
         return result
+
+    def _nonlinear_kwargs(self, parameters):
+        """Keyword arguments for NonLinPerturbations, besides the background and
+        the linear perturbations. Subclasses may override it to pass more."""
+        nl_kwargs = {"redshifts": self.zs}
+        nl_kwargs.update(self.settings.get("nonlinear_kwargs", {}))
+        nl_kwargs.update({k: parameters[k] for k in self.nonlinear_param_keys})
+        if self.baryon_param_keys:
+            nl_kwargs["baryon_kwargs"] = {
+                k: parameters[k] for k in self.baryon_param_keys
+            }
+        return nl_kwargs
 
     def _cosmo_key(self, parameters):
         """The same cache key used by `_get_perturbations`, exposed so tracer
@@ -411,6 +425,7 @@ class PhotoLikelihoodBase:
             galaxy_bias_model=self.galaxy_bias_model,
             include_rsd=self.settings.get("include_rsd", False),
             **nl_bias_kwargs,
+            **self.settings.get("positions_tracer_kwargs", {}),
         )
         self._pos_tracer_cache = (key, tracer)
         return tracer
@@ -436,6 +451,7 @@ class PhotoLikelihoodBase:
             nuisance_params=nuisance,
             ia_model=self.ia_model,
             tatt_loop_computer=loop_computer,
+            **self.settings.get("shear_tracer_kwargs", {}),
         )
         self._she_tracer_cache = (key, tracer)
         return tracer

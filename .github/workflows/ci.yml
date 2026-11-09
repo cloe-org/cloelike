@@ -81,6 +81,11 @@ jobs:
         run: |
           mamba run -n $ENV_NAME pip install git+https://github.com/MariaTsedrik/HMcode2020Emu.git
 
+      - name: Install GODMAX (halo model for the tSZ likelihoods)
+        run: |
+          # Development branch with the cloelib interface until it is merged into GODMAX.
+          mamba run -n $ENV_NAME pip install "godmax @ git+https://github.com/vilasinits/GODMAX.git@cloe-integration"
+
       - name: Install CAMB
         run: |
           mamba run -n $ENV_NAME pip install camb
