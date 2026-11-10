@@ -50,9 +50,6 @@ default_pars = {
     "sigmaz": np.array([0.0, 0.0, 0.0, 0.0]),
 }
 
-# --- Default number densities ---
-nbar = np.array([2.042611e-03, 1.02876011e-03, 0.58531983e-03, 0.313402e-03])
-
 # --- Zenodo path and filenames ---
 path = "https://zenodo.org/records/21026624/files/"
 files = [
@@ -64,7 +61,6 @@ files = [
 @pytest.fixture(scope="module")
 def data_setup(tmp_path_factory):
     tmpdir = tmp_path_factory.mktemp("data")
-    print(tmpdir)
 
     def download_file(url, dest_path):
         r = requests.get(url)
@@ -72,11 +68,9 @@ def data_setup(tmp_path_factory):
         with open(dest_path, "wb") as f:
             f.write(r.content)
 
-    data = {"GCspectro": {}, "fiducial_cosmology": {}}
+    data = {"GCspectro": {}}
 
-    for ii, z in enumerate(labels):
-        data["GCspectro"][z] = {}
-
+    for z in labels:
         for file in files:
             download_file(
                 path + file.format(str(z).strip("0")),
@@ -90,69 +84,41 @@ def data_setup(tmp_path_factory):
             tmpdir / files[1].format(str(z).strip("0"))
         )[("SPE", "SPE", 0, 0)]
 
-        if ii == 0:
-            data["fiducial_cosmology"]["H0"] = datavec.fiducial_cosmology["H0"]
-            data["fiducial_cosmology"]["Omega_cdm0"] = (
-                datavec.fiducial_cosmology["Omega_m0"]
-                - datavec.fiducial_cosmology["Omega_b0"]
-            )
-            data["fiducial_cosmology"]["Omega_b0"] = datavec.fiducial_cosmology[
-                "Omega_b0"
-            ]
-            data["fiducial_cosmology"]["Omega_k0"] = datavec.fiducial_cosmology[
-                "Omega_k0"
-            ]
-            data["fiducial_cosmology"]["mnu"] = 0.0
-            data["fiducial_cosmology"]["N_mnu"] = 0
-            data["fiducial_cosmology"]["w0"] = datavec.fiducial_cosmology["w0"]
-            data["fiducial_cosmology"]["wa"] = 0.0
-            data["fiducial_cosmology"]["ns"] = datavec.fiducial_cosmology["ns"]
-            data["fiducial_cosmology"]["As"] = 2.1e-9
-            data["fiducial_cosmology"]["gamma_MG"] = 0.545
+        data["GCspectro"][z] = {
+            "datavec": datavec,
+            "covariance": covariance,
+        }
 
-            fid_h = data["fiducial_cosmology"]["H0"] / 100.0
-            s_fac = 1.0 / fid_h
-            tpcf_fac = 1.0
-            cov_fac = 1.0
-
-        data["GCspectro"][z]["nbar"] = nbar[ii] * fid_h**3
-
-        data["GCspectro"][z]["s"] = datavec.s * s_fac
-        data["GCspectro"][z]["xis0"] = datavec.multipoles[0] * tpcf_fac
-        data["GCspectro"][z]["xis2"] = datavec.multipoles[2] * tpcf_fac
-        data["GCspectro"][z]["xis4"] = datavec.multipoles[4] * tpcf_fac
-
-        full_matrix = np.block(
-            [[covariance.covariance[f"{i}-{j}"] for j in [0, 2, 4]] for i in [0, 2, 4]]
-        )
-        data["GCspectro"][z]["cov"] = full_matrix * cov_fac
+    print(data)
 
     return data
 
 
 @pytest.fixture(scope="module")
 def settings_setup(data_setup):
-    fid_h = data_setup["fiducial_cosmology"]["H0"] / 100.0
+    fid_h = (
+        data_setup["GCspectro"][labels[0]]["datavec"].fiducial_cosmology["H0"] / 100.0
+    )
 
     settings = {
-        "scale_cuts": {
-            "GCspectro": {
-                "bin1": {
+        "GCspectro": {
+            "scale_cuts": {
+                labels[0]: {
                     "ell0": [20.0 / fid_h, 200.0 / fid_h],
                     "ell2": [20.0 / fid_h, 200.0 / fid_h],
                     "ell4": [20.0 / fid_h, 200.0 / fid_h],
                 },
-                "bin2": {
+                labels[1]: {
                     "ell0": [20.0 / fid_h, 200.0 / fid_h],
                     "ell2": [20.0 / fid_h, 200.0 / fid_h],
                     "ell4": [20.0 / fid_h, 200.0 / fid_h],
                 },
-                "bin3": {
+                labels[2]: {
                     "ell0": [20.0 / fid_h, 200.0 / fid_h],
                     "ell2": [20.0 / fid_h, 200.0 / fid_h],
                     "ell4": [20.0 / fid_h, 200.0 / fid_h],
                 },
-                "bin4": {
+                labels[3]: {
                     "ell0": [20.0 / fid_h, 200.0 / fid_h],
                     "ell2": [20.0 / fid_h, 200.0 / fid_h],
                     "ell4": [20.0 / fid_h, 200.0 / fid_h],
