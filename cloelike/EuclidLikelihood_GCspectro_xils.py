@@ -220,9 +220,9 @@ class EuclidLikelihood_GCspectro_xils:
         }
 
     def _build_observable(self, data_z: dict, fid_h: float) -> dict:
-        r"""Rescales units (Mpc/h to Mpc) and assembles the 2-point correlation 
+        r"""Rescales units (Mpc/h to Mpc) and assembles the 2-point correlation
         function multipoles and covariance for one redshift bin, from raw
-	euclidlib objects.
+        euclidlib objects.
 
         Parameters
         ----------
