@@ -18,6 +18,7 @@ nb_bins = 3
 z = np.linspace(1e-3, 3.0, 100)
 ells = np.linspace(10, 3000, 20)
 
+
 # We make gaussian n(z)
 def gaussian_nz(mean, width=0.15):
     nz = np.exp(-0.5 * ((z - mean) / width) ** 2)
@@ -74,11 +75,13 @@ def fiducial_params():
         **{f"multiplicative_bias_{i}": 0.0 for i in bins},
     }
 
+
 def build_settings():
     all_keys = keys[EuclidLikelihood_5x2pt]
     scale_cuts = {key: [ells[0], ells[-1]] for key in all_keys}
     return {"scale_cuts": scale_cuts, "include_rsd": True}
-        
+
+
 def make_likelihood(cls, cells, settings=None):
     """Build a decoupled-mode likelihood with a diagonal covariance."""
     data = {
