@@ -6,7 +6,7 @@ from cloelib.cosmology.HMcode2020Emu_cosmology import (
     HMemuLinearPerturbations,
     HMemuNonLinearPerturbations,
 )
-from cloelike.EuclidLikelihood_cmb import (
+from cloelike.EuclidLikelihood_CMBLensingCross import (
     EuclidLikelihood_CMBLxGC,
     EuclidLikelihood_CMBLxWL,
     EuclidLikelihood_CMBLx,
@@ -42,8 +42,6 @@ keys = {
     EuclidLikelihood_CMBLx: CMBLxWL_keys + CMBLxGC_keys,
     EuclidLikelihood_5x2pt: CMBLxWL_keys + CMBLxGC_keys + WL_keys + GGL_keys + GC_keys,
 }
-CMB_likelihoods = list(keys)
-
 
 def fiducial_params():
     return {
@@ -122,21 +120,21 @@ def mock_cells():
     return {key: np.asarray(cl.array) for key, cl in like.theory_prediction.items()}
 
 
-def test_CMBLxWL_likelihod(mock_cells):
+def test_CMBLxWL_likelihood(mock_cells):
     like = make_likelihood(EuclidLikelihood_CMBLxWL, mock_cells)
     assert like.loglike(fiducial_params()) == pytest.approx(0, abs=1e-8)
 
 
-def test_CMBLxGC_likelihod(mock_cells):
+def test_CMBLxGC_likelihood(mock_cells):
     like = make_likelihood(EuclidLikelihood_CMBLxGC, mock_cells)
     assert like.loglike(fiducial_params()) == pytest.approx(0, abs=1e-8)
 
 
-def test_CMBLx_likelihod(mock_cells):
+def test_CMBLx_likelihood(mock_cells):
     like = make_likelihood(EuclidLikelihood_CMBLx, mock_cells)
     assert like.loglike(fiducial_params()) == pytest.approx(0, abs=1e-8)
 
 
-def test_5x2pt_likelihod(mock_cells):
+def test_5x2pt_likelihood(mock_cells):
     like = make_likelihood(EuclidLikelihood_5x2pt, mock_cells)
     assert like.loglike(fiducial_params()) == pytest.approx(0, abs=1e-8)

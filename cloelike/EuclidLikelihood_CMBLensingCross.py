@@ -8,6 +8,11 @@ from cloelib.observables.cmb import CMBLensingTracer
 class CMBLensingTracerMixin:
     """Builds and caches the CMB lensing tracer, shared by the CMBL mixins."""
 
+    def __init__(self, *args, mode="decoupled", **kwargs):
+        """ cloelib does not support pseudo_Cl for now so we set
+        the default mode to decoupled."""
+        super().__init__(*args, mode=mode, **kwargs)
+
     def _get_cmbl_tracer(self, parameters, nlp):
         """Build (and cache) the CMBLensingTracer for the given parameters/nlp, so
         CMBLxWL and CMBLxGC do not each rebuild it within the same call."""
@@ -70,7 +75,7 @@ class CMBLxWLMixin(CMBLensingTracerMixin):
         return np.concatenate([v, vec])
 
 
-class CMBLxGCMixin:
+class CMBLxGCMixin(CMBLensingTracerMixin):
     """
     Mixin class providing CMB lensing (CMBL) x GC specific functionality for CMB lensing x GC likelihoods.
     """
@@ -139,7 +144,7 @@ class EuclidLikelihood_CMBLxWL(CMBLxWLMixin, PhotoLikelihoodBase):
     NonLinPerturbations : object
         Instance representing non-linear perturbations.
     mode : str, optional
-        Mode of operation, default is "coupled".
+        Mode of operation, default is "decoupled".
     """
 
     pass
@@ -167,7 +172,7 @@ class EuclidLikelihood_CMBLxGC(CMBLxGCMixin, PhotoLikelihoodBase):
     NonLinPerturbations : object
         Instance representing non-linear perturbations.
     mode : str, optional
-        Mode of operation, default is "coupled".
+        Mode of operation, default is "decoupled".
     """
 
     pass
@@ -205,7 +210,7 @@ class EuclidLikelihood_5x2pt(
     NonLinPerturbations : object
         Instance for non-linear perturbation theory calculations.
     mode : str, optional
-        Mode for likelihood calculation, default is "coupled".
+        Mode for likelihood calculation, default is "decoupled".
     """
 
     pass
@@ -238,7 +243,7 @@ class EuclidLikelihood_CMBLx(CMBLxGCMixin, CMBLxWLMixin, PhotoLikelihoodBase):
     NonLinPerturbations : object
         Instance for non-linear perturbation theory calculations.
     mode : str, optional
-        Mode for likelihood calculation, default is "coupled".
+        Mode for likelihood calculation, default is "decoupled".
     """
 
     pass
