@@ -4,6 +4,7 @@ from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 from cloelike.EuclidLikelihood_photo_Cls import GCphMixin, GGLMixin, WLMixin
 from cloelib.observables.cmb import CMBLensingTracer
 
+
 class CMBLensingTracerMixin:
     """Builds and caches the CMB lensing tracer, shared by the CMBL mixins."""
 
@@ -18,7 +19,7 @@ class CMBLensingTracerMixin:
         self._cmbl_tracer_cache = (key, tracer)
         return tracer
 
-        
+
 class CMBLxWLMixin(CMBLensingTracerMixin):
     """
     Mixin class providing CMB lensing (CMBL) x WL specific functionality for CMB lensing x WL likelihoods.
@@ -32,8 +33,7 @@ class CMBLxWLMixin(CMBLensingTracerMixin):
         self.n_she_bins = self.data["dndz_she"].shape[0]
         self._init_she_keys()
         self.CMBLxWL_keys = [
-            ("CMBL", "SHE", 1, i)
-            for i in range(1, self.n_she_bins + 1)
+            ("CMBL", "SHE", 1, i) for i in range(1, self.n_she_bins + 1)
         ]
 
     def get_masking_vector(self):
@@ -59,13 +59,16 @@ class CMBLxWLMixin(CMBLensingTracerMixin):
         cmbl = self._get_cmbl_tracer(parameters, nlp)
         she = self._get_she_tracer(parameters, nlp)
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(cmbl, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
+            cell_all_th = AngularTwoPoint(cmbl, she).get_pseudo_Cl(
+                0, nlp.k, self.mixmat
+            )
             vec = np.array([cell_all_th[key][0] for key in self.CMBLxWL_keys]).flatten()
         else:
             cell_all_th = AngularTwoPoint(cmbl, she).get_Cl(self.data["ells"], 0, nlp.k)
             vec = np.array([cell_all_th[key][0] for key in self.CMBLxWL_keys]).flatten()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
+
 
 class CMBLxGCMixin:
     """
@@ -80,8 +83,7 @@ class CMBLxGCMixin:
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self._init_pos_keys()
         self.CMBLxGC_keys = [
-            ("CMBL", "POS", 1, i)
-            for i in range(1, self.n_pos_bins + 1)
+            ("CMBL", "POS", 1, i) for i in range(1, self.n_pos_bins + 1)
         ]
 
     def get_masking_vector(self):
@@ -96,9 +98,7 @@ class CMBLxGCMixin:
 
     def get_data_vector_full(self):
         v = super().get_data_vector_full()
-        vec = np.array(
-            [self.data["cells"][key] for key in self.CMBLxGC_keys]
-        ).flatten()
+        vec = np.array([self.data["cells"][key] for key in self.CMBLxGC_keys]).flatten()
         return np.concatenate([v, vec])
 
     def get_theory_vector_full(self, parameters):
@@ -107,7 +107,9 @@ class CMBLxGCMixin:
         cmbl = self._get_cmbl_tracer(parameters, nlp)
         pos = self._get_pos_tracer(parameters, nlp)
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(cmbl, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
+            cell_all_th = AngularTwoPoint(cmbl, pos).get_pseudo_Cl(
+                0, nlp.k, self.mixmat
+            )
             vec = np.array([cell_all_th[key] for key in self.CMBLxGC_keys]).flatten()
         else:
             cell_all_th = AngularTwoPoint(cmbl, pos).get_Cl(self.data["ells"], 0, nlp.k)
@@ -171,7 +173,9 @@ class EuclidLikelihood_CMBLxGC(CMBLxGCMixin, PhotoLikelihoodBase):
     pass
 
 
-class EuclidLikelihood_5x2pt(GCphMixin, GGLMixin, WLMixin, CMBLxGCMixin, CMBLxWLMixin, PhotoLikelihoodBase):
+class EuclidLikelihood_5x2pt(
+    GCphMixin, GGLMixin, WLMixin, CMBLxGCMixin, CMBLxWLMixin, PhotoLikelihoodBase
+):
     """
     EuclidLikelihood_5x2pt combines weak lensing (WL), galaxy clustering (GCph), galaxy-galaxy lensing (GGL), CMB lensing x weak lensing and CMB lensing x GCph likelihoods for photometric cosmological analyses, supporting scale cuts and masking.
 
