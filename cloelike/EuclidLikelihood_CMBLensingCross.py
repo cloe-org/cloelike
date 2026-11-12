@@ -2,9 +2,24 @@ import numpy as np
 from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 from cloelike.EuclidLikelihood_photo_Cls import GCphMixin, GGLMixin, WLMixin
+from cloelib.observables.cmb import CMBLensingTracer
 
+class CMBLensingTracerMixin:
+    """Builds and caches the CMB lensing tracer, shared by the CMBL mixins."""
 
-class CMBLxWLMixin:
+    def _get_cmbl_tracer(self, parameters, nlp):
+        """Build (and cache) the CMBLensingTracer for the given parameters/nlp, so
+        CMBLxWL and CMBLxGC do not each rebuild it within the same call."""
+        key = self._cosmo_key(parameters)
+        cached = getattr(self, "_cmbl_tracer_cache", None)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        tracer = CMBLensingTracer(nlp, self.zs)
+        self._cmbl_tracer_cache = (key, tracer)
+        return tracer
+
+        
+class CMBLxWLMixin(CMBLensingTracerMixin):
     """
     Mixin class providing CMB lensing (CMBL) x WL specific functionality for CMB lensing x WL likelihoods.
     """
@@ -171,7 +186,7 @@ class EuclidLikelihood_5x2pt(GCphMixin, GGLMixin, WLMixin, CMBLxGCMixin, CMBLxWL
     Note: The order of inheritance matters due to the method resolution order (MRO) in Python
     and how mixins extend the base class functionality. Each mixin appends its block after
     the blocks of the mixins that follow it in the MRO, so the data vector, and therefore
-    the covariance matrix blocks, are ordered CMBLxWL, CMBLxGC, WL GGL and GCph.
+    the covariance matrix blocks, are ordered CMBLxWL, CMBLxGC, WL, GGL and GCph.
 
     Parameters
     ----------
