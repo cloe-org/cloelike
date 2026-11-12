@@ -53,10 +53,11 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             Settings dictionary, whose structure is as follows. The first layer
             contains a single key, "GCspectro", for future homogenisation with
             photometric probes. The second layer also contains a single keyword,
-            ``"scale_cuts"``. in the third layer ``settings["GCspectro"][z]``
-            is expected to be a dictionary containing pairs ``"ell<i>: [a,b]"``,
-            where ``"i"`` runs over 0,2,4 and ``"a,b"`` represent the range of
-            modes included in the fit.
+            ``"scale_cuts"``. In the third layer
+            ``settings["GCspectro"]["scale_cuts"][z]`` is expected to be a
+            dictionary containing pairs ``"ell<i>: [a,b]"``, where ``"i"`` runs
+            over 0,2,4 and ``"a,b"`` represent the range of modes included in
+            the fit.
         Background: type
             Protocol-consistent Background class
         SpectroPower: type

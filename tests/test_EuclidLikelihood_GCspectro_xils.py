@@ -89,8 +89,6 @@ def data_setup(tmp_path_factory):
             "covariance": covariance,
         }
 
-    print(data)
-
     return data
 
 

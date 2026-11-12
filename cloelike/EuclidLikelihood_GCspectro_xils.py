@@ -40,10 +40,11 @@ class EuclidLikelihood_GCspectro_xils:
             Settings dictionary, whose structure is as follows. The first layer
             contains a single key, "GCspectro", for future homogenisation with
             photometric probes. The second layer also contains a single keyword,
-            ``"scale_cuts"``. in the third layer ``settings["GCspectro"][z]``
-            is expected to be a dictionary containing pairs ``"ell<i>: [a,b]"``,
-            where ``"i"`` runs over 0,2,4 and ``"a,b"`` represent the range of
-            scales included in the fit.
+            ``"scale_cuts"``. In the third layer
+            ``settings["GCspectro"]["scale_cuts"][z]`` is expected to be a
+            dictionary containing pairs ``"ell<i>: [a,b]"``, where ``"i"`` runs
+            over 0,2,4 and ``"a,b"`` represent the range of scales included in
+            the fit.
         Background: type
             Protocol-consistent Background class
         SpectroPower: type
@@ -177,7 +178,7 @@ class EuclidLikelihood_GCspectro_xils:
         fid_h = params_fid["H0"] / 100.0
 
         self.data = {z: self._build_observable(data[z], fid_h) for z in self.redshifts}
-        self.nbar = [1.0 for z in self.redshifts]
+        self.nbar = [self.data[z]["nbar"] for z in self.redshifts]
 
         self._build_data_vector()
         self._build_covariance_matrix()
@@ -241,6 +242,8 @@ class EuclidLikelihood_GCspectro_xils:
         dv, cv = data_z["datavec"], data_z["covariance"]
         s_fac, xi_fac, cov_fac = 1.0 / fid_h, 1.0, 1.0
 
+        # The variable nbar is set to 1.0 as dummy value, not affecting the
+        # 2PCF but expected in the likelihood call
         entry = {"nbar": 1.0, "s": dv.s * s_fac}
         entry.update({f"xis{ell}": dv.multipoles[ell] * xi_fac for ell in self.ells})
 
