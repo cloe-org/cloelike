@@ -9,7 +9,7 @@ class CMBLensingTracerMixin:
     """Builds and caches the CMB lensing tracer, shared by the CMBL mixins."""
 
     def __init__(self, *args, mode="decoupled", **kwargs):
-        """ cloelib does not support pseudo_Cl for now so we set
+        """cloelib does not support pseudo_Cl for now so we set
         the default mode to decoupled."""
         super().__init__(*args, mode=mode, **kwargs)
 

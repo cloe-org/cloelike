@@ -43,6 +43,7 @@ keys = {
     EuclidLikelihood_5x2pt: CMBLxWL_keys + CMBLxGC_keys + WL_keys + GGL_keys + GC_keys,
 }
 
+
 def fiducial_params():
     return {
         "H0": 70,
