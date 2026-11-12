@@ -34,7 +34,7 @@ We welcome feedback from the **Euclid community** and beyond to refine and impro
 
 🔹 **Intuitive & User-Friendly** – General description of the likelihood options by classes
 
-🔹 **loglike calculation for Euclid primary probes** – currently supporting 3x2pt and spectroscopic galaxy clustering full-shape
+🔹 **loglike calculation for Euclid primary probes** – currently supporting 3x2pt, spectroscopic galaxy clustering full-shape, and cross-correlation with CMB lensing
 
 ---
 
