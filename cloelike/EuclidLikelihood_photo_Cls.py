@@ -17,13 +17,7 @@ class WLMixin:
 
     def _init_wl(self):
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        IA_keys = ["AIA", "EtaIA", "CIA"]
-        mul_bias_keys = [
-            f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
-        ]
-        dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
+        self._init_she_keys()
         self.WL_keys = [
             ("SHE", "SHE", i, j)
             for i in range(1, self.n_she_bins + 1)
@@ -75,13 +69,7 @@ class GCphMixin:
 
     def _init_gcph(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
-        bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
-        mag_bias_keys = [
-            f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
-        ]
-        dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
+        self._init_pos_keys()
         self.GG_keys = [
             ("POS", "POS", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -132,20 +120,8 @@ class GGLMixin:
     def _init_ggl(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self.n_she_bins = self.data["dndz_she"].shape[0]
-        bias_keys = [f"b1_photo_poly{i}" for i in range(4)]
-        mag_bias_keys = [
-            f"magnification_bias_{i}" for i in range(1, self.n_pos_bins + 1)
-        ]
-        dz_pos_keys = [f"dz_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        width_pos_keys = [f"width_pos_{i}" for i in range(1, self.n_pos_bins + 1)]
-        IA_keys = ["AIA", "EtaIA", "CIA"]
-        mul_bias_keys = [
-            f"multiplicative_bias_{i}" for i in range(1, self.n_she_bins + 1)
-        ]
-        dz_she_keys = [f"dz_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        width_she_keys = [f"width_shear_{i}" for i in range(1, self.n_she_bins + 1)]
-        self.full_pos_keys = bias_keys + mag_bias_keys + dz_pos_keys + width_pos_keys
-        self.full_she_keys = IA_keys + mul_bias_keys + dz_she_keys + width_she_keys
+        self._init_pos_keys()
+        self._init_she_keys()
         self.GGL_keys = [
             ("POS", "SHE", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -241,10 +217,11 @@ class BNTMixin:
 
         P acts on the concatenated data/theory vector:
 
-            [ GCph ; GGL ; WL ]
+            [ WL ; GGL ; GCph ]
 
-        where some blocks may be absent depending on the specific likelihood
-        class (WL only, GCph+GGL, or full 3x2pt).
+        which is the order in which the mixins append their blocks, where some
+        blocks may be absent depending on the specific likelihood class (WL only,
+        GGL+GCph, or full 3x2pt).
         """
         base_vec = super().get_data_vector_full()
         dim_total = base_vec.size
@@ -271,12 +248,10 @@ class BNTMixin:
         P = np.eye(dim_total)
 
         # Offsets in the full vector.
-        start_GC = 0
-        end_GC = start_GC + dim_GC
-        start_GGL = end_GC
-        end_GGL = start_GGL + dim_GGL
-        start_WL = end_GGL
+        start_WL = 0
         end_WL = start_WL + dim_WL
+        start_GGL = end_WL
+        end_GGL = start_GGL + dim_GGL
 
         # GGL block: transform shear index only.
         if dim_GGL > 0:
@@ -552,8 +527,9 @@ class EuclidLikelihood_3x2pt(GCphMixin, GGLMixin, WLMixin, PhotoLikelihoodBase):
         WLMixin: Mixin providing weak lensing specific functionality.
 
     Note: The order of inheritance matters due to the method resolution order (MRO) in Python
-    and how mixins extend the base class functionality. Also, the order of the mixins assumes
-    the ordering of the covariance matrix blocks is GCph, GGL and WL.
+    and how mixins extend the base class functionality. Each mixin appends its block after
+    the blocks of the mixins that follow it in the MRO, so the data vector, and therefore
+    the covariance matrix blocks, are ordered WL, GGL and GCph.
 
     Parameters
     ----------
@@ -582,8 +558,9 @@ class EuclidLikelihood_2x2pt(GCphMixin, GGLMixin, PhotoLikelihoodBase):
     providing methods to compute the full data and theory vectors for both probes.
 
     Note: The order of inheritance matters due to the method resolution order (MRO) in Python
-    and how mixins extend the base class functionality. The order of the mixins assumes
-    the ordering of the covariance matrix blocks is GCph, GGL.
+    and how mixins extend the base class functionality. Each mixin appends its block after
+    the blocks of the mixins that follow it in the MRO, so the data vector, and therefore
+    the covariance matrix blocks, are ordered GGL and GCph.
 
     Parameters
     ----------

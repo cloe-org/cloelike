@@ -52,6 +52,43 @@ likelihood = EuclidLikelihood_3x2pt(
 log_like = likelihood.loglike(parameters)
 ```
 
+### Selecting the photometric theory model
+
+The intrinsic-alignment model, galaxy bias model and nonlinear/baryonic options are chosen in `settings`. All keys are optional. The photometric Cls, 2PCF and COSEBIs likelihoods accept the same ones (COSEBIs is shear only, so it ignores the galaxy-bias keys).
+
+| Key                    | Options                                                         | Parameters read from `parameters`                                                                                                                                  |
+| ---------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ia_model`             | `"NLA"` (default), `"TATT"`, `None`                             | NLA: `AIA`, `EtaIA`, `CIA`. TATT: `AIA`, `A2IA`, `bTA`, optionally `EtaIA`, `Eta2IA`, `CIA`, `z0IA` (default 0.62)                                                 |
+| `galaxy_bias_model`    | `"poly"` (default), `"per_bin"`, `"per_bin_int"`, `"nonlinear"` | poly: `b1_photo_poly0..3`. per*bin: `b1_photo_bin{i}`. nonlinear: `b1_photo_nl_bin{i}`, optionally `b2*`, `bs2*`, `b3nl*`, `bk2_photo_nl_bin{i}` (`i` starts at 0) |
+| `include_rsd`          | `False` (default), `True`                                       | Not supported with `galaxy_bias_model="nonlinear"`                                                                                                                 |
+| `nonlinear_param_keys` | default `("log10TAGN",)`                                        | Passed as keyword arguments to `NonLinPerturbations`. Use `()` for backends without baryonic feedback (e.g. EE2)                                                   |
+| `baryon_param_keys`    | default `()`                                                    | Passed as `baryon_kwargs` to a class built with `cloelib.cosmology.cosmology.with_baryon_boost`                                                                    |
+| `nonlinear_kwargs`     | default `{}`                                                    | Fixed keyword arguments for `NonLinPerturbations`, e.g. `{"nonlinear_model": "mead2020"}`                                                                          |
+
+TATT and the nonlinear galaxy bias compute their one-loop kernels with FAST-PT (`pip install fast-pt`) from the linear perturbations. You can supply your own kernels with `settings["tatt_loop_computer"]` / `settings["nl_bias_loop_computer"]`: each is a callable that takes the linear perturbations and returns an object with a `.compute(name)` method.
+
+For example, TATT with nonlinear galaxy bias and the FLAMINGO baryonic response on top of HMcode2020Emu:
+
+```python
+from cloelib.cosmology.cosmology import with_baryon_boost
+from cloelib.cosmology.FlamingoBaryonResponseEmulator_cosmology import FlamingoBaryonBoostMixin
+
+settings = {
+    **settings,
+    "ia_model": "TATT",
+    "galaxy_bias_model": "nonlinear",
+    "nonlinear_param_keys": (),
+    "baryon_param_keys": ("fgas_sigma", "Mstar_sigma", "jet_fraction"),
+}
+likelihood = EuclidLikelihood_3x2pt(
+    data=data,
+    settings=settings,
+    Background=CAMBBackground,
+    LinPerturbations=HMemuLinearPerturbations,
+    NonLinPerturbations=with_baryon_boost(HMemuNonLinearPerturbations, FlamingoBaryonBoostMixin),
+)
+```
+
 ## Basic example: Spectroscopic GCspectro likelihood
 
 ```python
