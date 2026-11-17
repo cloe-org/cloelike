@@ -110,7 +110,7 @@ class EuclidLikelihood_GCspectro_xils:
         else:
             raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
-        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
+        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
 
         self.AM_priors = AM_priors
         if self.AM_priors:

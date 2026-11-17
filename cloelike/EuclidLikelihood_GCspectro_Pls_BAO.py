@@ -80,11 +80,13 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             theoretical, so no correction is applied.
         TCM_params: dict
             Nuisance parameters (bias/RSD/noise) sampled in the TCM
-            reparametrisation, i.e. ``TCM = standard * Aap**n * sigma12**m``
-            instead of the standard value the theory code expects directly.
-            Keys are parameter names (must be in ``RSD_parameter_names`` or
-            ``noise_syst_parameter_names``), values are ``(n, m)`` exponent
-            pairs. ``None`` (default) means no parameter uses this
+            reparametrisation, i.e.
+            ``TCM = standard * Aap**n * sigma12**m * fcorr**q`` instead of the
+            standard value the theory code expects directly. Keys are
+            parameter names (must be in ``RSD_parameter_names`` or
+            ``noise_syst_parameter_names``), values are ``(n, m)`` or
+            ``(n, m, q)`` exponents (``q = 0`` if omitted). ``None``
+            (default) means no parameter uses this
             reparametrisation. Requires ``Perturbations`` to be given (even
             for COMET, which otherwise doesn't need it) to compute sigma12.
             The BAO alphas do not depend on these parameters.
@@ -135,7 +137,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         else:
             raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
-        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
+        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
 
         self.AM_priors = AM_priors
         if self.AM_priors:
@@ -500,9 +502,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 ]
             )
             sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
+            fcorr_arr = np.asarray(parameters["fcorr"], dtype=float)
             TCM_factor = {
-                name: Aap_arr**n * sigma12_arr**m
-                for name, (n, m) in self.TCM_params.items()
+                name: Aap_arr ** exps[0]
+                * sigma12_arr ** exps[1]
+                * fcorr_arr ** (exps[2] if len(exps) > 2 else 0)
+                for name, exps in self.TCM_params.items()
             }
 
             # Convert every TCM-reparametrised nuisance parameter back to
@@ -524,7 +529,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 # rescaled too: the marginalisation integrates over the
                 # TCM value's Gaussian prior, so the linear dependence on
                 # it (the coefficient) picks up the same 1/(Aap**n *
-                # sigma12**m) factor by the chain rule.
+                # sigma12**m * fcorr**q) factor by the chain rule.
                 for name, factor in TCM_factor.items():
                     for diagram in self.AM_par_to_diag.get(name, []):
                         coeff[diagram] = (
