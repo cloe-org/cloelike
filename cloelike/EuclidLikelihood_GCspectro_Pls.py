@@ -9,6 +9,8 @@ from typing import Optional
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 from cloelib.summary_statistics.APDistortion import APDistortion
 
+from cloelike.bias_relations import apply_bias_relations, check_bias_relations
+
 
 class EuclidLikelihood_GCspectro_Pls:
     # Background requires As and gamma_MG to be instantiated, but
@@ -25,9 +27,10 @@ class EuclidLikelihood_GCspectro_Pls:
         Background: type,
         SpectroPower: type,
         Perturbations: Optional[type] = None,
+        bias_relations: Optional[list] = None,
         AM_priors: Optional[dict] = None,
-        num_mocks: Optional[int] = None,
         TCM_params: Optional[dict] = None,
+        num_mocks: Optional[int] = None,
     ):
         r"""Class constructor
 
@@ -58,17 +61,13 @@ class EuclidLikelihood_GCspectro_Pls:
         Perturbations: type
             Protocol-consistent Perturbations class (optional, only for
             cases that require linear P(k) input, such as PBJ)
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
             marginalisation. The first layer must have the same keys as
             ``data["GCspectro"]``; the second layer has keys corresponding to
             the model parameters and values of the form ``[mean, std]``
-        num_mocks: int
-            Number of mock realisations used to estimate the covariance
-            matrix, if it is a numerical (sample) covariance -- triggers the
-            Hartlap (2007) debiasing correction on the inverse covariance
-            matrix. ``None`` (default) means the covariance is analytic/
-            theoretical, so no correction is applied.
         TCM_params: dict
             Nuisance parameters (bias/RSD/noise) sampled in the TCM
             reparametrisation, i.e.
@@ -78,8 +77,13 @@ class EuclidLikelihood_GCspectro_Pls:
             ``noise_syst_parameter_names``), values are ``(n, m)`` or
             ``(n, m, q)`` exponents (``q = 0`` if omitted). ``None``
             (default) means no parameter uses this
-            reparametrisation. Requires ``Perturbations`` to be given (even
-            for COMET, which otherwise doesn't need it) to compute sigma12.
+            reparametrisation.
+        num_mocks: int
+            Number of mock realisations used to estimate the covariance
+            matrix, if it is a numerical (sample) covariance -- triggers the
+            Hartlap (2007) debiasing correction on the inverse covariance
+            matrix. ``None`` (default) means the covariance is analytic/
+            theoretical, so no correction is applied.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -176,6 +180,15 @@ class EuclidLikelihood_GCspectro_Pls:
                 )
             self.AM_means = np.array(AM_means)
             self.AM_sigmas = np.array(AM_sigmas)
+        AM_parameter_names = {
+            p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
+        }
+        self.bias_relations = check_bias_relations(
+            bias_relations,
+            self.RSD_parameter_names,
+            AM_parameter_names,
+            self.TCM_params,
+        )
 
     def _prepare(self, data: dict):
         r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
@@ -469,6 +482,10 @@ class EuclidLikelihood_GCspectro_Pls:
             for name, factor in TCM_factor.items():
                 if name in parameters:
                     parameters[name] = parameters[name] / factor
+
+        # The bias relations act on the standard values of the parameters,
+        # so after the conversion of the TCM ones, if any.
+        parameters = apply_bias_relations(parameters, self.bias_relations)
 
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None

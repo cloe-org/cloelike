@@ -6,6 +6,8 @@ from typing import Optional
 
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 
+from cloelike.bias_relations import apply_bias_relations, check_bias_relations
+
 
 class EuclidLikelihood_GCspectro_xils:
     # Background requires As and gamma_MG to be instantiated, but
@@ -22,6 +24,7 @@ class EuclidLikelihood_GCspectro_xils:
         Background: type,
         SpectroPower: type,
         Perturbations: Optional[type] = None,
+        bias_relations: Optional[list] = None,
         AM_priors: Optional[dict] = None,
         num_mocks: Optional[int] = None,
     ):
@@ -52,6 +55,8 @@ class EuclidLikelihood_GCspectro_xils:
         Perturbations: type
             Protocol-consistent Perturbations class (optional, only for
             cases that require linear P(k) input, such as PBJ)
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
             marginalisation. The first layer must have the same keys as
@@ -159,6 +164,12 @@ class EuclidLikelihood_GCspectro_xils:
                 )
             self.AM_means = np.array(AM_means)
             self.AM_sigmas = np.array(AM_sigmas)
+        AM_parameter_names = {
+            p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
+        }
+        self.bias_relations = check_bias_relations(
+            bias_relations, self.RSD_parameter_names, AM_parameter_names, None
+        )
 
     def _prepare(self, data: dict):
         r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
@@ -392,6 +403,8 @@ class EuclidLikelihood_GCspectro_xils:
             cosmo_input = background
         else:
             raise ValueError("Perturbations are required for PBJ, but not for COMET.")
+
+        parameters = apply_bias_relations(parameters, self.bias_relations)
 
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
