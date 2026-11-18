@@ -10,6 +10,8 @@ from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
 from cloelib.summary_statistics.APDistortion import APDistortion
 
+from cloelike.bias_relations import apply_bias_relations, check_bias_relations
+
 
 class EuclidLikelihood_GCspectro_Pls_BAO:
     # Single source of truth for BAO alpha ordering: this order drives both
@@ -31,9 +33,10 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Background: type,
         SpectroPower: type,
         Perturbations: Optional[type] = None,
+        bias_relations: Optional[list] = None,
         AM_priors: Optional[dict] = None,
-        num_mocks: Optional[int] = None,
         TCM_params: Optional[dict] = None,
+        num_mocks: Optional[int] = None,
     ):
         r"""Class constructor
 
@@ -67,27 +70,30 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Perturbations: type
             Protocol-consistent Perturbations class (optional, only for
             cases that require linear P(k) input, such as PBJ)
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
             marginalisation. The first layer must have the same keys as
             ``data["GCspectro"]``; the second layer has keys corresponding to
             the model parameters and values of the form ``[mean, std]``
+        TCM_params: dict
+            Nuisance parameters (bias/RSD/noise) sampled in the TCM
+            reparametrisation, i.e.
+            ``TCM = standard * Aap**n * sigma12**m * fcorr**q`` instead of the
+            standard value the theory code expects directly. Keys are
+            parameter names (must be in ``RSD_parameter_names`` or
+            ``noise_syst_parameter_names``), values are ``(n, m)`` or
+            ``(n, m, q)`` exponents (``q = 0`` if omitted). ``None``
+            (default) means no parameter uses this
+            reparametrisation. The BAO alphas do not depend on these
+            parameters.
         num_mocks: int
             Number of mock realisations used to estimate the covariance
             matrix, if it is a numerical (sample) covariance -- triggers the
             Hartlap (2007) debiasing correction on the inverse covariance
             matrix. ``None`` (default) means the covariance is analytic/
             theoretical, so no correction is applied.
-        TCM_params: dict
-            Nuisance parameters (bias/RSD/noise) sampled in the TCM
-            reparametrisation, i.e. ``TCM = standard * Aap**n * sigma12**m``
-            instead of the standard value the theory code expects directly.
-            Keys are parameter names (must be in ``RSD_parameter_names`` or
-            ``noise_syst_parameter_names``), values are ``(n, m)`` exponent
-            pairs. ``None`` (default) means no parameter uses this
-            reparametrisation. Requires ``Perturbations`` to be given (even
-            for COMET, which otherwise doesn't need it) to compute sigma12.
-            The BAO alphas do not depend on these parameters.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -135,7 +141,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         else:
             raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
-        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
+        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
 
         self.AM_priors = AM_priors
         if self.AM_priors:
@@ -184,6 +190,15 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 )
             self.AM_means = np.array(AM_means)
             self.AM_sigmas = np.array(AM_sigmas)
+        AM_parameter_names = {
+            p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
+        }
+        self.bias_relations = check_bias_relations(
+            bias_relations,
+            self.RSD_parameter_names,
+            AM_parameter_names,
+            self.TCM_params,
+        )
 
     def _prepare(self, data: dict):
         r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
@@ -500,9 +515,12 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 ]
             )
             sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
+            fcorr_arr = np.asarray(parameters["fcorr"], dtype=float)
             TCM_factor = {
-                name: Aap_arr**n * sigma12_arr**m
-                for name, (n, m) in self.TCM_params.items()
+                name: Aap_arr ** exps[0]
+                * sigma12_arr ** exps[1]
+                * fcorr_arr ** (exps[2] if len(exps) > 2 else 0)
+                for name, exps in self.TCM_params.items()
             }
 
             # Convert every TCM-reparametrised nuisance parameter back to
@@ -514,6 +532,10 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 if name in parameters:
                     parameters[name] = parameters[name] / factor
 
+        # The bias relations act on the standard values of the parameters,
+        # so after the conversion of the TCM ones, if any.
+        parameters = apply_bias_relations(parameters, self.bias_relations)
+
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
         if term_list is not None:
@@ -524,7 +546,7 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
                 # rescaled too: the marginalisation integrates over the
                 # TCM value's Gaussian prior, so the linear dependence on
                 # it (the coefficient) picks up the same 1/(Aap**n *
-                # sigma12**m) factor by the chain rule.
+                # sigma12**m * fcorr**q) factor by the chain rule.
                 for name, factor in TCM_factor.items():
                     for diagram in self.AM_par_to_diag.get(name, []):
                         coeff[diagram] = (
