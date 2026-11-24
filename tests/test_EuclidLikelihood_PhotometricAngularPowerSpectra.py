@@ -50,6 +50,7 @@ def fiducial_params():
         "AIA": 0,
         "CIA": 0,
         "EtaIA": 0,
+        "z0IA": 0,
         "log10TAGN": 7.75,
         "N_mnu": 1,
         **{f"b1_photo_poly{i}": 0.0 for i in range(4)},
