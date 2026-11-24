@@ -33,10 +33,10 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Background: type,
         SpectroPower: type,
         Perturbations: Optional[type] = None,
-        bias_relations: Optional[list] = None,
         AM_priors: Optional[dict] = None,
-        TCM_params: Optional[dict] = None,
         num_mocks: Optional[int] = None,
+        TCM_params: Optional[dict] = None,
+        bias_relations: Optional[list] = None,
     ):
         r"""Class constructor
 
@@ -70,30 +70,29 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
         Perturbations: type
             Protocol-consistent Perturbations class (optional, only for
             cases that require linear P(k) input, such as PBJ)
-        bias_relations: list
-            Relations fixing a bias parameter as a function of the others.
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
             marginalisation. The first layer must have the same keys as
             ``data["GCspectro"]``; the second layer has keys corresponding to
             the model parameters and values of the form ``[mean, std]``
-        TCM_params: dict
-            Nuisance parameters (bias/RSD/noise) sampled in the TCM
-            reparametrisation, i.e.
-            ``TCM = standard * Aap**n * sigma12**m * fcorr**q`` instead of the
-            standard value the theory code expects directly. Keys are
-            parameter names (must be in ``RSD_parameter_names`` or
-            ``noise_syst_parameter_names``), values are ``(n, m)`` or
-            ``(n, m, q)`` exponents (``q = 0`` if omitted). ``None``
-            (default) means no parameter uses this
-            reparametrisation. The BAO alphas do not depend on these
-            parameters.
         num_mocks: int
             Number of mock realisations used to estimate the covariance
             matrix, if it is a numerical (sample) covariance -- triggers the
             Hartlap (2007) debiasing correction on the inverse covariance
             matrix. ``None`` (default) means the covariance is analytic/
             theoretical, so no correction is applied.
+        TCM_params: dict
+            Nuisance parameters (bias/RSD/noise) sampled in the TCM
+            reparametrisation, i.e.
+            ``TCM = standard * Aap**n * sigma12**m * fcorr**q`` instead of the
+            standard value the theory code expects directly. Keys are
+            parameter names (must be in ``RSD_parameter_names`` or
+            ``noise_syst_parameter_names``, except ``fcorr``), values are
+            ``(n, m)`` or ``(n, m, q)`` exponents (``q = 0`` if omitted).
+            ``None`` (default) means no parameter uses this reparametrisation.
+            The BAO alphas do not depend on these parameters.
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -142,6 +141,10 @@ class EuclidLikelihood_GCspectro_Pls_BAO:
             raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
         self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
+
+        if self.TCM_params:
+            if "fcorr" in self.TCM_params:
+                raise ValueError("fcorr cannot be reparametrised.")
 
         self.AM_priors = AM_priors
         if self.AM_priors:

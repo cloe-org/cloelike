@@ -24,9 +24,9 @@ class EuclidLikelihood_GCspectro_xils:
         Background: type,
         SpectroPower: type,
         Perturbations: Optional[type] = None,
-        bias_relations: Optional[list] = None,
         AM_priors: Optional[dict] = None,
         num_mocks: Optional[int] = None,
+        bias_relations: Optional[list] = None,
     ):
         r"""Class constructor
         Parameters
@@ -55,8 +55,6 @@ class EuclidLikelihood_GCspectro_xils:
         Perturbations: type
             Protocol-consistent Perturbations class (optional, only for
             cases that require linear P(k) input, such as PBJ)
-        bias_relations: list
-            Relations fixing a bias parameter as a function of the others.
         AM_priors: dict
             Mean and standard deviation of gaussian priors for analytical
             marginalisation. The first layer must have the same keys as
@@ -68,6 +66,8 @@ class EuclidLikelihood_GCspectro_xils:
             Hartlap (2007) debiasing correction on the inverse covariance
             matrix. ``None`` (default) means the covariance is analytic/
             theoretical, so no correction is applied.
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
