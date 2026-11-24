@@ -26,7 +26,7 @@ def _nonlinear_bias_loop_computer(perturbations):
 # ones fall back to cloelib's defaults when absent from `parameters`.
 IA_MODEL_KEYS = {
     None: ((), ()),
-    "NLA": (("AIA", "EtaIA", "CIA"), ()),
+    "NLA": (("AIA", "EtaIA", "CIA"), ("z0IA",)),
     "TATT": (("AIA", "A2IA", "bTA"), ("EtaIA", "Eta2IA", "CIA", "z0IA")),
 }
 
