@@ -1,5 +1,4 @@
 import numpy as np
-from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 
 
@@ -18,6 +17,7 @@ class WLMixin:
     def _init_wl(self):
         self.n_she_bins = self.data["dndz_she"].shape[0]
         self._init_she_keys()
+        self._check_nonlimber_probe("WL")
         self.WL_keys = [
             ("SHE", "SHE", i, j)
             for i in range(1, self.n_she_bins + 1)
@@ -46,10 +46,14 @@ class WLMixin:
         _, _, nlp = self._get_perturbations(parameters)
         she = self._get_she_tracer(parameters, nlp)
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(she, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
+            cell_all_th = self._angular_two_point(she, she, "WL").get_pseudo_Cl(
+                0, nlp.k, self.mixmat
+            )
             vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
         else:
-            cell_all_th = AngularTwoPoint(she, she).get_Cl(self.data["ells"], 0, nlp.k)
+            cell_all_th = self._angular_two_point(she, she, "WL").get_Cl(
+                self.data["ells"], 0, nlp.k
+            )
             vec = np.array([cell_all_th[key][0, 0] for key in self.WL_keys]).flatten()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
@@ -70,6 +74,7 @@ class GCphMixin:
     def _init_gcph(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self._init_pos_keys()
+        self._check_nonlimber_probe("GCph")
         self.GG_keys = [
             ("POS", "POS", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -96,10 +101,14 @@ class GCphMixin:
         _, _, nlp = self._get_perturbations(parameters)
         pos = self._get_pos_tracer(parameters, nlp)
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, pos).get_pseudo_Cl(0, nlp.k, self.mixmat)
+            cell_all_th = self._angular_two_point(pos, pos, "GCph").get_pseudo_Cl(
+                0, nlp.k, self.mixmat
+            )
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         else:
-            cell_all_th = AngularTwoPoint(pos, pos).get_Cl(self.data["ells"], 0, nlp.k)
+            cell_all_th = self._angular_two_point(pos, pos, "GCph").get_Cl(
+                self.data["ells"], 0, nlp.k
+            )
             vec = np.array([cell_all_th[key] for key in self.GG_keys]).flatten()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])
@@ -122,6 +131,7 @@ class GGLMixin:
         self.n_she_bins = self.data["dndz_she"].shape[0]
         self._init_pos_keys()
         self._init_she_keys()
+        self._check_nonlimber_probe("GGL")
         self.GGL_keys = [
             ("POS", "SHE", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -149,10 +159,14 @@ class GGLMixin:
         pos = self._get_pos_tracer(parameters, nlp)
         she = self._get_she_tracer(parameters, nlp)
         if self.mode == "coupled":
-            cell_all_th = AngularTwoPoint(pos, she).get_pseudo_Cl(0, nlp.k, self.mixmat)
+            cell_all_th = self._angular_two_point(pos, she, "GGL").get_pseudo_Cl(
+                0, nlp.k, self.mixmat
+            )
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
         else:
-            cell_all_th = AngularTwoPoint(pos, she).get_Cl(self.data["ells"], 0, nlp.k)
+            cell_all_th = self._angular_two_point(pos, she, "GGL").get_Cl(
+                self.data["ells"], 0, nlp.k
+            )
             vec = np.array([cell_all_th[key][0] for key in self.GGL_keys]).flatten()
         self.theory_prediction.update(cell_all_th)
         return np.concatenate([v, vec])

@@ -1,5 +1,4 @@
 import numpy as np
-from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 from cloelib.summary_statistics.angular_correlation_function_wigner import (
     AngularCorrelationFunctionWigner,
 )
@@ -14,6 +13,7 @@ class WLMixin:
     def _init_wl(self):
         self.n_she_bins = self.data["dndz_she"].shape[0]
         self._init_she_keys()
+        self._check_nonlimber_probe("WL")
         self.WL_keys = [
             ("SHE", "SHE", i, j)
             for i in range(1, self.n_she_bins + 1)
@@ -55,7 +55,7 @@ class WLMixin:
         _, _, nlp = self._get_perturbations(parameters)
         she = self._get_she_tracer(parameters, nlp)
         cf_all_th = AngularCorrelationFunctionWigner(
-            AngularTwoPoint(she, she), self.ells_integration, nlp.k
+            self._angular_two_point(she, she, "WL"), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec_plus = np.array([cf_all_th[key][0, 0] for key in self.WL_keys]).flatten()
         vec_minus = np.array([cf_all_th[key][1, 1] for key in self.WL_keys]).flatten()
@@ -72,6 +72,7 @@ class GCphMixin:
     def _init_gcph(self):
         self.n_pos_bins = self.data["dndz_pos"].shape[0]
         self._init_pos_keys()
+        self._check_nonlimber_probe("GCph")
         self.GG_keys = [
             ("POS", "POS", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -98,7 +99,7 @@ class GCphMixin:
         _, _, nlp = self._get_perturbations(parameters)
         pos = self._get_pos_tracer(parameters, nlp)
         cf_all_th = AngularCorrelationFunctionWigner(
-            AngularTwoPoint(pos, pos), self.ells_integration, nlp.k
+            self._angular_two_point(pos, pos, "GCph"), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key] for key in self.GG_keys]).flatten()
 
@@ -116,6 +117,7 @@ class GGLMixin:
         self.n_she_bins = self.data["dndz_she"].shape[0]
         self._init_pos_keys()
         self._init_she_keys()
+        self._check_nonlimber_probe("GGL")
         self.GGL_keys = [
             ("POS", "SHE", i, j)
             for i in range(1, self.n_pos_bins + 1)
@@ -144,7 +146,7 @@ class GGLMixin:
         she = self._get_she_tracer(parameters, nlp)
 
         cf_all_th = AngularCorrelationFunctionWigner(
-            AngularTwoPoint(pos, she), self.ells_integration, nlp.k
+            self._angular_two_point(pos, she, "GGL"), self.ells_integration, nlp.k
         ).get_xi(np.radians(self.data["theta"] / 60))
         vec = np.array([cf_all_th[key][0] for key in self.GGL_keys]).flatten()
 

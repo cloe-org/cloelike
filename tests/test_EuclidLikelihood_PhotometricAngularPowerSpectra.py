@@ -650,6 +650,8 @@ def test_use_Pcb_must_be_bool(data_setup, use_Pcb):
             NonLinPerturbations=HMemuNonLinearPerturbations,
             mode="coupled",
         )
+
+
 def test_tatt_m_parameters_reach_cloelib(data_setup, fiducial_params):
     n_bins = data_setup["my_dndz_she_norm"].shape[0]
     params = {
@@ -668,3 +670,144 @@ def test_tatt_m_parameters_reach_cloelib(data_setup, fiducial_params):
     for change in ({f"log10_Mh_{n_bins}": 15.5}, {"k1": 0.3}):
         changed = _wl_theory(data_setup, {**params, **change}, settings)
         assert not np.allclose(changed, base, rtol=1e-3, atol=0)
+
+
+def _t_tildes_available():
+    """Whether cloelib's standard T-tilde dataset is already on disk.
+
+    The beyond-Limber correction needs it, and cloelib downloads it (a large
+    archive, about 230 MB per matrix) on the first computation if missing.
+    """
+    try:
+        from cloelib.auxiliary.t_tildes import BLAST_128_64_161, DEFAULT_DATA_DIR
+    except ImportError:
+        return False
+    target = DEFAULT_DATA_DIR / BLAST_128_64_161.name
+    return target.is_dir() and any(target.iterdir())
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not _t_tildes_available(), reason="cloelib's T-tilde dataset not downloaded"
+)
+def test_ell_nonlimber_max_selection(data_setup, fiducial_params):
+    """The beyond-Limber correction changes GCph only up to ell_nonlimber_max.
+
+    Marked slow, and skipped unless cloelib's T-tilde dataset is already on
+    disk, so that the test suite never triggers its (large) download. To run
+    it, download the dataset once, e.g. with
+    `python -c "from cloelib.auxiliary.t_tildes import ensure_dataset; ensure_dataset()"`.
+    Uses the decoupled Cls, so that each data point is a single multipole
+    (the mixing matrix of the coupled Cls spreads the correction over all of
+    them).
+    """
+    ell_max = 100.0
+    # A non-zero galaxy bias, so GCph is not magnification only.
+    params = {**fiducial_params, "b1_photo_poly0": 1.5}
+
+    def gc_theory(ell_nonlimber_max):
+        like = _make_like(
+            EuclidLikelihood_GCph,
+            data_setup,
+            {"include_rsd": False, "ell_nonlimber_max": ell_nonlimber_max},
+            mode="decoupled",
+        )
+        # The theory vector is (n_pairs, n_ells) flattened, on the data ells.
+        ells = np.asarray(like.data["ells"])
+        return ells, like.get_theory_vector_full(params).reshape(-1, ells.size)
+
+    ells, limber = gc_theory(None)
+    _, nonlimber = gc_theory(ell_max)
+    # The probe-specific form addresses GCph the same way.
+    np.testing.assert_array_equal(gc_theory({"GCph": ell_max})[1], nonlimber)
+    # Leaving GCph out of the dict keeps it Limber only.
+    np.testing.assert_array_equal(gc_theory({"WL": ell_max})[1], limber)
+
+    low = ells <= ell_max
+    assert low.any() and (~low).any()
+    np.testing.assert_array_equal(nonlimber[:, ~low], limber[:, ~low])
+    assert not np.allclose(nonlimber[:, low], limber[:, low], rtol=1e-4, atol=0)
+
+
+def _make_like(cls, ds, extra_settings, mode="coupled"):
+    """Build a photometric Cls likelihood with the default models, overridden
+    by `extra_settings`."""
+    data = build_data(
+        ds,
+        ("POS", "SHE", 1, 1),
+        ds["covmat_3x2pt"],
+        ["my_dndz_pos_norm", "my_dndz_she_norm"],
+        include_pos=True,
+        include_she=True,
+    )
+    return cls(
+        data=data,
+        settings={**build_settings_DR1(ds), **extra_settings},
+        Background=CAMBBackground,
+        LinPerturbations=HMemuLinearPerturbations,
+        NonLinPerturbations=HMemuNonLinearPerturbations,
+        mode=mode,
+    )
+
+
+@pytest.mark.parametrize(
+    "value, error",
+    [
+        (True, TypeError),
+        ("100", TypeError),
+        ({"GCph": "100"}, TypeError),
+        ({"GC": 100}, ValueError),
+        (1, ValueError),
+        (300, ValueError),
+        ({"GGL": 1000}, ValueError),
+    ],
+)
+def test_ell_nonlimber_max_invalid_values(data_setup, value, error):
+    with pytest.raises(error):
+        _make_like(EuclidLikelihood_GCph, data_setup, {"ell_nonlimber_max": value})
+
+
+@pytest.mark.parametrize(
+    "cls, extra_settings",
+    [
+        (EuclidLikelihood_WL, {"ia_model": "TATT"}),
+        (EuclidLikelihood_GGL, {"ia_model": "TATT-M"}),
+        (
+            EuclidLikelihood_GCph,
+            {"galaxy_bias_model": "nonlinear", "include_rsd": False},
+        ),
+        (
+            EuclidLikelihood_GGL,
+            {"galaxy_bias_model": "nonlinear", "include_rsd": False},
+        ),
+    ],
+)
+def test_ell_nonlimber_max_unsupported_models(data_setup, cls, extra_settings):
+    with pytest.raises(ValueError, match="ell_nonlimber_max"):
+        _make_like(cls, data_setup, {**extra_settings, "ell_nonlimber_max": 100})
+
+
+@pytest.mark.parametrize(
+    "cls, extra_settings, ell_nonlimber_max",
+    [
+        # TATT only enters the shear: GCph can still be corrected.
+        (EuclidLikelihood_GCph, {"ia_model": "TATT"}, 100),
+        (EuclidLikelihood_3x2pt, {"ia_model": "TATT"}, {"GCph": 100}),
+        # The nonlinear bias only enters the positions: WL can still be corrected.
+        (
+            EuclidLikelihood_WL,
+            {"galaxy_bias_model": "nonlinear", "include_rsd": False},
+            100,
+        ),
+    ],
+)
+def test_ell_nonlimber_max_supported_models(
+    data_setup, cls, extra_settings, ell_nonlimber_max
+):
+    like = _make_like(
+        cls, data_setup, {**extra_settings, "ell_nonlimber_max": ell_nonlimber_max}
+    )
+    assert (
+        like.ell_nonlimber_max["GCph" if cls is not EuclidLikelihood_WL else "WL"]
+        == 100.0
+    )
