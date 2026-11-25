@@ -555,6 +555,33 @@ def test_nonlinear_galaxy_bias_selection(data_setup, fiducial_params):
     assert not np.allclose(with_b2, nonlinear, rtol=1e-2, atol=0)
 
 
+def test_use_Pcb_selection(data_setup, fiducial_params):
+    # Needs a cloelib whose PositionsTracer accepts use_Pcb (cloelib PR #564)
+    import inspect
+    from cloelib.observables.photo import PositionsTracer
+
+    if "use_Pcb" not in inspect.signature(PositionsTracer).parameters:
+        pytest.skip("cloelib without PositionsTracer(use_Pcb=...)")
+
+    # A non-zero galaxy bias, otherwise GCph is magnification only (which
+    # always traces the total matter) and P_cb has no effect.
+    params = {**fiducial_params, "b1_photo_poly0": 1.5}
+    assert params["mnu"] > 0
+
+    gc_default = _gc_theory(data_setup, params, {})
+    gc_pmm = _gc_theory(data_setup, params, {"use_Pcb": False})
+    gc_pcb = _gc_theory(data_setup, params, {"use_Pcb": True})
+    np.testing.assert_array_equal(gc_pmm, gc_default)
+    # With massive neutrinos P_cb > P_mm, so the clustering spectra increase.
+    assert not np.allclose(gc_pcb, gc_pmm, rtol=1e-3, atol=0)
+    assert np.sum(gc_pcb) > np.sum(gc_pmm)
+
+    # Shear does not depend on the galaxy tracer: use_Pcb is a no-op for WL.
+    wl_pmm = _wl_theory(data_setup, params, {"use_Pcb": False})
+    wl_pcb = _wl_theory(data_setup, params, {"use_Pcb": True})
+    np.testing.assert_array_equal(wl_pcb, wl_pmm)
+
+
 def test_baryon_boost_selection(data_setup, fiducial_params):
     # The baryonic boosts are not in every cloelib version (cloelib PR #257)
     cosmology = pytest.importorskip("cloelib.cosmology.cosmology")
@@ -583,6 +610,7 @@ def test_baryon_boost_selection(data_setup, fiducial_params):
         {"ia_model": "TATT-M"},
         {"galaxy_bias_model": "cubic"},
         {"galaxy_bias_model": "nonlinear", "include_rsd": True},
+        {"galaxy_bias_model": "nonlinear", "use_Pcb": True},
     ],
 )
 def test_invalid_model_settings(data_setup, extra_settings):
@@ -597,6 +625,26 @@ def test_invalid_model_settings(data_setup, extra_settings):
         EuclidLikelihood_WL(
             data=data,
             settings={**build_settings_DR1(data_setup), **extra_settings},
+            Background=CAMBBackground,
+            LinPerturbations=HMemuLinearPerturbations,
+            NonLinPerturbations=HMemuNonLinearPerturbations,
+            mode="coupled",
+        )
+
+
+@pytest.mark.parametrize("use_Pcb", ["True", 1, None])
+def test_use_Pcb_must_be_bool(data_setup, use_Pcb):
+    data = build_data(
+        data_setup,
+        ("SHE", "SHE", 1, 1),
+        data_setup["covmat_wl"],
+        ["my_dndz_she_norm"],
+        include_she=True,
+    )
+    with pytest.raises(TypeError):
+        EuclidLikelihood_WL(
+            data=data,
+            settings={**build_settings_DR1(data_setup), "use_Pcb": use_Pcb},
             Background=CAMBBackground,
             LinPerturbations=HMemuLinearPerturbations,
             NonLinPerturbations=HMemuNonLinearPerturbations,

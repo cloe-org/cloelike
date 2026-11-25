@@ -1,3 +1,4 @@
+import inspect
 import warnings
 import numpy as np
 from functools import lru_cache
@@ -19,6 +20,28 @@ def _nonlinear_bias_loop_computer(perturbations):
             "PBJNonlinearBiasLoopComputer (cloelib PR #384)."
         ) from e
     return PBJNonlinearBiasLoopComputer(perturbations)
+
+
+def _check_use_Pcb(use_Pcb, galaxy_bias_model):
+    """Validate settings["use_Pcb"] at construction rather than at the first
+    loglike call, and return it as a Python bool."""
+    if not isinstance(use_Pcb, (bool, np.bool_)):
+        raise TypeError(f"use_Pcb must be a bool, got {type(use_Pcb).__name__}.")
+    use_Pcb = bool(use_Pcb)
+    if not use_Pcb:
+        return False
+    if galaxy_bias_model == "nonlinear":
+        raise ValueError(
+            "use_Pcb=True is not supported with galaxy_bias_model='nonlinear': "
+            "cloelib's one-loop bias terms are built from the total matter "
+            "power spectrum."
+        )
+    if "use_Pcb" not in inspect.signature(PositionsTracer).parameters:
+        raise ImportError(
+            "use_Pcb=True needs a cloelib whose PositionsTracer accepts "
+            "use_Pcb (cloelib PR #564)."
+        )
+    return True
 
 
 # Intrinsic-alignment models accepted in settings["ia_model"], mapped to the
@@ -112,6 +135,10 @@ class PhotoLikelihoodBase:
               "per_bin_int" (b1_photo_bin{i}, i = 0..n_pos_bins-1), or "nonlinear"
               (b1_photo_nl_bin{i}, and optionally b2_, bs2_, b3nl_, bk2_photo_nl_bin{i}).
             - 'include_rsd': bool, default False.
+            - 'use_Pcb': bool, default False. If True, galaxy clustering traces the
+              cold dark matter + baryons power spectrum (no neutrinos) instead of
+              the total matter one (GCph and GGL; WL is unaffected). Not
+              supported with galaxy_bias_model="nonlinear".
             - 'nonlinear_param_keys': names of sampled parameters passed as keyword
               arguments to NonLinPerturbations, default ("log10TAGN",). Use () for
               backends without baryonic feedback (e.g. EE2).
@@ -202,6 +229,9 @@ class PhotoLikelihoodBase:
                 "galaxy_bias_model='nonlinear' does not support include_rsd=True "
                 "yet: cloelib's generalized Cl engine has no RSD term."
             )
+        self.use_Pcb = _check_use_Pcb(
+            settings.get("use_Pcb", False), self.galaxy_bias_model
+        )
         self.nonlinear_param_keys = tuple(
             settings.get("nonlinear_param_keys", ("log10TAGN",))
         )
@@ -398,11 +428,15 @@ class PhotoLikelihoodBase:
             return cached[1]
         # The nonlinear bias options are only passed when selected, so the linear
         # bias models also work with cloelib versions without the nonlinear bias.
-        nl_bias_kwargs = {}
+        tracer_kwargs = {}
         if self.galaxy_bias_model == "nonlinear":
-            nl_bias_kwargs["nl_bias_loop_computer"] = self._get_loop_computer(
+            tracer_kwargs["nl_bias_loop_computer"] = self._get_loop_computer(
                 "nl_bias", _nonlinear_bias_loop_computer, parameters
             )
+        # Likewise use_Pcb is only passed when set, so the default also works
+        # with cloelib versions without it.
+        if self.use_Pcb:
+            tracer_kwargs["use_Pcb"] = True
         tracer = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
@@ -410,7 +444,7 @@ class PhotoLikelihoodBase:
             nuisance_params=nuisance,
             galaxy_bias_model=self.galaxy_bias_model,
             include_rsd=self.settings.get("include_rsd", False),
-            **nl_bias_kwargs,
+            **tracer_kwargs,
         )
         self._pos_tracer_cache = (key, tracer)
         return tracer
