@@ -3,8 +3,9 @@ import pytest
 import requests
 
 # --- cloe-org imports ---
-from cloelib.cosmology.camb_cosmology import CAMBBackground
+from cloelib.cosmology.camb_cosmology import CAMBBackground, CAMBLinearPerturbations
 from cloelib.observables.spectro.CometEFT_spectro import CometEFT_SpectroPower
+from cloelib.summary_statistics.APDistortion import APDistortion
 from cloelike.EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
 
 # --- euclidlib imports ---
@@ -46,7 +47,7 @@ default_pars = {
     "NP0": np.array([1.056, 1.152, 1.144, 1.309]),
     "NP20": np.array([0.0, 0.0, 0.0, 0.0]),
     "NP22": np.array([0.0, 0.0, 0.0, 0.0]),
-    "fout": np.array([0.0, 0.0, 0.0, 0.0]),
+    "fcorr": np.array([1.0, 1.0, 1.0, 1.0]),
     "sigmaz": np.array([0.0, 0.0, 0.0, 0.0]),
 }
 
@@ -275,3 +276,177 @@ def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
             SpectroPower=CometEFT_SpectroPower,
             num_mocks=num_data_points,
         )
+
+
+def test_TCM_params_recovers_standard_value_loglike(data_setup, settings_setup):
+    """Sampling b1 in TCM form (b1_TCM = b1 * Aap**n * sigma12**m *
+    fcorr**q) should give the exact same loglike as sampling the equivalent
+    standard b1 directly, once the likelihood converts it back internally."""
+    likelihood_standard = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+    )
+    parameters = default_pars.copy()
+    parameters["fcorr"] = np.full(4, 0.8)
+    loglike_standard = likelihood_standard.loglike(parameters)
+
+    n, m, q = 1, 2, 1
+    background = CAMBBackground(
+        H0=parameters["H0"],
+        Omega_cdm0=parameters["Omega_cdm0"],
+        Omega_b0=parameters["Omega_b0"],
+        Omega_k0=parameters["Omega_k0"],
+        w0=parameters["w0"],
+        wa=parameters["wa"],
+        ns=parameters["ns"],
+        As=parameters["As"],
+        gamma_MG=parameters["gamma_MG"],
+        mnu=parameters["mnu"],
+        N_mnu=parameters["N_mnu"],
+    )
+    ap_distortion = APDistortion(background, likelihood_standard.background_fiducial)
+    perturbations = CAMBLinearPerturbations(
+        background, np.float64(likelihood_standard.redshifts)
+    )
+    sigma12_by_z = dict(zip(perturbations.z, perturbations.sigma12()))
+
+    TCM_pars = dict(parameters)
+    b1_TCM = np.array(parameters["b1"], dtype=float).copy()
+    for i, z in enumerate(likelihood_standard.redshifts):
+        Aap = 1.0 / (
+            ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
+        )
+        sigma12 = sigma12_by_z[float(z)]
+        fcorr = parameters["fcorr"][i]
+        b1_TCM[i] = parameters["b1"][i] * Aap**n * sigma12**m * fcorr**q
+    TCM_pars["b1"] = b1_TCM
+
+    likelihood_TCM = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        Perturbations=CAMBLinearPerturbations,
+        TCM_params={"b1": (n, m, q)},
+    )
+    loglike_TCM = likelihood_TCM.loglike(TCM_pars)
+
+    assert loglike_TCM == pytest.approx(loglike_standard, rel=1e-6)
+
+
+def test_TCM_params_requires_perturbations_for_comet(data_setup, settings_setup):
+    with pytest.raises(ValueError):
+        likelihood = EuclidLikelihood_GCspectro_Pls(
+            data=data_setup,
+            settings=settings_setup,
+            Background=CAMBBackground,
+            SpectroPower=CometEFT_SpectroPower,
+            TCM_params={"b1": (1, 2)},
+        )
+        likelihood.loglike(default_pars)
+
+
+def test_TCM_params_rejects_fcorr(data_setup, settings_setup):
+    """fcorr enters the TCM factor of the other parameters, so it cannot be
+    TCM-reparametrised itself."""
+    with pytest.raises(ValueError):
+        EuclidLikelihood_GCspectro_Pls(
+            data=data_setup,
+            settings=settings_setup,
+            Background=CAMBBackground,
+            SpectroPower=CometEFT_SpectroPower,
+            Perturbations=CAMBLinearPerturbations,
+            TCM_params={"fcorr": (0, 0, 1)},
+        )
+
+
+def test_TCM_params_recovers_standard_value_loglike_AM(data_setup, settings_setup):
+    """Marginalising bGam3 (dist: AM) while it's also TCM-reparametrised
+    should give the same loglike_AM as marginalising the equivalent standard
+    bGam3 prior directly, up to a known additive offset -- exercises the
+    extra coefficient rescaling in `_coeff_AM`/`AM_par_to_diag`, not just the
+    plain parameter conversion already covered by the non-AM TCM test
+    above. fcorr != 1, so that the fcorr**q factor is actually tested.
+
+    The offset: `loglike_AM`'s analytic marginalisation omits the
+    `log det(Sigma_prior)` term (`sum(log(AM_sigmas**2))`) from its Gaussian
+    integral normalisation -- harmless for ordinary use, where `AM_sigmas`
+    is fixed for the whole run and the term is just a constant that cancels
+    in any relative comparison. But `AM_sigmas` here is expressed in
+    different units between the two likelihoods (TCM vs standard), so
+    the omitted constant differs by `sum(log(alpha_i))`, where
+    `alpha_i = sigma_TCM_i / sigma_std_i` per bin -- and that's the exact,
+    analytically-known gap this test expects between the two loglikes.
+    """
+    AM_priors_standard = {
+        "1.": {"bGam3": [0.3, 5.0]},
+        "1.2": {"bGam3": [0.6, 5.0]},
+        "1.4": {"bGam3": [0.8, 5.0]},
+        "1.65": {"bGam3": [1.1, 5.0]},
+    }
+    likelihood_standard = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        AM_priors=AM_priors_standard,
+    )
+    parameters = default_pars.copy()
+    parameters["H0"] += 3
+    parameters["fcorr"] = np.full(4, 0.8)
+    loglike_standard = likelihood_standard.loglike_AM(parameters)
+
+    n, m, q = 1, 2, 2
+    background = CAMBBackground(
+        H0=parameters["H0"],
+        Omega_cdm0=parameters["Omega_cdm0"],
+        Omega_b0=parameters["Omega_b0"],
+        Omega_k0=parameters["Omega_k0"],
+        w0=parameters["w0"],
+        wa=parameters["wa"],
+        ns=parameters["ns"],
+        As=parameters["As"],
+        gamma_MG=parameters["gamma_MG"],
+        mnu=parameters["mnu"],
+        N_mnu=parameters["N_mnu"],
+    )
+    ap_distortion = APDistortion(background, likelihood_standard.background_fiducial)
+    perturbations = CAMBLinearPerturbations(
+        background, np.float64(likelihood_standard.redshifts)
+    )
+    sigma12_by_z = dict(zip(perturbations.z, perturbations.sigma12()))
+
+    def to_TCM(loc, scale, z):
+        Aap = 1.0 / (
+            ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
+        )
+        sigma12 = sigma12_by_z[float(z)]
+        fcorr = parameters["fcorr"][likelihood_standard.redshifts.index(z)]
+        factor = Aap**n * sigma12**m * fcorr**q
+        return loc * factor, scale * factor
+
+    AM_priors_TCM = {}
+    alphas = []
+    for z_label, entry in AM_priors_standard.items():
+        loc_std, scale_std = entry["bGam3"]
+        loc_TCM, scale_TCM = to_TCM(loc_std, scale_std, z_label)
+        AM_priors_TCM[z_label] = {"bGam3": [loc_TCM, scale_TCM]}
+        alphas.append(scale_TCM / scale_std)
+
+    likelihood_TCM = EuclidLikelihood_GCspectro_Pls(
+        data=data_setup,
+        settings=settings_setup,
+        Background=CAMBBackground,
+        SpectroPower=CometEFT_SpectroPower,
+        Perturbations=CAMBLinearPerturbations,
+        AM_priors=AM_priors_TCM,
+        TCM_params={"bGam3": (n, m, q)},
+    )
+    loglike_TCM = likelihood_TCM.loglike_AM(parameters)
+
+    log_det_sigma_prior_offset = np.sum(np.log(alphas))
+    assert loglike_TCM == pytest.approx(
+        loglike_standard + log_det_sigma_prior_offset, rel=1e-6
+    )

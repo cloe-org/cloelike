@@ -16,12 +16,12 @@ jobs:
     name: Style (Lint & Format)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install pre-commit
         run: |
@@ -41,17 +41,17 @@ jobs:
         python-version: ["3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Checkout cloe-org-environments
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: cloe-org/cloe-org-environments
           ref: 2026.2
           path: cloe-org-environments
 
       - name: Setup Mambaforge
-        uses: conda-incubator/setup-miniconda@v3
+        uses: conda-incubator/setup-miniconda@v4
         with:
           miniforge-variant: Miniforge3
           miniforge-version: latest
@@ -89,12 +89,17 @@ jobs:
         run: |
           mamba run -n $ENV_NAME pip install astropy
 
+      - name: Install euclidlib
+        run: |
+          # tests use the `version` argument of phz.redshift_distributions (>=2026.11)
+          mamba run -n $ENV_NAME pip install "euclidlib>=2026.11"
+
       - name: Install comet-emu
         run: |
           mamba run -n $ENV_NAME pip install comet-emu
 
       - name: Cache COMET emulator files
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /home/runner/miniconda3/envs/${{ env.ENV_NAME }}/lib/python${{ matrix.python-version }}/site-packages/comet/data_dir
           key: comet-data-v2.0
@@ -115,12 +120,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install build tools
         run: pipx run build

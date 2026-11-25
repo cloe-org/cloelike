@@ -7,6 +7,9 @@ from scipy.linalg import block_diag
 from typing import Optional
 
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
+from cloelib.summary_statistics.APDistortion import APDistortion
+
+from cloelike.bias_relations import apply_bias_relations, check_bias_relations
 
 
 class EuclidLikelihood_GCspectro_Pls:
@@ -26,6 +29,8 @@ class EuclidLikelihood_GCspectro_Pls:
         Perturbations: Optional[type] = None,
         AM_priors: Optional[dict] = None,
         num_mocks: Optional[int] = None,
+        TCM_params: Optional[dict] = None,
+        bias_relations: Optional[list] = None,
     ):
         r"""Class constructor
 
@@ -44,10 +49,11 @@ class EuclidLikelihood_GCspectro_Pls:
             Settings dictionary, whose structure is as follows. The first layer
             contains a single key, "GCspectro", for future homogenisation with
             photometric probes. The second layer also contains a single keyword,
-            ``"scale_cuts"``. in the third layer ``settings["GCspectro"][z]``
-            is expected to be a dictionary containing pairs ``"ell<i>: [a,b]"``,
-            where ``"i"`` runs over 0,2,4 and ``"a,b"`` represent the range of
-            modes included in the fit.
+            ``"scale_cuts"``. In the third layer
+            ``settings["GCspectro"]["scale_cuts"][z]`` is expected to be a
+            dictionary containing pairs ``"ell<i>: [a,b]"``, where ``"i"`` runs
+            over 0,2,4 and ``"a,b"`` represent the range of modes included in
+            the fit.
         Background: type
             Protocol-consistent Background class
         SpectroPower: type
@@ -66,6 +72,17 @@ class EuclidLikelihood_GCspectro_Pls:
             Hartlap (2007) debiasing correction on the inverse covariance
             matrix. ``None`` (default) means the covariance is analytic/
             theoretical, so no correction is applied.
+        TCM_params: dict
+            Nuisance parameters (bias/RSD/noise) sampled in the TCM
+            reparametrisation, i.e.
+            ``TCM = standard * Aap**n * sigma12**m * fcorr**q`` instead of the
+            standard value the theory code expects directly. Keys are
+            parameter names (must be in ``RSD_parameter_names`` or
+            ``noise_syst_parameter_names``, except ``fcorr``), values are
+            ``(n, m)`` or ``(n, m, q)`` exponents (``q = 0`` if omitted).
+            ``None`` (default) means no parameter uses this reparametrisation.
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -81,6 +98,7 @@ class EuclidLikelihood_GCspectro_Pls:
         self.Perturbations = Perturbations
         self.SpectroPower = SpectroPower
         self.num_mocks = num_mocks
+        self.TCM_params = TCM_params
 
         self._prepare(data)
 
@@ -112,7 +130,11 @@ class EuclidLikelihood_GCspectro_Pls:
         else:
             raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
-        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
+        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
+
+        if self.TCM_params:
+            if "fcorr" in self.TCM_params:
+                raise ValueError("fcorr cannot be reparametrised.")
 
         self.AM_priors = AM_priors
         if self.AM_priors:
@@ -161,6 +183,15 @@ class EuclidLikelihood_GCspectro_Pls:
                 )
             self.AM_means = np.array(AM_means)
             self.AM_sigmas = np.array(AM_sigmas)
+        AM_parameter_names = {
+            p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
+        }
+        self.bias_relations = check_bias_relations(
+            bias_relations,
+            self.RSD_parameter_names,
+            AM_parameter_names,
+            self.TCM_params,
+        )
 
     def _prepare(self, data: dict):
         r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
@@ -413,10 +444,68 @@ class EuclidLikelihood_GCspectro_Pls:
         else:
             raise ValueError("Perturbations are required for PBJ, but not for COMET.")
 
+        if self.TCM_params:
+            if self.NLcode == "PBJ":
+                TCM_perturbations = cosmo_input
+            else:
+                if self.Perturbations is None:
+                    raise ValueError(
+                        "TCM_params requires Perturbations to compute sigma12, "
+                        "even for COMET (which otherwise doesn't need one)."
+                    )
+                TCM_perturbations = self.Perturbations(
+                    background, np.float64(self.redshifts)
+                )
+            ap_distortion = APDistortion(background, self.background_fiducial)
+            sigma12_by_z = dict(zip(TCM_perturbations.z, TCM_perturbations.sigma12()))
+            Aap_arr = np.array(
+                [
+                    1.0
+                    / (
+                        ap_distortion.q_AP_tr(float(z)) ** 2
+                        * ap_distortion.q_AP_lo(float(z))
+                    )
+                    for z in self.redshifts
+                ]
+            )
+            sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
+            fcorr_arr = np.asarray(parameters["fcorr"], dtype=float)
+            TCM_factor = {
+                name: Aap_arr ** exps[0]
+                * sigma12_arr ** exps[1]
+                * fcorr_arr ** (exps[2] if len(exps) > 2 else 0)
+                for name, exps in self.TCM_params.items()
+            }
+
+            # Convert every TCM-reparametrised nuisance parameter back to
+            # its standard value, for every bin at once -- downstream code
+            # (RSD_params/syst_params below, and _coeff_AM) never needs to
+            # know a TCM reparametrisation was used.
+            parameters = dict(parameters)
+            for name, factor in TCM_factor.items():
+                if name in parameters:
+                    parameters[name] = parameters[name] / factor
+
+        # The bias relations act on the standard values of the parameters,
+        # so after the conversion of the TCM ones, if any.
+        parameters = apply_bias_relations(parameters, self.bias_relations)
+
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
         if term_list is not None:
             coeff = self._coeff_AM(parameters)
+            if self.TCM_params:
+                # A parameter that's both TCM-reparametrised and
+                # analytically marginalised needs its diagram coefficient(s)
+                # rescaled too: the marginalisation integrates over the
+                # TCM value's Gaussian prior, so the linear dependence on
+                # it (the coefficient) picks up the same 1/(Aap**n *
+                # sigma12**m * fcorr**q) factor by the chain rule.
+                for name, factor in TCM_factor.items():
+                    for diagram in self.AM_par_to_diag.get(name, []):
+                        coeff[diagram] = (
+                            coeff.get(diagram, np.ones_like(factor)) / factor
+                        )
 
         for i, z in enumerate(self.redshifts):
             RSD_params = {key: parameters[key][i] for key in self.RSD_parameter_names}
