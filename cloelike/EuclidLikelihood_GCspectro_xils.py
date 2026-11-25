@@ -6,6 +6,8 @@ from typing import Optional
 
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 
+from cloelike.bias_relations import apply_bias_relations, check_bias_relations
+
 
 class EuclidLikelihood_GCspectro_xils:
     # Background requires As and gamma_MG to be instantiated, but
@@ -24,6 +26,7 @@ class EuclidLikelihood_GCspectro_xils:
         Perturbations: Optional[type] = None,
         AM_priors: Optional[dict] = None,
         num_mocks: Optional[int] = None,
+        bias_relations: Optional[list] = None,
     ):
         r"""Class constructor
         Parameters
@@ -63,6 +66,8 @@ class EuclidLikelihood_GCspectro_xils:
             Hartlap (2007) debiasing correction on the inverse covariance
             matrix. ``None`` (default) means the covariance is analytic/
             theoretical, so no correction is applied.
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -110,7 +115,7 @@ class EuclidLikelihood_GCspectro_xils:
         else:
             raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
-        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
+        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
 
         self.AM_priors = AM_priors
         if self.AM_priors:
@@ -159,6 +164,12 @@ class EuclidLikelihood_GCspectro_xils:
                 )
             self.AM_means = np.array(AM_means)
             self.AM_sigmas = np.array(AM_sigmas)
+        AM_parameter_names = {
+            p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
+        }
+        self.bias_relations = check_bias_relations(
+            bias_relations, self.RSD_parameter_names, AM_parameter_names, None
+        )
 
     def _prepare(self, data: dict):
         r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
@@ -392,6 +403,8 @@ class EuclidLikelihood_GCspectro_xils:
             cosmo_input = background
         else:
             raise ValueError("Perturbations are required for PBJ, but not for COMET.")
+
+        parameters = apply_bias_relations(parameters, self.bias_relations)
 
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
