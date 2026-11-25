@@ -608,6 +608,7 @@ def test_tatt_m_parameters_reach_cloelib(data_setup, fiducial_params):
     n_bins = data_setup["my_dndz_she_norm"].shape[0]
     params = {
         **fiducial_params,
+        "CIA": 0.0134,
         "alphaM": 1.0,
         "betaM": 0.5,
         **{f"log10_Mh_{i}": 13.5 + 0.2 * i for i in range(1, n_bins + 1)},
