@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import numpy as np
 import pytest
 import requests
@@ -72,6 +74,35 @@ def data_setup(tmp_path_factory):
         }
 
     return data
+
+
+def alpha_iso_AP_data(data):
+    # The mock alphas and covariance read as alpha_iso and alpha_AP, with no
+    # alpha_AP in the first bin, so that the bins have different sizes
+    renamed = {"GCspectro": {}}
+    for i, (z, entry) in enumerate(data["GCspectro"].items()):
+        dv, cv = entry["datavec"], entry["covariance"]
+        nan = np.full_like(dv.alpha_par, np.nan)
+        renamed["GCspectro"][z] = {
+            **entry,
+            "datavec": replace(
+                dv,
+                alpha_par=nan,
+                alpha_perp=nan,
+                alpha_iso=dv.alpha_par,
+                alpha_AP=nan if i == 0 else dv.alpha_perp,
+            ),
+            "covariance": replace(
+                cv,
+                covariance={
+                    key.replace("ALPHA_PAR", "ALPHA_ISO").replace(
+                        "ALPHA_PERP", "ALPHA_AP"
+                    ): val
+                    for key, val in cv.covariance.items()
+                },
+            ),
+        }
+    return renamed
 
 
 # Tests
@@ -169,3 +200,15 @@ def test_hartlap_factor_with_few_realisations(data_setup):
             LinearPerturbations=CAMBLinearPerturbations,
             num_mocks=num_data_points,
         )
+
+
+def test_likelihood_alpha_iso_AP(data_setup):
+    like = EuclidLikelihood_GCspectro_BAO(
+        data=alpha_iso_AP_data(data_setup),
+        Background=CAMBBackground,
+        LinearPerturbations=CAMBLinearPerturbations,
+    )
+    size = like.data_vector.size
+    assert size == 2 * len(like.redshifts) - 1
+    assert like.flattened_covariance_matrix.shape == (size, size)
+    assert np.isfinite(like.loglike(default_pars))

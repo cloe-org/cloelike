@@ -3,17 +3,21 @@
 ## Requirements
 
 - Python ≥ 3.12 (< 3.13 due to upstream dependency constraints)
-- [`cloelib`](https://github.com/cloe-org/cloelib) (private repository)
+- [`cloelib`](https://github.com/cloe-org/cloelib) ≥ 0.11, installed automatically as a dependency
 
-## Installing cloelib
+## Installing cloelike
 
-`cloelike` depends on `cloelib`, which is currently a private repository. Please install it manually by following the installation instructions provided in its [GitHub repository](https://github.com/cloe-org/cloelib).
+### From PyPI (latest release)
+
+```sh
+pip install cloelike
+```
+
+This also installs [`cloelib`](https://pypi.org/project/cloelib/) from PyPI. To use the development version of `cloelib` instead, install it first following the instructions in its [GitHub repository](https://github.com/cloe-org/cloelib):
 
 ```sh
 pip install git+https://github.com/cloe-org/cloelib.git
 ```
-
-## Installing cloelike
 
 ### From source (latest development version)
 

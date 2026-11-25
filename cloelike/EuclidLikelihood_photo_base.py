@@ -26,7 +26,7 @@ def _nonlinear_bias_loop_computer(perturbations):
 # ones fall back to cloelib's defaults when absent from `parameters`.
 IA_MODEL_KEYS = {
     None: ((), ()),
-    "NLA": (("AIA", "EtaIA", "CIA"), ()),
+    "NLA": (("AIA", "EtaIA", "CIA"), ("z0IA",)),
     "TATT": (("AIA", "A2IA", "bTA"), ("EtaIA", "Eta2IA", "CIA", "z0IA")),
     # Global TATT-M keys only; the per-bin log10_Mh_{i}, f_r_{i} are added in
     # _init_she_keys, since they depend on the number of shear bins.
