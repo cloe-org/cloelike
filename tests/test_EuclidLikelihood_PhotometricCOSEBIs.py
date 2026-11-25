@@ -169,3 +169,37 @@ def test_ia_model_selection(kernels):
     # With A2 = b_TA = 0 and NLA's pivot z0 = 0, TATT reduces to NLA.
     tatt = theory("TATT", A2IA=0.0, bTA=0.0, z0IA=0.0)
     np.testing.assert_allclose(tatt, nla, rtol=2e-3)
+
+
+def test_interpolated_cls_match_full(kernels, fiducial_theory):
+    # C_ell computed on a coarse grid and interpolated onto the integration ells
+    _, ells = kernels
+    like = make_like(
+        make_cosebis(),
+        kernels,
+        selected_modes=np.arange(1, N_MODES + 1),
+        ells_interpolation_COSEBI=np.geomspace(ells[0], ells[-1], 200),
+    )
+    theory = like.get_theory_vector_full(FIDUCIAL_PARAMS)
+    np.testing.assert_allclose(theory, fiducial_theory, rtol=1e-4)
+    # Close but not identical, so the interpolation is actually used
+    assert not np.array_equal(theory, fiducial_theory)
+
+
+@pytest.mark.parametrize(
+    "nodes, match",
+    [
+        (np.geomspace(10, 1e4, 100), "must cover"),
+        (np.geomspace(1e5, 1, 100), "strictly increasing"),
+    ],
+    ids=["too_narrow", "decreasing"],
+)
+def test_bad_interpolation_grid_raises(kernels, nodes, match):
+    # Raised when the likelihood is built, not during sampling
+    with pytest.raises(ValueError, match=match):
+        make_like(
+            make_cosebis(),
+            kernels,
+            selected_modes=[1, 2],
+            ells_interpolation_COSEBI=nodes,
+        )
