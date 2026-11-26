@@ -1,8 +1,5 @@
 import numpy as np
-from cloelib.summary_statistics.angular_two_point import (
-    AngularTwoPoint,
-    _check_ell_coverage,
-)
+from cloelib.summary_statistics.angular_two_point import _check_ell_coverage
 from cloelike.EuclidLikelihood_photo_base import PhotoLikelihoodBase
 
 
@@ -43,6 +40,7 @@ class WLCosebi:
     def _init_wl(self):
         self.n_she_bins = self.data["dndz_she"].shape[0]
         self._init_she_keys()
+        self._check_nonlimber_probe("WL")
         self.WL_keys = [
             ("SHE", "SHE", i, j)
             for i in range(1, self.n_she_bins + 1)
@@ -127,7 +125,7 @@ class WLCosebi:
         v = super().get_theory_vector_full(parameters)
         _, _, nlp = self._get_perturbations(parameters)
         she = self._get_she_tracer(parameters, nlp)
-        cosebi_all_th = AngularTwoPoint(she, she).get_cosebis(
+        cosebi_all_th = self._angular_two_point(she, she, "WL").get_cosebis(
             self.ells_integration_COSEBI,
             0,
             nlp.k,

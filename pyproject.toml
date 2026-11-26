@@ -43,3 +43,6 @@ version-file = "cloelike/_version.py"
 
 [tool.pytest.ini_options]
 addopts = "--verbose --cov=cloelike"
+markers = [
+    "slow: slow tests, e.g. needing large external datasets (deselect with '-m \"not slow\"')",
+]
