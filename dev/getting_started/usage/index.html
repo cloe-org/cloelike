@@ -941,6 +941,16 @@
 <td>Not supported with <code>galaxy_bias_model="nonlinear"</code></td>
 </tr>
 <tr>
+<td><code>use_Pcb</code></td>
+<td><code>False</code> (default), <code>True</code></td>
+<td>If <code>True</code>, galaxy clustering traces the cold dark matter + baryons power spectrum (no neutrinos) instead of the total matter one (GCph and GGL; WL is unaffected). Not supported with <code>galaxy_bias_model="nonlinear"</code></td>
+</tr>
+<tr>
+<td><code>ell_nonlimber_max</code></td>
+<td><code>None</code> (default), a number, or <code>{probe: number}</code></td>
+<td>Up to this multipole the Limber spectra get cloelib's linear beyond-Limber correction. A number applies to every probe; a dict with keys among <code>"WL"</code>, <code>"GCph"</code>, <code>"GGL"</code> sets each probe, and the ones left out stay Limber only (COSEBIs use <code>"WL"</code>). Must lie within the T-tilde nodes, <code>[2, 211.6]</code>, downloaded by cloelib (a large dataset) on the first computation. Not supported with <code>ia_model</code> <code>"TATT"</code>/<code>"TATT-M"</code> (WL, GGL), <code>galaxy_bias_model="nonlinear"</code> (GCph, GGL) or <code>Omega_k0 != 0</code></td>
+</tr>
+<tr>
 <td><code>nonlinear_param_keys</code></td>
 <td>default <code>("log10TAGN",)</code></td>
 <td>Passed as keyword arguments to <code>NonLinPerturbations</code>. Use <code>()</code> for backends without baryonic feedback (e.g. EE2)</td>
