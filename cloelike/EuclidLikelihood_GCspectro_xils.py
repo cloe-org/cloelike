@@ -454,9 +454,7 @@ class EuclidLikelihood_GCspectro_xils:
             for name, factor in TCM_factor.items():
                 if name in parameters:
                     parameters[name] = parameters[name] / factor
-=======
         parameters = apply_bias_relations(parameters, self.bias_relations)
->>>>>>> origin/main
 
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
