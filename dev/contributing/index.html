@@ -708,10 +708,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#everyone-is-welcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🌍 Everyone Is Welcome
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#specific-guidelines-for-cloelike" class="md-nav__link">
     <span class="md-ellipsis">
       
         Specific Guidelines for cloelike
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-ai-coding-assistants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🤖 Using AI Coding Assistants
       
     </span>
   </a>
@@ -764,10 +786,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#everyone-is-welcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🌍 Everyone Is Welcome
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#specific-guidelines-for-cloelike" class="md-nav__link">
     <span class="md-ellipsis">
       
         Specific Guidelines for cloelike
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-ai-coding-assistants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🤖 Using AI Coding Assistants
       
     </span>
   </a>
@@ -807,13 +851,26 @@
 
 <h1 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h1>
 <p>Please review the organization's general contribution guidelines and the specific guidelines for this repository in the <a href="https://github.com/cloe-org/cloelike/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> file.</p>
+<h2 id="everyone-is-welcome">🌍 Everyone Is Welcome<a class="headerlink" href="#everyone-is-welcome" title="Permanent link">&para;</a></h2>
+<p>cloelike is open source, and <strong>contributions from anyone are welcome</strong>: bug reports, documentation fixes, new features, tests, or ideas. You do not need to be a member of the Euclid Consortium, or of any other collaboration, to open an issue or a pull request.</p>
+<blockquote>
+<p><strong>A note for Euclid Consortium members:</strong> to avoid duplicated effort with ongoing Consortium work, please coordinate your proposal with the KP-JC-1 coordinators before starting. This is an internal coordination step only; it does not apply to external contributors.</p>
+</blockquote>
 <h2 id="specific-guidelines-for-cloelike">Specific Guidelines for cloelike<a class="headerlink" href="#specific-guidelines-for-cloelike" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>For Euclid Consortium Members</strong>: Before contributing, discuss your proposal with the KP-JC-1 coordinators to ensure smooth coordination with all involved parties.</li>
 <li><strong>Check Ongoing Tasks in the Issue Board</strong>: Verify that your contribution does not overlap with existing tasks in the cloelike repository.</li>
-<li><strong>Open an Issue Following the Issue Template</strong>: Tag @cloe-org/cloe-maintainers in your issue to discuss the proposed implementation. This helps ensure a smooth integration with the software architecture and overall repository maintenance.</li>
+<li><strong>Open an Issue Following the Issue Template</strong>: Tag @cloe-org/cloe-maintainers in your issue to discuss the proposed implementation. This helps ensure a smooth integration with the software architecture and overall repository maintenance. For small fixes (typos, broken links, minor bugs) you can open a pull request directly.</li>
 <li><strong>Open a Pull Request Following the PR Template</strong>: Fill in all the required information in the Pull Request template to facilitate review and approval.</li>
 </ol>
+<h2 id="using-ai-coding-assistants">🤖 Using AI Coding Assistants<a class="headerlink" href="#using-ai-coding-assistants" title="Permanent link">&para;</a></h2>
+<p>You may use AI coding assistants (chatbots, coding agents) when contributing to cloelike, under these rules:</p>
+<ul>
+<li><strong>You are responsible for your PR.</strong> Review every changed line, make sure you understand it, and explain in your own words in the PR summary what it does and why. Reviewers are not there to review code that the author has not read.</li>
+<li><strong>Disclose AI assistance</strong> in the dedicated section of the PR template (briefly: which tool, which model and version, which parts). Different models make different kinds of mistakes, so this helps reviewers. Best effort: if you switched between models, list the ones you used. If none was used, write "None."</li>
+<li><strong>Keep changes small and readable.</strong> Avoid unrelated rewrites, overly compact code and long docstrings; reviewers and maintainers must be able to follow the code. Besides asking the agent to be brief, agent skills or plugins that reduce verbose output can help limit bloat.</li>
+<li><strong>Do not let agents commit or push for you.</strong></li>
+</ul>
+<p>The <a href="https://github.com/cloe-org/cloelike/blob/main/AGENTS.md"><code>AGENTS.md</code></a> file at the root of the repository gives instructions to AI coding agents about the structure, checks and conventions of cloelike. <strong><code>AGENTS.md</code> can only be changed by @cloe-org/cloe-maintainers</strong>, so please do not edit it in your PRs. If you think it is outdated or wrong (for example, because your PR changes the repository layout, commands or workflow), mention it in the "Additional Notes" of your PR or open an issue and the maintainers will update it. The <code>PR Description</code> CI check reports if the AI-assistance section, the summary or the ownership checkbox are missing from the PR description.</p>
 <h2 id="contributor-recognition">Contributor Recognition<a class="headerlink" href="#contributor-recognition" title="Permanent link">&para;</a></h2>
 <p>We use the <a href="https://allcontributors.org/">All Contributors bot</a> to recognize contributions of all types — not just code!</p>
 <p>To add yourself or someone else as a contributor, comment on an issue or PR with:</p>
