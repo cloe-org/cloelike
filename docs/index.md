@@ -23,6 +23,10 @@
 | `EuclidLikelihood_2x2pt`         | 2×2pt (WL + GGL) combined                                             |
 | `EuclidLikelihood_GCspectro_Pls` | Spectroscopic Galaxy Clustering (GCspectro) power spectrum multipoles |
 | `EuclidLikelihood_GCspectro_BAO` | Baryon Acoustic Oscillations (BAO)                                    |
+| `EuclidLikelihood_CMBLxWL`       | CMB Lensing - Galaxy Lensing (CMBL x WL) angular power spectrum       |
+| `EuclidLikelihood_CMBLxGC`       | CMB Lensing - Galaxy Clustering (CMBL x GC) angular power spectrum    |
+| `EuclidLikelihood_CMBLx`         | CMBL x WL + CMBL x GC combined                                        |
+| `EuclidLikelihood_5x2pt`         | 5x2pt (WL + GCph + GGL + CMBL x WL + CMBL x GC) combined              |
 
 ---
 

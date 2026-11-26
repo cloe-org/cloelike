@@ -51,6 +51,7 @@ nav:
       - api/index.md
       - Photometric Likelihoods: api/photo_cls.md
       - Spectroscopic Likelihoods: api/gcspectro.md
+      - CMB Lensing cross-correlation Likelihoods: api/cmbl_cross.md
   - Contributing: contributing.md
 
 plugins:

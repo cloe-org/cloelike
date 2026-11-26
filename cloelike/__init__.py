@@ -11,6 +11,10 @@ __all__ = [
     "EuclidLikelihood_GCspectro_xils",
     "EuclidLikelihood_GCspectro_BAO",
     "EuclidLikelihood_GCspectro_Pls_BAO",
+    "EuclidLikelihood_CMBLxGC",
+    "EuclidLikelihood_CMBLxWL",
+    "EuclidLikelihood_CMBLx",
+    "EuclidLikelihood_5x2pt",
 ]
 
 from .EuclidLikelihood_photo_Cls import (
@@ -25,3 +29,10 @@ from .EuclidLikelihood_GCspectro_Pls import EuclidLikelihood_GCspectro_Pls
 from .EuclidLikelihood_GCspectro_xils import EuclidLikelihood_GCspectro_xils
 from .EuclidLikelihood_GCspectro_BAO import EuclidLikelihood_GCspectro_BAO
 from .EuclidLikelihood_GCspectro_Pls_BAO import EuclidLikelihood_GCspectro_Pls_BAO
+
+from .EuclidLikelihood_CMBLensingCross import (
+    EuclidLikelihood_CMBLxGC,
+    EuclidLikelihood_CMBLxWL,
+    EuclidLikelihood_CMBLx,
+    EuclidLikelihood_5x2pt,
+)
