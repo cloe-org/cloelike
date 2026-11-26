@@ -9,6 +9,8 @@ from typing import Optional
 from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
 from cloelib.summary_statistics.APDistortion import APDistortion
 
+from cloelike.bias_relations import apply_bias_relations, check_bias_relations
+
 
 class EuclidLikelihood_GCspectro_Pls:
     # Background requires As and gamma_MG to be instantiated, but
@@ -28,6 +30,7 @@ class EuclidLikelihood_GCspectro_Pls:
         AM_priors: Optional[dict] = None,
         num_mocks: Optional[int] = None,
         TCM_params: Optional[dict] = None,
+        bias_relations: Optional[list] = None,
     ):
         r"""Class constructor
 
@@ -71,13 +74,15 @@ class EuclidLikelihood_GCspectro_Pls:
             theoretical, so no correction is applied.
         TCM_params: dict
             Nuisance parameters (bias/RSD/noise) sampled in the TCM
-            reparametrisation, i.e. ``TCM = standard * Aap**n * sigma12**m``
-            instead of the standard value the theory code expects directly.
-            Keys are parameter names (must be in ``RSD_parameter_names`` or
-            ``noise_syst_parameter_names``), values are ``(n, m)`` exponent
-            pairs. ``None`` (default) means no parameter uses this
-            reparametrisation. Requires ``Perturbations`` to be given (even
-            for COMET, which otherwise doesn't need it) to compute sigma12.
+            reparametrisation, i.e.
+            ``TCM = standard * Aap**n * sigma12**m * fcorr**q`` instead of the
+            standard value the theory code expects directly. Keys are
+            parameter names (must be in ``RSD_parameter_names`` or
+            ``noise_syst_parameter_names``, except ``fcorr``), values are
+            ``(n, m)`` or ``(n, m, q)`` exponents (``q = 0`` if omitted).
+            ``None`` (default) means no parameter uses this reparametrisation.
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
         """
         data = data["GCspectro"]
         self.settings = settings["GCspectro"]
@@ -125,7 +130,11 @@ class EuclidLikelihood_GCspectro_Pls:
         else:
             raise ValueError(f"Unsupported NL code: {self.NLcode}")
 
-        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fout", "sigmaz"]
+        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
+
+        if self.TCM_params:
+            if "fcorr" in self.TCM_params:
+                raise ValueError("fcorr cannot be reparametrised.")
 
         self.AM_priors = AM_priors
         if self.AM_priors:
@@ -174,6 +183,15 @@ class EuclidLikelihood_GCspectro_Pls:
                 )
             self.AM_means = np.array(AM_means)
             self.AM_sigmas = np.array(AM_sigmas)
+        AM_parameter_names = {
+            p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
+        }
+        self.bias_relations = check_bias_relations(
+            bias_relations,
+            self.RSD_parameter_names,
+            AM_parameter_names,
+            self.TCM_params,
+        )
 
     def _prepare(self, data: dict):
         r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
@@ -451,9 +469,12 @@ class EuclidLikelihood_GCspectro_Pls:
                 ]
             )
             sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
+            fcorr_arr = np.asarray(parameters["fcorr"], dtype=float)
             TCM_factor = {
-                name: Aap_arr**n * sigma12_arr**m
-                for name, (n, m) in self.TCM_params.items()
+                name: Aap_arr ** exps[0]
+                * sigma12_arr ** exps[1]
+                * fcorr_arr ** (exps[2] if len(exps) > 2 else 0)
+                for name, exps in self.TCM_params.items()
             }
 
             # Convert every TCM-reparametrised nuisance parameter back to
@@ -465,6 +486,10 @@ class EuclidLikelihood_GCspectro_Pls:
                 if name in parameters:
                     parameters[name] = parameters[name] / factor
 
+        # The bias relations act on the standard values of the parameters,
+        # so after the conversion of the TCM ones, if any.
+        parameters = apply_bias_relations(parameters, self.bias_relations)
+
         theory_vec = []
         theory_vec_AM = {} if term_list is not None else None
         if term_list is not None:
@@ -475,7 +500,7 @@ class EuclidLikelihood_GCspectro_Pls:
                 # rescaled too: the marginalisation integrates over the
                 # TCM value's Gaussian prior, so the linear dependence on
                 # it (the coefficient) picks up the same 1/(Aap**n *
-                # sigma12**m) factor by the chain rule.
+                # sigma12**m * fcorr**q) factor by the chain rule.
                 for name, factor in TCM_factor.items():
                     for diagram in self.AM_par_to_diag.get(name, []):
                         coeff[diagram] = (
@@ -646,30 +671,40 @@ class EuclidLikelihood_GCspectro_Pls:
         self._mask_theory_vector(mask_AM=True)
         # Calculating chi2 including analytical marginalisation
         diff = self.masked_theory_vector - self.masked_data_vector
-        F0 = np.einsum(
-            "i,ij,j->", diff, self.inverse_masked_covariance_matrix, diff
-        ) + np.sum((self.AM_means / self.AM_sigmas) ** 2)
+        # Intermediate products are computed once and reused; optimize=True
+        # makes einsum contract pairwise through BLAS
+        Cinv_diff = np.einsum(
+            "ij,j->i", self.inverse_masked_covariance_matrix, diff, optimize=True
+        )
+        T_Cinv = np.einsum(
+            "ij,jk->ik",
+            self.masked_theory_vector_AM_reduced,
+            self.inverse_masked_covariance_matrix,
+            optimize=True,
+        )
+        F0 = np.einsum("i,i->", diff, Cinv_diff, optimize=True) + np.sum(
+            (self.AM_means / self.AM_sigmas) ** 2
+        )
         F1i = (
             -np.einsum(
-                "ij,jk,k->i",
+                "ij,j->i",
                 self.masked_theory_vector_AM_reduced,
-                self.inverse_masked_covariance_matrix,
-                diff,
+                Cinv_diff,
+                optimize=True,
             )
             + self.AM_means / self.AM_sigmas**2
         )
         F2ij = np.einsum(
-            "ik,kp,jp->ij",
-            self.masked_theory_vector_AM_reduced,
-            self.inverse_masked_covariance_matrix,
-            self.masked_theory_vector_AM_reduced,
+            "ik,jk->ij", T_Cinv, self.masked_theory_vector_AM_reduced, optimize=True
         ) + np.diag(1.0 / self.AM_sigmas**2)
-        chi2 = F0 - np.einsum("i,ij,j->", F1i, np.linalg.inv(F2ij), F1i)
-        if not use_Jeffreys:
-            chi2 += np.log(np.linalg.det(F2ij))
+        F2ij_inv = np.linalg.inv(F2ij)
 
         # Access to means of marginalised params
-        self.marg_pars_means_raw = np.dot(F1i, np.linalg.inv(F2ij))
+        self.marg_pars_means_raw = np.einsum("i,ij->j", F1i, F2ij_inv, optimize=True)
+
+        chi2 = F0 - np.einsum("j,j->", self.marg_pars_means_raw, F1i, optimize=True)
+        if not use_Jeffreys:
+            chi2 += np.linalg.slogdet(F2ij)[1]
 
         # Also as a dictionary for easy interpretation
         vals = iter(self.marg_pars_means_raw)

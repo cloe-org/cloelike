@@ -1,3 +1,4 @@
+import inspect
 import warnings
 import numpy as np
 from functools import lru_cache
@@ -6,6 +7,7 @@ from copy import deepcopy
 from cloelib.cosmology.cosmology import Background, Perturbations
 from cloelib.observables.photo import PositionsTracer, ShearTracer
 from cloelib.observables.photo.shear import PBJTATTLoopComputer
+from cloelib.summary_statistics.angular_two_point import AngularTwoPoint
 
 
 def _nonlinear_bias_loop_computer(perturbations):
@@ -21,6 +23,99 @@ def _nonlinear_bias_loop_computer(perturbations):
     return PBJNonlinearBiasLoopComputer(perturbations)
 
 
+def _check_use_Pcb(use_Pcb, galaxy_bias_model):
+    """Validate settings["use_Pcb"] at construction rather than at the first
+    loglike call, and return it as a Python bool."""
+    if not isinstance(use_Pcb, (bool, np.bool_)):
+        raise TypeError(f"use_Pcb must be a bool, got {type(use_Pcb).__name__}.")
+    use_Pcb = bool(use_Pcb)
+    if not use_Pcb:
+        return False
+    if galaxy_bias_model == "nonlinear":
+        raise ValueError(
+            "use_Pcb=True is not supported with galaxy_bias_model='nonlinear': "
+            "cloelib's one-loop bias terms are built from the total matter "
+            "power spectrum."
+        )
+    if "use_Pcb" not in inspect.signature(PositionsTracer).parameters:
+        raise ImportError(
+            "use_Pcb=True needs a cloelib whose PositionsTracer accepts "
+            "use_Pcb (cloelib PR #564)."
+        )
+    return True
+
+
+# Probes that settings["ell_nonlimber_max"] can address individually.
+NONLIMBER_PROBES = ("WL", "GCph", "GGL")
+
+# Models whose cloelib contributions have no beyond-Limber implementation
+# (no `nonlimber_spec`), and the probes they enter.
+_NONLIMBER_UNSUPPORTED_IA = ("TATT", "TATT-M")  # WL, GGL
+_NONLIMBER_UNSUPPORTED_BIAS = ("nonlinear",)  # GCph, GGL
+
+
+def _is_number(value):
+    """A real number, `bool` excluded (it is a subclass of `int`)."""
+    return isinstance(value, (int, float, np.integer, np.floating)) and not (
+        isinstance(value, (bool, np.bool_))
+    )
+
+
+def _check_ell_nonlimber_max(value):
+    """Validate settings["ell_nonlimber_max"] and return it per probe.
+
+    Accepts `None` (Limber only), a number (the same limit for every probe)
+    or a dict {probe: number | None} with probes in NONLIMBER_PROBES (the
+    probes left out stay Limber only).
+
+    Returns:
+        dict: {probe: float | None} for every probe in NONLIMBER_PROBES.
+    """
+    if value is None or _is_number(value):
+        per_probe = dict.fromkeys(NONLIMBER_PROBES, value)
+    elif isinstance(value, dict):
+        unknown = set(value) - set(NONLIMBER_PROBES)
+        if unknown:
+            raise ValueError(
+                f"Unknown probes {sorted(unknown)} in ell_nonlimber_max; "
+                f"choose among {list(NONLIMBER_PROBES)}."
+            )
+        per_probe = {p: value.get(p) for p in NONLIMBER_PROBES}
+        for probe, ell_max in per_probe.items():
+            if ell_max is not None and not _is_number(ell_max):
+                raise TypeError(
+                    f"ell_nonlimber_max[{probe!r}] must be a number or None, "
+                    f"got {type(ell_max).__name__}."
+                )
+    else:
+        raise TypeError(
+            "ell_nonlimber_max must be None, a number or a dict "
+            f"{{probe: number}}, got {type(value).__name__}."
+        )
+
+    per_probe = {p: None if v is None else float(v) for p, v in per_probe.items()}
+    if all(v is None for v in per_probe.values()):
+        return per_probe
+
+    if "ell_nonlimber_max" not in inspect.signature(AngularTwoPoint).parameters:
+        raise ImportError(
+            "ell_nonlimber_max needs a cloelib whose AngularTwoPoint accepts "
+            "ell_nonlimber_max (cloelib PR #395, v0.11)."
+        )
+    from cloelib.auxiliary.t_tildes import NonLimberGrid
+
+    # Only the grid of the standard T-tilde dataset is read: nothing is downloaded.
+    nodes = np.asarray(NonLimberGrid.blast_128_64_161().ells)
+    lo, hi = float(nodes.min()), float(nodes.max())
+    for probe, ell_max in per_probe.items():
+        if ell_max is not None and not lo <= ell_max <= hi:
+            raise ValueError(
+                f"ell_nonlimber_max = {ell_max} for {probe} must lie within the "
+                f"beyond-Limber nodes [{lo}, {hi}]."
+            )
+    return per_probe
+
+
 # Intrinsic-alignment models accepted in settings["ia_model"], mapped to the
 # (required, optional) nuisance parameters ShearTracer reads for each. Optional
 # ones fall back to cloelib's defaults when absent from `parameters`.
@@ -28,6 +123,9 @@ IA_MODEL_KEYS = {
     None: ((), ()),
     "NLA": (("AIA", "EtaIA", "CIA"), ("z0IA",)),
     "TATT": (("AIA", "A2IA", "bTA"), ("EtaIA", "Eta2IA", "CIA", "z0IA")),
+    # Global TATT-M keys only; the per-bin log10_Mh_{i}, f_r_{i} are added in
+    # _init_she_keys, since they depend on the number of shear bins.
+    "TATT-M": (("alphaM", "betaM"), ("k1", "k2", "k3", "log10_M0", "CIA")),
 }
 
 # Galaxy bias models accepted in settings["galaxy_bias_model"].
@@ -106,12 +204,26 @@ class PhotoLikelihoodBase:
         settings (dict): Configuration settings. Besides the required 'scale_cuts',
             the theory model is selected with the optional keys:
 
-            - 'ia_model': None, "NLA" (default) or "TATT". NLA reads AIA, EtaIA, CIA;
-              TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA.
+            - 'ia_model': None, "NLA" (default) or "TATT" or "TATT-M". NLA reads AIA, EtaIA, CIA;
+              TATT reads AIA, A2IA, bTA and optionally EtaIA, Eta2IA, CIA, z0IA; TATT-M reads alphaM,
+              betaM, log10_Mh_{i}, f_r_{i} (i = 1..n_she_bins) and optionally k1, k2, k3, log10_M0, CIA..
             - 'galaxy_bias_model': "poly" (default, b1_photo_poly0..3), "per_bin" or
               "per_bin_int" (b1_photo_bin{i}, i = 0..n_pos_bins-1), or "nonlinear"
               (b1_photo_nl_bin{i}, and optionally b2_, bs2_, b3nl_, bk2_photo_nl_bin{i}).
             - 'include_rsd': bool, default False.
+            - 'use_Pcb': bool, default False. If True, galaxy clustering traces the
+              cold dark matter + baryons power spectrum (no neutrinos) instead of
+              the total matter one (GCph and GGL; WL is unaffected). Not
+              supported with galaxy_bias_model="nonlinear".
+            - 'ell_nonlimber_max': None (default, Limber only), a number, or a
+              dict {probe: number} with probes among "WL", "GCph", "GGL" (the
+              probes left out stay Limber only; COSEBIs use "WL"). Up to this
+              multipole the Limber spectra get cloelib's linear beyond-Limber
+              correction. It must lie within the T-tilde nodes ([2, 211.6] for
+              the standard dataset, downloaded by cloelib on the first
+              computation). Not supported with ia_model "TATT"/"TATT-M" (WL,
+              GGL), galaxy_bias_model="nonlinear" (GCph, GGL), or Omega_k0 != 0
+              (raised by cloelib at the first computation).
             - 'nonlinear_param_keys': names of sampled parameters passed as keyword
               arguments to NonLinPerturbations, default ("log10TAGN",). Use () for
               backends without baryonic feedback (e.g. EE2).
@@ -121,7 +233,7 @@ class PhotoLikelihoodBase:
             - 'nonlinear_kwargs': fixed keyword arguments for NonLinPerturbations
               (e.g. {"nonlinear_model": "mead2020"}). Default {}.
             - 'tatt_loop_computer', 'nl_bias_loop_computer': factories called with
-              the linear perturbations to build the one-loop kernels for TATT and
+              the linear perturbations to build the one-loop kernels for TATT, TATT-M, and
               the nonlinear galaxy bias. Default to cloelib's FAST-PT computers.
         Background: Object representing background cosmology.
         LinPerturbations: Object representing linear perturbations.
@@ -202,6 +314,14 @@ class PhotoLikelihoodBase:
                 "galaxy_bias_model='nonlinear' does not support include_rsd=True "
                 "yet: cloelib's generalized Cl engine has no RSD term."
             )
+        self.use_Pcb = _check_use_Pcb(
+            settings.get("use_Pcb", False), self.galaxy_bias_model
+        )
+        # Per-probe models are checked by each probe mixin through
+        # _check_nonlimber_probe, which knows whether the probe is in use.
+        self.ell_nonlimber_max = _check_ell_nonlimber_max(
+            settings.get("ell_nonlimber_max")
+        )
         self.nonlinear_param_keys = tuple(
             settings.get("nonlinear_param_keys", ("log10TAGN",))
         )
@@ -278,8 +398,14 @@ class PhotoLikelihoodBase:
         """Shear nuisance parameters required by the selected IA model."""
         n = self.data["dndz_she"].shape[0]
         ia_required, ia_optional = IA_MODEL_KEYS[self.ia_model]
+        ia_required = list(ia_required)
+        if self.ia_model == "TATT-M":
+            # Per-bin halo mass and red fraction, 1-indexed like the other
+            # shear nuisance parameters.
+            ia_required += [f"log10_Mh_{i}" for i in range(1, n + 1)]
+            ia_required += [f"f_r_{i}" for i in range(1, n + 1)]
         self.full_she_keys = (
-            list(ia_required)
+            ia_required
             + [f"multiplicative_bias_{i}" for i in range(1, n + 1)]
             + [f"dz_shear_{i}" for i in range(1, n + 1)]
             + [f"width_shear_{i}" for i in range(1, n + 1)]
@@ -398,11 +524,15 @@ class PhotoLikelihoodBase:
             return cached[1]
         # The nonlinear bias options are only passed when selected, so the linear
         # bias models also work with cloelib versions without the nonlinear bias.
-        nl_bias_kwargs = {}
+        tracer_kwargs = {}
         if self.galaxy_bias_model == "nonlinear":
-            nl_bias_kwargs["nl_bias_loop_computer"] = self._get_loop_computer(
+            tracer_kwargs["nl_bias_loop_computer"] = self._get_loop_computer(
                 "nl_bias", _nonlinear_bias_loop_computer, parameters
             )
+        # Likewise use_Pcb is only passed when set, so the default also works
+        # with cloelib versions without it.
+        if self.use_Pcb:
+            tracer_kwargs["use_Pcb"] = True
         tracer = PositionsTracer(
             nlp,
             self.data["dndz_pos"],
@@ -410,7 +540,7 @@ class PhotoLikelihoodBase:
             nuisance_params=nuisance,
             galaxy_bias_model=self.galaxy_bias_model,
             include_rsd=self.settings.get("include_rsd", False),
-            **nl_bias_kwargs,
+            **tracer_kwargs,
         )
         self._pos_tracer_cache = (key, tracer)
         return tracer
@@ -423,7 +553,7 @@ class PhotoLikelihoodBase:
         cached = getattr(self, "_she_tracer_cache", None)
         if cached is not None and cached[0] == key:
             return cached[1]
-        if self.ia_model == "TATT":
+        if self.ia_model in ("TATT", "TATT-M"):
             loop_computer = self._get_loop_computer(
                 "tatt", PBJTATTLoopComputer, parameters
             )
@@ -439,6 +569,39 @@ class PhotoLikelihoodBase:
         )
         self._she_tracer_cache = (key, tracer)
         return tracer
+
+    def _check_nonlimber_probe(self, probe):
+        """Raise if `probe` is corrected beyond Limber with a model that has no
+        beyond-Limber implementation in cloelib. Called by each probe mixin at
+        construction, so only the probes in use are checked."""
+        if self.ell_nonlimber_max[probe] is None:
+            return
+        uses_shear = probe in ("WL", "GGL")
+        uses_positions = probe in ("GCph", "GGL")
+        if uses_shear and self.ia_model in _NONLIMBER_UNSUPPORTED_IA:
+            raise ValueError(
+                f"ell_nonlimber_max is not supported for {probe} with "
+                f"ia_model={self.ia_model!r}: cloelib has no beyond-Limber "
+                "implementation of it."
+            )
+        if uses_positions and self.galaxy_bias_model in _NONLIMBER_UNSUPPORTED_BIAS:
+            raise ValueError(
+                f"ell_nonlimber_max is not supported for {probe} with "
+                f"galaxy_bias_model={self.galaxy_bias_model!r}: cloelib has no "
+                "beyond-Limber implementation of it."
+            )
+
+    def _angular_two_point(self, tracer1, tracer2, probe):
+        """AngularTwoPoint of `probe` ("WL", "GCph" or "GGL"), corrected beyond
+        Limber up to settings["ell_nonlimber_max"] for that probe.
+
+        ell_nonlimber_max is only passed when set, so the default also works
+        with cloelib versions without it.
+        """
+        ell_max = self.ell_nonlimber_max[probe]
+        if ell_max is None:
+            return AngularTwoPoint(tracer1, tracer2)
+        return AngularTwoPoint(tracer1, tracer2, ell_nonlimber_max=ell_max)
 
     def get_masking_vector(self):
         return np.array([], dtype=bool)

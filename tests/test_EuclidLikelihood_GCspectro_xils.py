@@ -47,7 +47,7 @@ default_pars = {
     "NP0": np.array([0.0, 0.0, 0.0, 0.0]),
     "NP20": np.array([0.0, 0.0, 0.0, 0.0]),
     "NP22": np.array([0.0, 0.0, 0.0, 0.0]),
-    "fout": np.array([0.0, 0.0, 0.0, 0.0]),
+    "fcorr": np.array([1.0, 1.0, 1.0, 1.0]),
     "sigmaz": np.array([0.0, 0.0, 0.0, 0.0]),
 }
 

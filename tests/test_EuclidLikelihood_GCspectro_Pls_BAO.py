@@ -50,7 +50,7 @@ default_pars = {
     "NP0": np.array([1.056, 1.152, 1.144, 1.309]),
     "NP20": np.array([0.0, 0.0, 0.0, 0.0]),
     "NP22": np.array([0.0, 0.0, 0.0, 0.0]),
-    "fout": np.array([0.0, 0.0, 0.0, 0.0]),
+    "fcorr": np.array([1.0, 1.0, 1.0, 1.0]),
     "sigmaz": np.array([0.0, 0.0, 0.0, 0.0]),
 }
 
@@ -323,30 +323,32 @@ def test_hartlap_factor_with_few_realisations(data_setup, settings_setup):
 
 
 def test_TCM_params_recovers_standard_value_loglike(data_setup, settings_setup):
-    """Sampling b1 in TCM form (b1_TCM = b1 * Aap**n * sigma12**m)
-    should give the exact same loglike as sampling the equivalent standard
-    b1 directly, once the likelihood converts it back internally."""
+    """Sampling b1 in TCM form (b1_TCM = b1 * Aap**n * sigma12**m *
+    fcorr**q) should give the exact same loglike as sampling the equivalent
+    standard b1 directly, once the likelihood converts it back internally."""
     likelihood_standard = EuclidLikelihood_GCspectro_Pls_BAO(
         data=data_setup,
         settings=settings_setup,
         Background=CAMBBackground,
         SpectroPower=CometEFT_SpectroPower,
     )
-    loglike_standard = likelihood_standard.loglike(default_pars)
+    parameters = default_pars.copy()
+    parameters["fcorr"] = np.full(4, 0.8)
+    loglike_standard = likelihood_standard.loglike(parameters)
 
-    n, m = 1, 2
+    n, m, q = 1, 2, 1
     background = CAMBBackground(
-        H0=default_pars["H0"],
-        Omega_cdm0=default_pars["Omega_cdm0"],
-        Omega_b0=default_pars["Omega_b0"],
-        Omega_k0=default_pars["Omega_k0"],
-        w0=default_pars["w0"],
-        wa=default_pars["wa"],
-        ns=default_pars["ns"],
-        As=default_pars["As"],
-        gamma_MG=default_pars["gamma_MG"],
-        mnu=default_pars["mnu"],
-        N_mnu=default_pars["N_mnu"],
+        H0=parameters["H0"],
+        Omega_cdm0=parameters["Omega_cdm0"],
+        Omega_b0=parameters["Omega_b0"],
+        Omega_k0=parameters["Omega_k0"],
+        w0=parameters["w0"],
+        wa=parameters["wa"],
+        ns=parameters["ns"],
+        As=parameters["As"],
+        gamma_MG=parameters["gamma_MG"],
+        mnu=parameters["mnu"],
+        N_mnu=parameters["N_mnu"],
     )
     ap_distortion = APDistortion(background, likelihood_standard.background_fiducial)
     perturbations = CAMBLinearPerturbations(
@@ -354,14 +356,15 @@ def test_TCM_params_recovers_standard_value_loglike(data_setup, settings_setup):
     )
     sigma12_by_z = dict(zip(perturbations.z, perturbations.sigma12()))
 
-    TCM_pars = dict(default_pars)
-    b1_TCM = np.array(default_pars["b1"], dtype=float).copy()
+    TCM_pars = dict(parameters)
+    b1_TCM = np.array(parameters["b1"], dtype=float).copy()
     for i, z in enumerate(likelihood_standard.redshifts):
         Aap = 1.0 / (
             ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
         )
         sigma12 = sigma12_by_z[float(z)]
-        b1_TCM[i] = default_pars["b1"][i] * Aap**n * sigma12**m
+        fcorr = parameters["fcorr"][i]
+        b1_TCM[i] = parameters["b1"][i] * Aap**n * sigma12**m * fcorr**q
     TCM_pars["b1"] = b1_TCM
 
     likelihood_TCM = EuclidLikelihood_GCspectro_Pls_BAO(
@@ -370,7 +373,7 @@ def test_TCM_params_recovers_standard_value_loglike(data_setup, settings_setup):
         Background=CAMBBackground,
         SpectroPower=CometEFT_SpectroPower,
         Perturbations=CAMBLinearPerturbations,
-        TCM_params={"b1": (n, m)},
+        TCM_params={"b1": (n, m, q)},
     )
     loglike_TCM = likelihood_TCM.loglike(TCM_pars)
 
@@ -389,13 +392,27 @@ def test_TCM_params_requires_perturbations_for_comet(data_setup, settings_setup)
         likelihood.loglike(default_pars)
 
 
+def test_TCM_params_rejects_fcorr(data_setup, settings_setup):
+    """fcorr enters the TCM factor of the other parameters, so it cannot be
+    TCM-reparametrised itself."""
+    with pytest.raises(ValueError):
+        EuclidLikelihood_GCspectro_Pls_BAO(
+            data=data_setup,
+            settings=settings_setup,
+            Background=CAMBBackground,
+            SpectroPower=CometEFT_SpectroPower,
+            Perturbations=CAMBLinearPerturbations,
+            TCM_params={"fcorr": (0, 0, 1)},
+        )
+
+
 def test_TCM_params_recovers_standard_value_loglike_AM(data_setup, settings_setup):
     """Marginalising bGam3 (dist: AM) while it's also TCM-reparametrised
     should give the same loglike_AM as marginalising the equivalent standard
     bGam3 prior directly, up to a known additive offset -- exercises the
     extra coefficient rescaling in `_coeff_AM`/`AM_par_to_diag`, not just the
     plain parameter conversion already covered by the non-AM TCM test
-    above.
+    above. fcorr != 1, so that the fcorr**q factor is actually tested.
 
     The offset: `loglike_AM`'s analytic marginalisation omits the
     `log det(Sigma_prior)` term (`sum(log(AM_sigmas**2))`) from its Gaussian
@@ -422,9 +439,10 @@ def test_TCM_params_recovers_standard_value_loglike_AM(data_setup, settings_setu
     )
     parameters = default_pars.copy()
     parameters["H0"] += 3
+    parameters["fcorr"] = np.full(4, 0.8)
     loglike_standard = likelihood_standard.loglike_AM(parameters)
 
-    n, m = 1, 2
+    n, m, q = 1, 2, 2
     background = CAMBBackground(
         H0=parameters["H0"],
         Omega_cdm0=parameters["Omega_cdm0"],
@@ -449,7 +467,8 @@ def test_TCM_params_recovers_standard_value_loglike_AM(data_setup, settings_setu
             ap_distortion.q_AP_tr(float(z)) ** 2 * ap_distortion.q_AP_lo(float(z))
         )
         sigma12 = sigma12_by_z[float(z)]
-        factor = Aap**n * sigma12**m
+        fcorr = parameters["fcorr"][likelihood_standard.redshifts.index(z)]
+        factor = Aap**n * sigma12**m * fcorr**q
         return loc * factor, scale * factor
 
     AM_priors_TCM = {}
@@ -467,7 +486,7 @@ def test_TCM_params_recovers_standard_value_loglike_AM(data_setup, settings_setu
         SpectroPower=CometEFT_SpectroPower,
         Perturbations=CAMBLinearPerturbations,
         AM_priors=AM_priors_TCM,
-        TCM_params={"bGam3": (n, m)},
+        TCM_params={"bGam3": (n, m, q)},
     )
     loglike_TCM = likelihood_TCM.loglike_AM(parameters)
 
