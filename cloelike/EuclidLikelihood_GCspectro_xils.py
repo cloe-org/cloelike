@@ -180,7 +180,10 @@ class EuclidLikelihood_GCspectro_xils:
             p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
         }
         self.bias_relations = check_bias_relations(
-            bias_relations, self.RSD_parameter_names, AM_parameter_names, None
+            bias_relations,
+            self.RSD_parameter_names,
+            AM_parameter_names,
+            self.TCM_params,
         )
 
     def _prepare(self, data: dict):
