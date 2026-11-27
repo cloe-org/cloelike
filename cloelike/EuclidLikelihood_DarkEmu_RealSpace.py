@@ -36,10 +36,23 @@ def _extract_hod_params(parameters: dict, fixed_hod: dict) -> DarkEmuHODParamete
     if "hod_params" in parameters:
         return parameters["hod_params"]
     hod_keys = [
+        "hod_type",
         "logMmin",
         "sigma_sq",
         "logM1",
         "alpha",
+        "cen_model",
+        "sat_model",
+        "p_max",
+        "sigma_M",
+        "logMc",
+        "gamma",
+        "f_max",
+        "a",
+        "b",
+        "A_s",
+        "logMcut",
+        "logMmax",
         "kappa",
         "poff",
         "Roff",
