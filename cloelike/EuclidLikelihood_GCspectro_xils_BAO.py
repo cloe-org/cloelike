@@ -1,0 +1,764 @@
+import numpy as np
+import warnings
+
+from copy import deepcopy
+from dataclasses import replace
+from scipy.linalg import block_diag
+from typing import Optional
+
+from cloelib.summary_statistics.legendre_multipoles import LegendreMultipoles
+from cloelib.summary_statistics.bao_alphas import BaryonAcousticOscillations
+from cloelib.summary_statistics.APDistortion import APDistortion
+
+from cloelike.bias_relations import apply_bias_relations, check_bias_relations
+
+
+class EuclidLikelihood_GCspectro_xils_BAO:
+    # Single source of truth for BAO alpha ordering: this order drives both
+    # the alphas data vector and the covariance block assembly in
+    # _build_observable, so the two are always kept consistent, per redshift bin.
+    _BAO_ORDER = ["alpha_perp", "alpha_par", "alpha_iso", "alpha_AP"]
+    _BAO_FITS_KEY = {key: key.upper() for key in _BAO_ORDER}
+    # Background requires As and gamma_MG to be instantiated, but
+    # background_fiducial is only ever used for rdrag/H(z)/D_A(z) (see
+    # BaryonAcousticOscillations, LegendreMultipoles), which do not depend
+    # on either -- these are placeholders, not fiducial choices.
+    _BACKGROUND_As = 2.1e-9
+    _BACKGROUND_GAMMA_MG = 0.545
+
+    def __init__(
+        self,
+        data: dict,
+        settings: dict,
+        Background: type,
+        SpectroPower: type,
+        Perturbations: Optional[type] = None,
+        AM_priors: Optional[dict] = None,
+        num_mocks: Optional[int] = None,
+        TCM_params: Optional[dict] = None,
+        bias_relations: Optional[list] = None,
+    ):
+        r"""Class constructor
+
+        Parameters
+        ----------
+        data: dict
+            Data dictionary, whose structure is as follows. The first layer
+            contains a single key, ``"GCspectro"``, for future homogenisation
+            with photometric probes. In the second layer
+            ``data["GCspectro"][z]`` is expected to hold the raw euclidlib
+            objects for that redshift bin, under the keys ``"datavec_xils"``
+            (``TwoPointCorrelationMultipoles``), ``"datavec_BAO"``
+            (``BaryonAcousticOscillations``, from
+            ``euclidlib.le3.bao_gc.BAO_alphas``), and ``"covariance"`` (the
+            joint FS+BAO ``TwoPointCorrelationMultipolesCovariance``)
+            -- all three required.
+        settings: dict
+            Settings dictionary, whose structure is as follows. The first layer
+            contains a single key, "GCspectro", for future homogenisation with
+            photometric probes. The second layer also contains a single keyword,
+            ``"scale_cuts"``. In the third layer
+            ``settings["GCspectro"]["scale_cuts"][z]`` is expected to be a
+            dictionary containing pairs ``"ell<i>: [a,b]"``, where ``"i"`` runs
+            over 0,2,4 and ``"a,b"`` represent the range of modes included in
+            the fit.
+        Background: type
+            Protocol-consistent Background class
+        SpectroPower: type
+            Protocol-consistent SpectroPower class
+        Perturbations: type
+            Protocol-consistent Perturbations class (optional, only for
+            cases that require linear P(k) input, such as PBJ)
+        AM_priors: dict
+            Mean and standard deviation of gaussian priors for analytical
+            marginalisation. The first layer must have the same keys as
+            ``data["GCspectro"]``; the second layer has keys corresponding to
+            the model parameters and values of the form ``[mean, std]``
+        num_mocks: int
+            Number of mock realisations used to estimate the covariance
+            matrix, if it is a numerical (sample) covariance -- triggers the
+            Hartlap (2007) debiasing correction on the inverse covariance
+            matrix. ``None`` (default) means the covariance is analytic/
+            theoretical, so no correction is applied.
+        TCM_params: dict
+            Nuisance parameters (bias/RSD/noise) sampled in the TCM
+            reparametrisation, i.e.
+            ``TCM = standard * Aap**n * sigma12**m * fcorr**q`` instead of the
+            standard value the theory code expects directly. Keys are
+            parameter names (must be in ``RSD_parameter_names`` or
+            ``noise_syst_parameter_names``, except ``fcorr``), values are
+            ``(n, m)`` or ``(n, m, q)`` exponents (``q = 0`` if omitted).
+            ``None`` (default) means no parameter uses this reparametrisation.
+            The BAO alphas do not depend on these parameters.
+        bias_relations: list
+            Relations fixing a bias parameter as a function of the others.
+        """
+        data = data["GCspectro"]
+        self.settings = settings["GCspectro"]
+        self.scale_cuts = self.settings["scale_cuts"]
+        self.redshifts = list(data.keys())
+
+        self.NLcode = SpectroPower.NLcode
+        if self.NLcode == "COMET":
+            self.RSDmodel = SpectroPower.RSDmodel
+
+        self.ells = [0, 2, 4]
+        self.Background = Background
+        self.Perturbations = Perturbations
+        self.SpectroPower = SpectroPower
+        self.num_mocks = num_mocks
+        self.TCM_params = TCM_params
+
+        self._prepare(data)
+
+        if self.NLcode == "COMET":
+            self.RSD_parameter_names = [
+                "b1",
+                "b2",
+                "bG2",
+                "bGam3",
+                "c0",
+                "c2",
+                "c4",
+            ]
+            if self.RSDmodel == "EFTofLSS":
+                self.RSD_parameter_names.append("cnlo")
+            elif self.RSDmodel == "VDG_infty":
+                self.RSD_parameter_names.append("avir")
+        elif self.NLcode == "PBJ":
+            self.RSD_parameter_names = [
+                "b1",
+                "b2",
+                "bG2",
+                "bG3",
+                "c0",
+                "c2",
+                "c4",
+                "ck4",
+            ]
+        else:
+            raise ValueError(f"Unsupported NL code: {self.NLcode}")
+
+        self.noise_syst_parameter_names = ["NP0", "NP20", "NP22", "fcorr", "sigmaz"]
+
+        if self.TCM_params:
+            if "fcorr" in self.TCM_params:
+                raise ValueError("fcorr cannot be reparametrised.")
+
+        self.AM_priors = AM_priors
+        if self.AM_priors:
+            unmatched_z = [z for z in AM_priors.keys() if z not in self.redshifts]
+            if unmatched_z:
+                raise ValueError(f"Redshifts {unmatched_z} not found in data.")
+
+            if self.NLcode == "COMET":
+                self.AM_par_to_diag = {
+                    "bGam3": ["b1-bGam3", "bGam3"],
+                    "c0": ["c0"],
+                    "c2": ["c2"],
+                    "c4": ["c4"],
+                    "NP0": ["noise_k0"],
+                    "NP20": ["noise_k2"],
+                    "NP22": ["noise_k2mu2"],
+                }
+                if self.RSDmodel == "EFTofLSS":
+                    self.AM_par_to_diag["cnlo"] = ["b1-b1-cnlo", "b1-cnlo", "cnlo"]
+            elif self.NLcode == "PBJ":
+                self.AM_par_to_diag = {
+                    "bG3": ["bG3"],
+                    "c0": ["c0"],
+                    "c2": ["c2"],
+                    "c4": ["c4"],
+                    "ck4": ["ck4"],
+                    "NP0": ["noise_k0"],
+                    "NP20": ["noise_k2"],
+                    "NP22": ["noise_k2mu2"],
+                }
+
+            self.AM_diagrams = [
+                term for values in self.AM_par_to_diag.values() for term in values
+            ]
+
+            self.AM_params = {}
+            AM_means = []
+            AM_sigmas = []
+            for z in self.AM_priors.keys():
+                self.AM_params[z] = list(self.AM_priors[z].keys())
+                AM_means.extend(
+                    [self.AM_priors[z][par][0] for par in self.AM_priors[z].keys()]
+                )
+                AM_sigmas.extend(
+                    [self.AM_priors[z][par][1] for par in self.AM_priors[z].keys()]
+                )
+            self.AM_means = np.array(AM_means)
+            self.AM_sigmas = np.array(AM_sigmas)
+        AM_parameter_names = {
+            p for z in (self.AM_priors or {}) for p in self.AM_priors[z]
+        }
+        self.bias_relations = check_bias_relations(
+            bias_relations,
+            self.RSD_parameter_names,
+            AM_parameter_names,
+            self.TCM_params,
+        )
+
+    def _prepare(self, data: dict):
+        r"""Builds the fiducial cosmology, ingests the raw euclidlib data for
+        each redshift bin, and arranges data vectors and covariance matrices
+        in the format required for :math:`\chi^2` calculation
+
+        Parameters
+        ----------
+        data: dict
+            ``data[z]``, for each redshift bin ``z``, holds the raw
+            euclidlib objects as documented in the class constructor.
+        """
+        params_fid = self._build_fiducial_cosmology_dictionary(
+            data[self.redshifts[0]]["datavec_xils"].fiducial_cosmology
+        )
+        self.background_fiducial = self.Background(**params_fid)
+        fid_h = params_fid["H0"] / 100.0
+
+        self.data = {z: self._build_observable(data[z], fid_h) for z in self.redshifts}
+        self.BAO_params = {z: self.data[z]["alphas"].keys() for z in self.redshifts}
+        self.nbar = [self.data[z]["nbar"] for z in self.redshifts]
+
+        self._build_data_vector()
+        self._build_covariance_matrix()
+        self._build_masking_vector()
+        self._mask_data_vector()
+        self._mask_covariance_matrix()
+        self._invert_covariance_matrix()
+
+    def _build_fiducial_cosmology_dictionary(self, fiducial_cosmology: dict) -> dict:
+        r"""Builds the fiducial cosmology dictionary expected by ``Background``
+        from the euclidlib fiducial cosmology of one redshift bin.
+
+        Parameters
+        ----------
+        fiducial_cosmology: dict
+            Fiducial cosmology as read by euclidlib from a FITS header
+
+        Returns
+        -------
+        params_fid: dict
+            Fiducial cosmology dictionary, ready to be passed to ``Background``
+        """
+        Omega_cdm0 = (
+            fiducial_cosmology["Omega_m0"] - fiducial_cosmology["Omega_b0"]
+            if "Omega_m0" in fiducial_cosmology
+            else fiducial_cosmology["Omega_cdm0"]
+        )
+        return {
+            "H0": fiducial_cosmology["H0"],
+            "Omega_cdm0": Omega_cdm0,
+            "Omega_b0": fiducial_cosmology["Omega_b0"],
+            "Omega_k0": fiducial_cosmology.get("Omega_k0", 0.0),
+            "mnu": fiducial_cosmology.get("mnu", 0.0),
+            "N_mnu": fiducial_cosmology.get("N_mnu", 0),
+            "w0": fiducial_cosmology.get("w0", -1.0),
+            "wa": fiducial_cosmology.get("wa", 0.0),
+            "ns": fiducial_cosmology["ns"],
+            "As": self._BACKGROUND_As,
+            "gamma_MG": self._BACKGROUND_GAMMA_MG,
+        }
+
+    def _build_observable(self, data_z: dict, fid_h: float) -> dict:
+        r"""Rescales units (Mpc/h to Mpc) and assembles the BAO alphas and
+        covariance for one redshift bin, from raw euclidlib objects.
+
+        The order in which BAO alphas appear in the data vector for this
+        redshift bin is determined here, once, from ``_BAO_ORDER`` and the
+        alphas actually available (i.e. not all-NaN) in
+        ``data_z["datavec_BAO"]``. The same order is reused immediately below
+        to assemble the matching covariance block, so the two can never
+        drift out of sync -- and different redshift bins are free to carry
+        different sets of alphas.
+
+        Parameters
+        ----------
+        data_z: dict
+            Raw euclidlib objects for one redshift bin: ``"datavec_xils"``,
+            ``"datavec_BAO"``, and ``"covariance"`` (the joint FS+BAO
+            covariance) are required.
+        fid_h: float
+            Fiducial value of :math:`H_0/100`, used for unit rescaling.
+
+        Returns
+        -------
+        entry: dict
+            Data dictionary for this redshift bin, in the internal format
+            used by the rest of the class.
+        """
+        dv, cv = data_z["datavec_xils"], data_z["covariance"]
+        s_fac, xi_fac, cov_fac = 1.0 / fid_h, 1.0, 1.0
+
+        entry = {"nbar": 1.0, "s": dv.s * k_fac}
+        entry.update({f"xis{ell}": dv.multipoles[ell] * xi_fac for ell in self.ells})
+
+        bao = data_z["datavec_BAO"]
+        bao_keys = [
+            key for key in self._BAO_ORDER if not np.isnan(getattr(bao, key)).all()
+        ]
+        entry["alphas"] = {
+            key: np.asarray(getattr(bao, key)).item() for key in bao_keys
+        }
+
+        ells = [str(ell) for ell in self.ells]
+        observables = ells + [self._BAO_FITS_KEY[key] for key in bao_keys]
+        entry["covariance"] = np.block(
+            [
+                [
+                    cv.covariance[f"{oi}-{oj}"]
+                    * (
+                        cov_fac
+                        if oi in ells and oj in ells
+                        else np.sqrt(cov_fac)
+                        if oi in ells or oj in ells
+                        else 1.0
+                    )
+                    for oj in observables
+                ]
+                for oi in observables
+            ]
+        )
+
+        return entry
+
+    def _build_data_vector(self):
+        r"""Arranges full shape and BAO data into a flattened data vector"""
+        self.data_vector = np.concatenate(
+            [
+                np.concatenate(
+                    [self.data[z][f"xis{ell}"] for ell in self.ells]
+                    + [list(self.data[z]["alphas"].values())]
+                )
+                for z in self.redshifts
+            ]
+        )
+
+    def _build_covariance_matrix(self):
+        r"""Arranges the full shape and BAO covariances into a matrix form"""
+        cov_blocks = [self.data[z]["covariance"] for z in self.redshifts]
+        # The blocks can have different sizes, as each bin has its own alphas
+        self.flattened_covariance_matrix = block_diag(*cov_blocks)
+
+    def _masking(self, arr: np.ndarray, interval: list) -> np.ndarray:
+        r"""Get a 1/0 mask for the elements of arr contained in interval
+        Parameters
+        ----------
+        arr: numpy.ndarray
+            Input array
+        interval: list
+            Edges defining the masking region
+        Returns
+        -------
+        masked_arr: numpy.ndarray
+            Masked array
+        """
+        return (arr >= interval[0]) & (arr <= interval[1])
+
+    def _build_masking_vector(self):
+        r"""Computes the masking vector for the combination of full shape and BAO"""
+        self.masking_vector = np.concatenate(
+            [
+                np.concatenate(
+                    [
+                        self._masking(
+                            self.data[z]["s"], np.array(self.scale_cuts[z][f"ell{ell}"])
+                        )
+                        for ell in self.ells
+                    ]
+                    + [np.array([True]) for _ in self.BAO_params[z]]
+                )
+                for z in self.redshifts
+            ]
+        )
+
+    def _mask_data_vector(self):
+        r"""Mask GCspectro data vector"""
+        self.masked_data_vector = self.data_vector[self.masking_vector]
+
+    def _mask_covariance_matrix(self):
+        r"""Mask GCspectro covariance matrix"""
+        self.masked_covariance_matrix = self.flattened_covariance_matrix[
+            self.masking_vector
+        ][:, self.masking_vector]
+
+    def hartlap_factor(self) -> float:
+        r"""Hartlap factor to correct the biased estimator for the inverse covariance
+        matrix as obtained from a finite number of mock realisations.
+
+        Only meaningful if ``num_mocks`` was specified when the class was
+        instantiated. If ``self.num_mocks`` is ``None``, the covariance
+        matrix is assumed to be theoretical (no sampling error), so no
+        correction is needed and this method is never called.
+
+        Returns
+        -------
+        factor: float
+            Hartlap factor.
+
+        Raises
+        ------
+        ValueError
+            If ``num_mocks <= num_data_points + 2``, since the debiasing factor would then be
+            non-positive.
+        """
+        num_data_points = self.masked_covariance_matrix.shape[0]
+        if self.num_mocks <= num_data_points + 2:
+            raise ValueError(
+                f"Hartlap correction requires num_mocks > num_data_points + 2 (got num_mocks={self.num_mocks}, "
+                f"num_data_points={num_data_points}): the debiasing factor would be non-positive."
+            )
+        return (self.num_mocks - num_data_points - 2) / (self.num_mocks - 1)
+
+    def _invert_covariance_matrix(self):
+        r"""Invert GCspectro covariance matrix, and apply Hartlap factor if needed."""
+        self.inverse_masked_covariance_matrix = np.linalg.inv(
+            self.masked_covariance_matrix
+        )
+        if self.num_mocks is not None:
+            self.inverse_masked_covariance_matrix *= self.hartlap_factor()
+
+    def get_theory_vector(self, parameters: dict, term_list: Optional[dict] = None):
+        r"""Generate theory vectors based on specified parameters, optionally
+        also computing the individual terms required for analytical
+        marginalisation
+
+        Parameters
+        ----------
+        parameters: dict
+            Input parameters
+        term_list: dict
+            Per-redshift list of diagram terms to isolate for analytical
+            marginalisation. If ``None``, only the standard theory vector is
+            computed.
+
+        Return
+        ------
+        theory_vec: np.ndarray
+            Stacked theory vector
+        theory_vec_AM: dict or None
+            Stacked terms for analytical marginalisation, per redshift bin,
+            or ``None`` if ``term_list`` is ``None``
+        """
+        background = self.Background(
+            H0=parameters["H0"],
+            Omega_cdm0=parameters["Omega_cdm0"],
+            Omega_b0=parameters["Omega_b0"],
+            Omega_k0=parameters["Omega_k0"],
+            w0=parameters["w0"],
+            wa=parameters["wa"],
+            ns=parameters["ns"],
+            As=parameters["As"],
+            gamma_MG=parameters["gamma_MG"],
+            mnu=parameters["mnu"],
+            N_mnu=parameters["N_mnu"],
+            alpha_s=parameters["alpha_s"],
+        )
+
+        if self.Perturbations is not None and self.NLcode in ["PBJ"]:
+            zs = np.float64(self.redshifts)
+            cosmo_input = self.Perturbations(background, zs)
+        elif self.NLcode in ["COMET"]:
+            cosmo_input = background
+        else:
+            raise ValueError("Perturbations are required for PBJ, but not for COMET.")
+
+        alphas_dict = BaryonAcousticOscillations(
+            background=background,
+            background_fiducial=self.background_fiducial,
+            redshifts=self.redshifts,
+        ).alphas_dict
+
+        if self.TCM_params:
+            if self.NLcode == "PBJ":
+                TCM_perturbations = cosmo_input
+            else:
+                if self.Perturbations is None:
+                    raise ValueError(
+                        "TCM_params requires Perturbations to compute sigma12, "
+                        "even for COMET (which otherwise doesn't need one)."
+                    )
+                TCM_perturbations = self.Perturbations(
+                    background, np.float64(self.redshifts)
+                )
+            ap_distortion = APDistortion(background, self.background_fiducial)
+            sigma12_by_z = dict(zip(TCM_perturbations.z, TCM_perturbations.sigma12()))
+            Aap_arr = np.array(
+                [
+                    1.0
+                    / (
+                        ap_distortion.q_AP_tr(float(z)) ** 2
+                        * ap_distortion.q_AP_lo(float(z))
+                    )
+                    for z in self.redshifts
+                ]
+            )
+            sigma12_arr = np.array([sigma12_by_z[float(z)] for z in self.redshifts])
+            fcorr_arr = np.asarray(parameters["fcorr"], dtype=float)
+            TCM_factor = {
+                name: Aap_arr ** exps[0]
+                * sigma12_arr ** exps[1]
+                * fcorr_arr ** (exps[2] if len(exps) > 2 else 0)
+                for name, exps in self.TCM_params.items()
+            }
+
+            # Convert every TCM-reparametrised nuisance parameter back to
+            # its standard value, for every bin at once -- downstream code
+            # (RSD_params/syst_params below, and _coeff_AM) never needs to
+            # know a TCM reparametrisation was used.
+            parameters = dict(parameters)
+            for name, factor in TCM_factor.items():
+                if name in parameters:
+                    parameters[name] = parameters[name] / factor
+
+        # The bias relations act on the standard values of the parameters,
+        # so after the conversion of the TCM ones, if any.
+        parameters = apply_bias_relations(parameters, self.bias_relations)
+
+        theory_vec = []
+        theory_vec_AM = {} if term_list is not None else None
+        if term_list is not None:
+            coeff = self._coeff_AM(parameters)
+            if self.TCM_params:
+                # A parameter that's both TCM-reparametrised and
+                # analytically marginalised needs its diagram coefficient(s)
+                # rescaled too: the marginalisation integrates over the
+                # TCM value's Gaussian prior, so the linear dependence on
+                # it (the coefficient) picks up the same 1/(Aap**n *
+                # sigma12**m * fcorr**q) factor by the chain rule.
+                for name, factor in TCM_factor.items():
+                    for diagram in self.AM_par_to_diag.get(name, []):
+                        coeff[diagram] = (
+                            coeff.get(diagram, np.ones_like(factor)) / factor
+                        )
+
+        for i, z in enumerate(self.redshifts):
+            RSD_params = {key: parameters[key][i] for key in self.RSD_parameter_names}
+            syst_params = {
+                key: parameters[key][i] for key in self.noise_syst_parameter_names
+            }
+
+            power = self.SpectroPower(
+                cosmo_input, RSD_parameters=RSD_params, redshift=float(z)
+            )
+            obs = LegendreMultipoles(
+                spectro_power=power,
+                background_fiducial=self.background_fiducial,
+                parameters=syst_params,
+                nbar=self.nbar[i],
+            )
+
+            s = self.data[z]["s"]
+            mps = obs.two_point_correlation_multipoles(s=s, ells=self.ells, use_AP=True)
+
+            vector = np.concatenate(
+                [mps[f"ell{ell}"] for ell in self.ells]
+                + [np.atleast_1d(alphas_dict[z][param]) for param in self.BAO_params[z]]
+            )
+            theory_vec.extend(vector)
+
+            if term_list is None:
+                continue
+
+            if z in self.AM_params.keys():
+                mps_AM_dict = obs.two_point_correlation_term_multipoles(
+                    s=s, term_list=term_list[z], ells=self.ells, use_AP=True
+                )
+                terms_to_scale = [term for term in term_list[z] if term in coeff]
+                indices_to_scale = [term_list[z].index(term) for term in terms_to_scale]
+                for ell in self.ells:
+                    for idx, term in zip(indices_to_scale, terms_to_scale):
+                        mps_AM_dict[f"ell{ell}"][idx, :] *= coeff[term][i]
+                mps_AM_list = [mps_AM_dict[f"ell{ell}"] for ell in self.ells]
+                theory_vec_AM[z] = np.hstack(mps_AM_list)
+                theory_vec_AM[z] = np.hstack(
+                    (
+                        theory_vec_AM[z],
+                        np.zeros((theory_vec_AM[z].shape[0], len(self.BAO_params[z]))),
+                    )
+                )
+            else:
+                Nk = sum(len(self.data[z][f"xis{ell}"]) for ell in self.ells)
+                theory_vec_AM[z] = np.zeros((0, Nk))
+                theory_vec_AM[z] = np.hstack(
+                    (
+                        theory_vec_AM[z],
+                        np.zeros((theory_vec_AM[z].shape[0], len(self.BAO_params[z]))),
+                    )
+                )
+
+        return np.array(theory_vec), theory_vec_AM
+
+    def _mask_theory_vector(self, mask_AM: bool = False):
+        r"""Mask theory vector, optionally also masking the terms for
+        analytical marginalisation
+
+        Parameters
+        ----------
+        mask_AM: bool
+            If ``True``, also mask ``theory_vector_AM_reduced``
+        """
+        self.masked_theory_vector = self.theory_vector[self.masking_vector]
+        if mask_AM:
+            self.masked_theory_vector_AM_reduced = self.theory_vector_AM_reduced[
+                :, self.masking_vector
+            ]
+
+    def loglike(self, parameters: dict):
+        r"""Log-likelihood of GCspectro probe
+
+        Parameters
+        ----------
+        parameters: dict
+            Ensemble of cosmological and nuisance parameters
+
+        Returns
+        -------
+            loglike: float
+                Value of the log-likelihood
+        """
+        self.theory_vector, _ = self.get_theory_vector(parameters)
+        self._mask_theory_vector()
+        diff = self.masked_theory_vector - self.masked_data_vector
+        chi2 = np.dot(np.dot(diff, self.inverse_masked_covariance_matrix), diff)
+        return -0.5 * chi2
+
+    # This should be different for non-linear codes different from COMET
+    def _coeff_AM(self, parameters: dict):
+        r"""Coefficients of individual terms for analytical marginalisation
+
+        Parameters
+        ----------
+        parameters: dict
+            Input parameters
+
+        Returns
+        -------
+        coeff: dict
+            Coefficients of individual terms to be analytically marginalised
+        """
+        coeff = {
+            "COMET": {
+                "b1-bGam3": -4.0 / 7.0 * parameters["b1"],
+                "bGam3": -4.0 / 7.0 * np.ones_like(parameters["b1"]),
+                "b1-b1-cnlo": parameters["b1"] ** 2,
+                "b1-cnlo": parameters["b1"],
+            },
+            "PBJ": {},
+        }
+        return coeff[self.NLcode]
+
+    def loglike_AM(self, parameters: dict, use_Jeffreys: Optional[bool] = False):
+        r"""Log-likelihood of GCspectro probe with analytical marginalisation
+
+        Parameters
+        ----------
+        parameters: dict
+            Ensemble of cosmological and nuisance parameters
+        use_Jeffreys: bool
+            Flag to decide use of Jeffreys priors on linear parameters during AM
+
+        Returns
+        -------
+        loglike_AM: float
+            Value of analytically-marginalised log-likelihood
+        """
+        # Create copy of dictionary, to avoid modifying the external one
+        parameters = deepcopy(parameters)
+        # Setting to 0 the parameters to be analytically marginalised
+        for z in self.AM_params.keys():
+            for p in self.AM_params[z]:
+                parameters[p][self.redshifts.index(z)] = 0.0
+        # Obtaining list of terms to marginalise for each redshift bin
+        term_list = {
+            z: [
+                value
+                for key in self.AM_params[z]
+                if key in self.AM_par_to_diag
+                for value in self.AM_par_to_diag[key]
+            ]
+            for z in self.AM_params.keys()
+        }
+        # Creating theory vectors (both the part non-marginalisable
+        # and the individual marginalisable terms)
+        self.theory_vector, self.theory_vector_AM = self.get_theory_vector(
+            parameters, term_list
+        )
+        # Recombining the marginalisable terms corresponding to the same
+        # linear parameter
+        theory_vector_AM_reduced = []
+        for z in self.redshifts:
+            # To preserve the correct matrix dimensions, we need to add a
+            # block of zeros for those bins in which we don't do
+            # analytical marginalisation
+            if z not in self.AM_params or len(self.AM_params[z]) == 0:
+                matrix_reduced_z = np.zeros((0, self.theory_vector_AM[z].shape[1]))
+            # Otherwise, we correctly recombine the terms that requires it
+            else:
+                indices_groups = [
+                    [
+                        term_list[z].index(term)
+                        for term in self.AM_par_to_diag.get(key, [])
+                    ]
+                    for key in self.AM_params[z]
+                ]
+                matrix_reduced_z = np.zeros(
+                    (len(indices_groups), self.theory_vector_AM[z].shape[1])
+                )
+                for i, indices in enumerate(indices_groups):
+                    matrix_reduced_z[i, :] = np.sum(
+                        self.theory_vector_AM[z][indices, :], axis=0
+                    )
+            theory_vector_AM_reduced.append(matrix_reduced_z)
+        # Constructing the block diagonal matrix for analytical marginalisation
+        self.theory_vector_AM_reduced = block_diag(*theory_vector_AM_reduced)
+        # Masking it (This works since the size of the matrix is consistent)
+        self._mask_theory_vector(mask_AM=True)
+        # Calculating chi2 including analytical marginalisation
+        diff = self.masked_theory_vector - self.masked_data_vector
+        # Intermediate products are computed once and reused; optimize=True
+        # makes einsum contract pairwise through BLAS
+        Cinv_diff = np.einsum(
+            "ij,j->i", self.inverse_masked_covariance_matrix, diff, optimize=True
+        )
+        T_Cinv = np.einsum(
+            "ij,jk->ik",
+            self.masked_theory_vector_AM_reduced,
+            self.inverse_masked_covariance_matrix,
+            optimize=True,
+        )
+        F0 = np.einsum("i,i->", diff, Cinv_diff, optimize=True) + np.sum(
+            (self.AM_means / self.AM_sigmas) ** 2
+        )
+        F1i = (
+            -np.einsum(
+                "ij,j->i",
+                self.masked_theory_vector_AM_reduced,
+                Cinv_diff,
+                optimize=True,
+            )
+            + self.AM_means / self.AM_sigmas**2
+        )
+        F2ij = np.einsum(
+            "ik,jk->ij", T_Cinv, self.masked_theory_vector_AM_reduced, optimize=True
+        ) + np.diag(1.0 / self.AM_sigmas**2)
+        F2ij_inv = np.linalg.inv(F2ij)
+
+        # Access to means of marginalised params
+        self.marg_pars_means_raw = np.einsum("i,ij->j", F1i, F2ij_inv, optimize=True)
+
+        chi2 = F0 - np.einsum("j,j->", self.marg_pars_means_raw, F1i, optimize=True)
+        if not use_Jeffreys:
+            chi2 += np.linalg.slogdet(F2ij)[1]
+
+        # Also as a dictionary for easy interpretation
+        vals = iter(self.marg_pars_means_raw)
+
+        self.marg_pars_means_dict = {
+            z: {par: next(vals) for par in self.AM_params[z]} for z in self.redshifts
+        }
+
+        return -0.5 * chi2
